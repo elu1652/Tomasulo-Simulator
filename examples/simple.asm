@@ -1,0 +1,3 @@
+LD R1, 0(R0)
+ADD R2, R1, R3
+MUL R4, R2, R5
