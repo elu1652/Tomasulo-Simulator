@@ -33,6 +33,7 @@ struct ActiveInstruction {
     Instruction instr;
     int instructionIndex;
     int remainingCycles;
+    bool executing;
 };
 
 void Simulator::executeInstruction(const Instruction& instr) {
@@ -75,6 +76,24 @@ void Simulator::executeInstruction(const Instruction& instr) {
     }
 }
 
+// Check if the instruction writes to a register (i.e., has a destination register)
+static bool writesRegister(const Instruction& instr) {
+    return instr.rd != -1;
+}
+
+// Check for RAW dependencies
+static bool hasRawDependency(const Instruction& instr, const std::vector<bool>& regPending) {
+    if (instr.rs1 != -1 && regPending[instr.rs1]) {
+        return true;
+    }
+
+    if (instr.rs2 != -1 && regPending[instr.rs2]) {
+        return true;
+    }
+
+    return false;
+}
+
 void Simulator::execute(const std::vector<Instruction>& instructions) {
     int cycle = 1;
     int pc = 0;
@@ -83,6 +102,8 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
     statusTable.resize(instructions.size());
 
     std::vector<ActiveInstruction> activeInstructions;
+
+    std::vector<bool> regPending(32, false);
 
     while (pc < instructions.size() || !activeInstructions.empty()) {
 
@@ -94,11 +115,16 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
             newInstr.instr = instructions[pc];
             newInstr.instructionIndex = pc;
             newInstr.remainingCycles = getLatency(newInstr.instr.opcode);
+            newInstr.executing = false;
 
             activeInstructions.push_back(newInstr);
 
             statusTable[pc].issueCycle = cycle;
             statusTable[pc].executeStartCycle = cycle;
+
+            if(writesRegister(newInstr.instr)){
+                regPending[newInstr.instr.rd] = true;
+            }
 
             std::cout << "Issued: " << newInstr.instr.rawText << "\n";
 
@@ -107,8 +133,15 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
         // Execute all active instructions
         for (auto& active : activeInstructions) {
-            std::cout << "Executing: " << active.instr.rawText
-                      << " | remaining: " << active.remainingCycles << "\n";
+            if(!active.executing){
+                if(hasRawDependency(active.instr, regPending)){
+                    std::cout << "Waiting " << active.instr.rawText << " | RAW dependency\n";
+                    continue;
+                }
+                active.executing = true;
+                statusTable[active.instructionIndex].executeStartCycle = cycle;
+            }
+            std::cout << "Executing: " << active.instr.rawText << " | remaining: " << active.remainingCycles << "\n";
 
             active.remainingCycles--;
         }
@@ -119,6 +152,10 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 int index = activeInstructions[i].instructionIndex;
 
                 executeInstruction(activeInstructions[i].instr);
+
+                if (writesRegister(activeInstructions[i].instr)) {
+                    regPending[activeInstructions[i].instr.rd] = false;
+                }
 
                 statusTable[index].executeEndCycle = cycle;
                 statusTable[index].writebackCycle = cycle;
