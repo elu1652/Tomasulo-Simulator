@@ -129,6 +129,30 @@ simulator/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/build
 .PHONY : simulator/fast
 
+src/Memory.o: src/Memory.cpp.o
+.PHONY : src/Memory.o
+
+# target to build an object file
+src/Memory.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/Memory.cpp.o
+.PHONY : src/Memory.cpp.o
+
+src/Memory.i: src/Memory.cpp.i
+.PHONY : src/Memory.i
+
+# target to preprocess a source file
+src/Memory.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/Memory.cpp.i
+.PHONY : src/Memory.cpp.i
+
+src/Memory.s: src/Memory.cpp.s
+.PHONY : src/Memory.s
+
+# target to generate assembly for a file
+src/Memory.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/Memory.cpp.s
+.PHONY : src/Memory.cpp.s
+
 src/Parser.o: src/Parser.cpp.o
 .PHONY : src/Parser.o
 
@@ -152,6 +176,30 @@ src/Parser.s: src/Parser.cpp.s
 src/Parser.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/Parser.cpp.s
 .PHONY : src/Parser.cpp.s
+
+src/RegisterFile.o: src/RegisterFile.cpp.o
+.PHONY : src/RegisterFile.o
+
+# target to build an object file
+src/RegisterFile.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/RegisterFile.cpp.o
+.PHONY : src/RegisterFile.cpp.o
+
+src/RegisterFile.i: src/RegisterFile.cpp.i
+.PHONY : src/RegisterFile.i
+
+# target to preprocess a source file
+src/RegisterFile.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/RegisterFile.cpp.i
+.PHONY : src/RegisterFile.cpp.i
+
+src/RegisterFile.s: src/RegisterFile.cpp.s
+.PHONY : src/RegisterFile.s
+
+# target to generate assembly for a file
+src/RegisterFile.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/RegisterFile.cpp.s
+.PHONY : src/RegisterFile.cpp.s
 
 src/main.o: src/main.cpp.o
 .PHONY : src/main.o
@@ -186,9 +234,15 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... simulator"
+	@echo "... src/Memory.o"
+	@echo "... src/Memory.i"
+	@echo "... src/Memory.s"
 	@echo "... src/Parser.o"
 	@echo "... src/Parser.i"
 	@echo "... src/Parser.s"
+	@echo "... src/RegisterFile.o"
+	@echo "... src/RegisterFile.i"
+	@echo "... src/RegisterFile.s"
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"

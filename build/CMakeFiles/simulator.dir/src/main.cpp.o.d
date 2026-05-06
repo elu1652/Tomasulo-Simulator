@@ -151,4 +151,6 @@ CMakeFiles/simulator.dir/src/main.cpp.o: \
  /usr/include/c++/11/bits/stl_vector.h \
  /usr/include/c++/11/bits/stl_bvector.h \
  /usr/include/c++/11/bits/vector.tcc \
- /home/elu1652/Desktop/Projects/tomasulo-simulator/include/Instruction.h
+ /home/elu1652/Desktop/Projects/tomasulo-simulator/include/Instruction.h \
+ /home/elu1652/Desktop/Projects/tomasulo-simulator/include/RegisterFile.h \
+ /home/elu1652/Desktop/Projects/tomasulo-simulator/include/Memory.h

@@ -9,4 +9,6 @@ include_directories(include)
 add_executable(simulator
     src/main.cpp
     src/Parser.cpp
+    src/RegisterFile.cpp
+    src/Memory.cpp
 )
