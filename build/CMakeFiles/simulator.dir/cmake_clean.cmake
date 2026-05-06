@@ -5,6 +5,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/simulator.dir/src/Parser.cpp.o.d"
   "CMakeFiles/simulator.dir/src/RegisterFile.cpp.o"
   "CMakeFiles/simulator.dir/src/RegisterFile.cpp.o.d"
+  "CMakeFiles/simulator.dir/src/Simulator.cpp.o"
+  "CMakeFiles/simulator.dir/src/Simulator.cpp.o.d"
   "CMakeFiles/simulator.dir/src/main.cpp.o"
   "CMakeFiles/simulator.dir/src/main.cpp.o.d"
   "simulator"

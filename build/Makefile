@@ -201,6 +201,30 @@ src/RegisterFile.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/RegisterFile.cpp.s
 .PHONY : src/RegisterFile.cpp.s
 
+src/Simulator.o: src/Simulator.cpp.o
+.PHONY : src/Simulator.o
+
+# target to build an object file
+src/Simulator.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/Simulator.cpp.o
+.PHONY : src/Simulator.cpp.o
+
+src/Simulator.i: src/Simulator.cpp.i
+.PHONY : src/Simulator.i
+
+# target to preprocess a source file
+src/Simulator.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/Simulator.cpp.i
+.PHONY : src/Simulator.cpp.i
+
+src/Simulator.s: src/Simulator.cpp.s
+.PHONY : src/Simulator.s
+
+# target to generate assembly for a file
+src/Simulator.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/Simulator.cpp.s
+.PHONY : src/Simulator.cpp.s
+
 src/main.o: src/main.cpp.o
 .PHONY : src/main.o
 
@@ -243,6 +267,9 @@ help:
 	@echo "... src/RegisterFile.o"
 	@echo "... src/RegisterFile.i"
 	@echo "... src/RegisterFile.s"
+	@echo "... src/Simulator.o"
+	@echo "... src/Simulator.i"
+	@echo "... src/Simulator.s"
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"

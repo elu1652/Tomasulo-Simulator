@@ -11,6 +11,7 @@ set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/home/elu1652/Desktop/Projects/tomasulo-simulator/src/Memory.cpp" "CMakeFiles/simulator.dir/src/Memory.cpp.o" "gcc" "CMakeFiles/simulator.dir/src/Memory.cpp.o.d"
   "/home/elu1652/Desktop/Projects/tomasulo-simulator/src/Parser.cpp" "CMakeFiles/simulator.dir/src/Parser.cpp.o" "gcc" "CMakeFiles/simulator.dir/src/Parser.cpp.o.d"
   "/home/elu1652/Desktop/Projects/tomasulo-simulator/src/RegisterFile.cpp" "CMakeFiles/simulator.dir/src/RegisterFile.cpp.o" "gcc" "CMakeFiles/simulator.dir/src/RegisterFile.cpp.o.d"
+  "/home/elu1652/Desktop/Projects/tomasulo-simulator/src/Simulator.cpp" "CMakeFiles/simulator.dir/src/Simulator.cpp.o" "gcc" "CMakeFiles/simulator.dir/src/Simulator.cpp.o.d"
   "/home/elu1652/Desktop/Projects/tomasulo-simulator/src/main.cpp" "CMakeFiles/simulator.dir/src/main.cpp.o" "gcc" "CMakeFiles/simulator.dir/src/main.cpp.o.d"
   )
 

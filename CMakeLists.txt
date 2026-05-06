@@ -11,4 +11,5 @@ add_executable(simulator
     src/Parser.cpp
     src/RegisterFile.cpp
     src/Memory.cpp
+    src/Simulator.cpp
 )
