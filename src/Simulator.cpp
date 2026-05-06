@@ -83,15 +83,98 @@ static bool writesRegister(const Instruction& instr) {
 
 // Check for RAW dependencies
 static bool hasRawDependency(const Instruction& instr, const std::vector<bool>& regPending) {
-    if (instr.rs1 != -1 && regPending[instr.rs1]) {
+    if (instr.rs1 != -1 && instr.rs1 != instr.rd && regPending[instr.rs1]) {
         return true;
     }
 
-    if (instr.rs2 != -1 && regPending[instr.rs2]) {
+    if (instr.rs2 != -1 && instr.rs2 != instr.rd && regPending[instr.rs2]) {
         return true;
     }
 
     return false;
+}
+
+// Types of functional units
+enum class FUType {
+    INT,
+    MUL,
+    MEM,
+    NONE
+};
+
+// Determine which functional unit is used based on OpCode
+static FUType getFUType(OpCode opcode) {
+    switch (opcode) {
+        case OpCode::ADD:
+        case OpCode::SUB:
+            return FUType::INT;
+
+        case OpCode::MUL:
+            return FUType::MUL;
+
+        case OpCode::LD:
+        case OpCode::SD:
+            return FUType::MEM;
+
+        default:
+            return FUType::NONE;
+    }
+}
+
+struct FunctionalUnit {
+    FUType type;
+
+    int totalUnits;
+    int busyUnits;
+};
+
+// Return proper Functional Unit
+static FunctionalUnit* getFU(
+    FUType type,
+    FunctionalUnit& intFU,
+    FunctionalUnit& mulFU,
+    FunctionalUnit& memFU
+) {
+    switch (type) {
+        case FUType::INT: return &intFU;
+        case FUType::MUL: return &mulFU;
+        case FUType::MEM: return &memFU;
+        default: return nullptr;
+    }
+}
+
+// Check if functional unit is available
+static bool fuAvailable(FunctionalUnit* fu) {
+    return fu != nullptr && fu->busyUnits < fu->totalUnits;
+}
+
+static std::string fuTypeToString(FUType type) {
+    switch (type) {
+        case FUType::INT: return "INT";
+        case FUType::MUL: return "MUL";
+        case FUType::MEM: return "MEM";
+        default: return "NONE";
+    }
+}
+
+static void printFUState(
+    const FunctionalUnit& intFU,
+    const FunctionalUnit& mulFU,
+    const FunctionalUnit& memFU
+) {
+    std::cout << "FU State:\n";
+
+    std::cout << "  INT: "
+              << intFU.busyUnits << "/" << intFU.totalUnits
+              << " busy\n";
+
+    std::cout << "  MUL: "
+              << mulFU.busyUnits << "/" << mulFU.totalUnits
+              << " busy\n";
+
+    std::cout << "  MEM: "
+              << memFU.busyUnits << "/" << memFU.totalUnits
+              << " busy\n";
 }
 
 void Simulator::execute(const std::vector<Instruction>& instructions) {
@@ -105,9 +188,15 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
     std::vector<bool> regPending(32, false);
 
+    FunctionalUnit intFU {FUType::INT, 1, 0};
+    FunctionalUnit mulFU {FUType::MUL, 1, 0};
+    FunctionalUnit memFU {FUType::MEM, 1, 0};
+
     while (pc < instructions.size() || !activeInstructions.empty()) {
 
         std::cout << "\nCycle " << cycle << "\n";
+
+        printFUState(intFU, mulFU, memFU);
 
         // Issue one instruction per cycle, in order
         if (pc < instructions.size()) {
@@ -120,7 +209,6 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
             activeInstructions.push_back(newInstr);
 
             statusTable[pc].issueCycle = cycle;
-            statusTable[pc].executeStartCycle = cycle;
 
             if(writesRegister(newInstr.instr)){
                 regPending[newInstr.instr.rd] = true;
@@ -131,16 +219,27 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
             pc++;
         }
 
-        // Execute all active instructions
+        // Execution stage
         for (auto& active : activeInstructions) {
             if(!active.executing){
+                // Check for RAW dependency. Don't execute if detected
                 if(hasRawDependency(active.instr, regPending)){
                     std::cout << "Waiting " << active.instr.rawText << " | RAW dependency\n";
                     continue;
                 }
+
+                FUType type = getFUType(active.instr.opcode);
+                FunctionalUnit* fu = getFU(type, intFU, mulFU, memFU);
+                if(!fuAvailable(fu)){
+                    std::cout << "Waiting " << active.instr.rawText << " | structural hazard: FU busy\n";
+                    continue;
+                }
+                fu->busyUnits++;
                 active.executing = true;
+
                 statusTable[active.instructionIndex].executeStartCycle = cycle;
             }
+            
             std::cout << "Executing: " << active.instr.rawText << " | remaining: " << active.remainingCycles << "\n";
 
             active.remainingCycles--;
@@ -155,6 +254,13 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
                 if (writesRegister(activeInstructions[i].instr)) {
                     regPending[activeInstructions[i].instr.rd] = false;
+                }
+
+                FUType type = getFUType(activeInstructions[i].instr.opcode);
+                FunctionalUnit* fu = getFU(type, intFU, mulFU, memFU);
+
+                if (fu != nullptr) {
+                    fu->busyUnits--;
                 }
 
                 statusTable[index].executeEndCycle = cycle;
