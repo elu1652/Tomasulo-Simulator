@@ -62,6 +62,38 @@ std::vector<Instruction> Parser::parseFile(const std::string& filename) {
             instr.rs1 = parseRegister(rs1Token);
             instr.rs2 = parseRegister(rs2Token);
         }
+        else if(instr.opcode == OpCode::LD) {
+            std::string rdToken, addressToken;
+
+            ss >> rdToken >> addressToken;
+
+            instr.rd = parseRegister(rdToken);
+
+            size_t openParen = addressToken.find('(');
+            size_t closeParen = addressToken.find(')');
+
+            std::string immString = addressToken.substr(0, openParen);
+            std::string regString = addressToken.substr(openParen + 1, closeParen - openParen - 1);
+
+            instr.immediate = std::stoi(immString);
+            instr.rs1 = parseRegister(regString);
+        }
+        else if(instr.opcode == OpCode::SD) {
+            std::string rs2Token, addressToken;
+
+            ss >> rs2Token >> addressToken;
+
+            instr.rs2 = parseRegister(rs2Token);
+
+            size_t openParen = addressToken.find('(');
+            size_t closeParen = addressToken.find(')');
+
+            std::string immString = addressToken.substr(0, openParen);
+            std::string regString = addressToken.substr(openParen + 1, closeParen - openParen - 1);
+
+            instr.immediate = std::stoi(immString);
+            instr.rs1 = parseRegister(regString);
+        }
         instructions.push_back(instr);
     }
 
