@@ -159,4 +159,5 @@ CMakeFiles/simulator.dir/src/main.cpp.o: \
  /usr/include/c++/11/bits/basic_ios.tcc \
  /usr/include/c++/11/bits/ostream.tcc /usr/include/c++/11/istream \
  /usr/include/c++/11/bits/istream.tcc \
- /home/elu1652/Desktop/Projects/tomasulo-simulator/include/Memory.h
+ /home/elu1652/Desktop/Projects/tomasulo-simulator/include/Memory.h \
+ /home/elu1652/Desktop/Projects/tomasulo-simulator/include/InstructionStatus.h
