@@ -8,6 +8,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
+  "/home/elu1652/Desktop/Projects/tomasulo-simulator/src/Parser.cpp" "CMakeFiles/simulator.dir/src/Parser.cpp.o" "gcc" "CMakeFiles/simulator.dir/src/Parser.cpp.o.d"
   "/home/elu1652/Desktop/Projects/tomasulo-simulator/src/main.cpp" "CMakeFiles/simulator.dir/src/main.cpp.o" "gcc" "CMakeFiles/simulator.dir/src/main.cpp.o.d"
   )
 

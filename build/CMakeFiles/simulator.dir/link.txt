@@ -1,1 +1,1 @@
-/usr/bin/c++ CMakeFiles/simulator.dir/src/main.cpp.o -o simulator 
+/usr/bin/c++ CMakeFiles/simulator.dir/src/main.cpp.o CMakeFiles/simulator.dir/src/Parser.cpp.o -o simulator 
