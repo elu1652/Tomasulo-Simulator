@@ -1,7 +1,9 @@
 #pragma once
 
 struct InstructionStatus {
-    int startCycle = -1;
-    int endCycle = -1;
-    int completeCycle = -1;
+    int issueCycle = -1;
+    int executeStartCycle = -1;
+    int executeEndCycle = -1;
+    int writebackCycle = -1;
+    int commitCycle = -1;
 };

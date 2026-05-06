@@ -783,7 +783,8 @@ CMakeFiles/simulator.dir/src/Simulator.cpp.o: ../src/Simulator.cpp \
   /usr/include/c++/11/bits/ostream.tcc \
   /usr/include/c++/11/istream \
   /usr/include/c++/11/bits/istream.tcc \
-  ../include/Memory.h
+  ../include/Memory.h \
+  ../include/InstructionStatus.h
 
 CMakeFiles/simulator.dir/src/main.cpp.o: ../src/main.cpp \
   /usr/include/stdc-predef.h \
@@ -974,10 +975,13 @@ CMakeFiles/simulator.dir/src/main.cpp.o: ../src/main.cpp \
   /usr/include/c++/11/bits/ostream.tcc \
   /usr/include/c++/11/istream \
   /usr/include/c++/11/bits/istream.tcc \
-  ../include/Memory.h
+  ../include/Memory.h \
+  ../include/InstructionStatus.h
 
 
 ../src/main.cpp:
+
+../include/InstructionStatus.h:
 
 ../include/RegisterFile.h:
 

@@ -33,7 +33,6 @@ struct ActiveInstruction {
     Instruction instr;
     int instructionIndex;
     int remainingCycles;
-    bool busy;
 };
 
 void Simulator::executeInstruction(const Instruction& instr) {
@@ -77,47 +76,65 @@ void Simulator::executeInstruction(const Instruction& instr) {
 }
 
 void Simulator::execute(const std::vector<Instruction>& instructions) {
-
     int cycle = 1;
     int pc = 0;
-
-    ActiveInstruction active;
-    active.remainingCycles = 0;
-    active.busy = false;
 
     statusTable.clear();
     statusTable.resize(instructions.size());
 
-    while(pc < instructions.size() || active.busy){
+    std::vector<ActiveInstruction> activeInstructions;
+
+    while (pc < instructions.size() || !activeInstructions.empty()) {
+
         std::cout << "\nCycle " << cycle << "\n";
 
-        if(!active.busy && pc < instructions.size()){
-            active.instr = instructions[pc];
-            active.instructionIndex = pc;
-            active.remainingCycles = getLatency(active.instr.opcode);
-            active.busy = true;
-            statusTable[active.instructionIndex].startCycle = cycle;
-            std::cout << "Started: " << active.instr.rawText << "\n";
+        // Issue one instruction per cycle, in order
+        if (pc < instructions.size()) {
+            ActiveInstruction newInstr;
+            newInstr.instr = instructions[pc];
+            newInstr.instructionIndex = pc;
+            newInstr.remainingCycles = getLatency(newInstr.instr.opcode);
+
+            activeInstructions.push_back(newInstr);
+
+            statusTable[pc].issueCycle = cycle;
+            statusTable[pc].executeStartCycle = cycle;
+
+            std::cout << "Issued: " << newInstr.instr.rawText << "\n";
+
             pc++;
         }
-        if(active.busy){
-            std::cout << "Executing: " << active.instr.rawText << " | remaining: " << active.remainingCycles << "\n";
+
+        // Execute all active instructions
+        for (auto& active : activeInstructions) {
+            std::cout << "Executing: " << active.instr.rawText
+                      << " | remaining: " << active.remainingCycles << "\n";
 
             active.remainingCycles--;
+        }
 
-            if (active.remainingCycles == 0) {
-                executeInstruction(active.instr);
+        // Complete finished instructions
+        for (int i = 0; i < activeInstructions.size(); ) {
+            if (activeInstructions[i].remainingCycles == 0) {
+                int index = activeInstructions[i].instructionIndex;
 
-                statusTable[active.instructionIndex].completeCycle = cycle;
+                executeInstruction(activeInstructions[i].instr);
 
-                std::cout << "Completed: " << active.instr.rawText << "\n";
+                statusTable[index].executeEndCycle = cycle;
+                statusTable[index].writebackCycle = cycle;
+                statusTable[index].commitCycle = cycle;
 
-                active.busy = false;
+                std::cout << "Completed: "
+                          << activeInstructions[i].instr.rawText << "\n";
+
+                activeInstructions.erase(activeInstructions.begin() + i);
+            } else {
+                i++;
             }
         }
+
         cycle++;
     }
-    
 
     std::cout << "\nFinal Register State:\n";
     rf.print();
@@ -130,10 +147,11 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
     for (int i = 0; i < instructions.size(); i++) {
         std::cout
             << instructions[i].rawText
-            << " | Start: "
-            << statusTable[i].startCycle
-            << " | Complete: "
-            << statusTable[i].completeCycle
+            << " | Issue: " << statusTable[i].issueCycle
+            << " | Exec Start: " << statusTable[i].executeStartCycle
+            << " | Exec End: " << statusTable[i].executeEndCycle
+            << " | WB: " << statusTable[i].writebackCycle
+            << " | Commit: " << statusTable[i].commitCycle
             << "\n";
     }
 }
