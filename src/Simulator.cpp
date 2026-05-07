@@ -34,6 +34,7 @@ struct ActiveInstruction {
     int instructionIndex;
     int remainingCycles;
     bool executing;
+    std::string waitingReason;
 };
 
 void Simulator::executeInstruction(const Instruction& instr) {
@@ -177,6 +178,53 @@ static void printFUState(
               << " busy\n";
 }
 
+static void printActiveInstructions(
+    const std::vector<ActiveInstruction>& activeInstructions
+) {
+    std::cout << "Active Instructions:\n";
+
+    if (activeInstructions.empty()) {
+        std::cout << "  none\n";
+        return;
+    }
+
+    for (const auto& active : activeInstructions) {
+        std::cout << "  " << active.instr.rawText << " | ";
+
+        if (active.executing) {
+            std::cout << "executing";
+        } else {
+            std::cout << "waiting";
+        }
+
+        std::cout << " | remaining: "
+                  << active.remainingCycles;
+
+        if (!active.executing) {
+            std::cout << " | reason: " << active.waitingReason;
+        }
+
+        std::cout << "\n";
+    }
+}
+
+static void printRegisterPending(const std::vector<bool>& regPending) {
+    std::cout << "Register Pending:\n";
+
+    bool anyPending = false;
+
+    for (int i = 0; i < regPending.size(); i++) {
+        if (regPending[i]) {
+            std::cout << "  R" << i << "\n";
+            anyPending = true;
+        }
+    }
+
+    if (!anyPending) {
+        std::cout << "  none\n";
+    }
+}
+
 void Simulator::execute(const std::vector<Instruction>& instructions) {
     int cycle = 1;
     int pc = 0;
@@ -196,7 +244,6 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
         std::cout << "\nCycle " << cycle << "\n";
 
-        printFUState(intFU, mulFU, memFU);
 
         // Issue one instruction per cycle, in order
         if (pc < instructions.size()) {
@@ -205,6 +252,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
             newInstr.instructionIndex = pc;
             newInstr.remainingCycles = getLatency(newInstr.instr.opcode);
             newInstr.executing = false;
+            newInstr.waitingReason = "Not started";
 
             activeInstructions.push_back(newInstr);
 
@@ -224,26 +272,33 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
             if(!active.executing){
                 // Check for RAW dependency. Don't execute if detected
                 if(hasRawDependency(active.instr, regPending)){
-                    std::cout << "Waiting " << active.instr.rawText << " | RAW dependency\n";
+                    //std::cout << "Waiting " << active.instr.rawText << " | RAW dependency\n";
+                    active.waitingReason = "RAW dependency";
                     continue;
                 }
 
                 FUType type = getFUType(active.instr.opcode);
                 FunctionalUnit* fu = getFU(type, intFU, mulFU, memFU);
                 if(!fuAvailable(fu)){
-                    std::cout << "Waiting " << active.instr.rawText << " | structural hazard: FU busy\n";
+                    //std::cout << "Waiting " << active.instr.rawText << " | structural hazard: FU busy\n";
+                    active.waitingReason = fuTypeToString(type) + " FU busy";
                     continue;
                 }
                 fu->busyUnits++;
                 active.executing = true;
+                active.waitingReason = "";
 
                 statusTable[active.instructionIndex].executeStartCycle = cycle;
             }
             
-            std::cout << "Executing: " << active.instr.rawText << " | remaining: " << active.remainingCycles << "\n";
+            //std::cout << "Executing: " << active.instr.rawText << " | remaining: " << active.remainingCycles << "\n";
 
             active.remainingCycles--;
         }
+
+        printFUState(intFU, mulFU, memFU);
+        printRegisterPending(regPending);
+        printActiveInstructions(activeInstructions);
 
         // Complete finished instructions
         for (int i = 0; i < activeInstructions.size(); ) {
@@ -275,7 +330,6 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 i++;
             }
         }
-
         cycle++;
     }
 
