@@ -35,26 +35,49 @@ struct ActiveInstruction {
     int remainingCycles;
     bool executing;
     std::string waitingReason;
+
+    int qj; // tag for source operand 1
+    int qk; // tag for source operand 2
 };
 
-void Simulator::executeInstruction(const Instruction& instr) {
-    switch (instr.opcode) {
+ExecutionResult Simulator::executeInstruction(const Instruction& instr) {
+    ExecutionResult result;
+    result.writesRegister = false;
+    result.destinationRegister = -1;
+    result.value = 0;
 
+    result.writesMemory = false;
+    result.memoryAddress = -1;
+    result.memoryValue = 0;
+
+    switch (instr.opcode) {
         case OpCode::ADD: {
-            int result = rf.read(instr.rs1) + rf.read(instr.rs2);
-            rf.write(instr.rd, result);
+            int value = rf.read(instr.rs1) + rf.read(instr.rs2);
+            rf.write(instr.rd, value);
+
+            result.writesRegister = true;
+            result.destinationRegister = instr.rd;
+            result.value = value;
             break;
         }
 
         case OpCode::SUB: {
-            int result = rf.read(instr.rs1) - rf.read(instr.rs2);
-            rf.write(instr.rd, result);
+            int value = rf.read(instr.rs1) - rf.read(instr.rs2);
+            rf.write(instr.rd, value);
+
+            result.writesRegister = true;
+            result.destinationRegister = instr.rd;
+            result.value = value;
             break;
         }
 
         case OpCode::MUL: {
-            int result = rf.read(instr.rs1) * rf.read(instr.rs2);
-            rf.write(instr.rd, result);
+            int value = rf.read(instr.rs1) * rf.read(instr.rs2);
+            rf.write(instr.rd, value);
+
+            result.writesRegister = true;
+            result.destinationRegister = instr.rd;
+            result.value = value;
             break;
         }
 
@@ -62,6 +85,10 @@ void Simulator::executeInstruction(const Instruction& instr) {
             int address = rf.read(instr.rs1) + instr.immediate;
             int value = mem.load(address);
             rf.write(instr.rd, value);
+
+            result.writesRegister = true;
+            result.destinationRegister = instr.rd;
+            result.value = value;
             break;
         }
 
@@ -69,30 +96,23 @@ void Simulator::executeInstruction(const Instruction& instr) {
             int address = rf.read(instr.rs1) + instr.immediate;
             int value = rf.read(instr.rs2);
             mem.store(address, value);
+
+            result.writesMemory = true;
+            result.memoryAddress = address;
+            result.memoryValue = value;
             break;
         }
 
         default:
             break;
     }
+
+    return result;
 }
 
 // Check if the instruction writes to a register (i.e., has a destination register)
 static bool writesRegister(const Instruction& instr) {
     return instr.rd != -1;
-}
-
-// Check for RAW dependencies
-static bool hasRawDependency(const Instruction& instr, const std::vector<bool>& regPending) {
-    if (instr.rs1 != -1 && instr.rs1 != instr.rd && regPending[instr.rs1]) {
-        return true;
-    }
-
-    if (instr.rs2 != -1 && instr.rs2 != instr.rd && regPending[instr.rs2]) {
-        return true;
-    }
-
-    return false;
 }
 
 // Types of functional units
@@ -178,6 +198,14 @@ static void printFUState(
               << " busy\n";
 }
 
+static void printTag(int tag) {
+    if (tag == -1) {
+        std::cout << "-";
+    } else {
+        std::cout << "I" << tag;
+    }
+}
+
 static void printActiveInstructions(
     const std::vector<ActiveInstruction>& activeInstructions
 ) {
@@ -189,16 +217,24 @@ static void printActiveInstructions(
     }
 
     for (const auto& active : activeInstructions) {
-        std::cout << "  " << active.instr.rawText << " | ";
+        std::cout << "  I" << active.instructionIndex
+                  << ": " << active.instr.rawText << " | ";
 
-        if (active.executing) {
+        if (active.executing && active.remainingCycles == 0) {
+            std::cout << "done this cycle";
+        } else if (active.executing) {
             std::cout << "executing";
         } else {
             std::cout << "waiting";
         }
 
-        std::cout << " | remaining: "
-                  << active.remainingCycles;
+        std::cout << " | rem: " << active.remainingCycles;
+
+        std::cout << " | qj: ";
+        printTag(active.qj);
+
+        std::cout << " | qk: ";
+        printTag(active.qk);
 
         if (!active.executing) {
             std::cout << " | reason: " << active.waitingReason;
@@ -208,14 +244,16 @@ static void printActiveInstructions(
     }
 }
 
-static void printRegisterPending(const std::vector<bool>& regPending) {
-    std::cout << "Register Pending:\n";
+static void printRegisterProducer(const std::vector<int>& regProducer) {
+    std::cout << "Register Producers:\n";
 
     bool anyPending = false;
 
-    for (int i = 0; i < regPending.size(); i++) {
-        if (regPending[i]) {
-            std::cout << "  R" << i << "\n";
+    for (int i = 0; i < regProducer.size(); i++) {
+        if (regProducer[i] != -1) {
+            std::cout << "  R" << i
+                      << " <- I" << regProducer[i]
+                      << "\n";
             anyPending = true;
         }
     }
@@ -234,7 +272,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
     std::vector<ActiveInstruction> activeInstructions;
 
-    std::vector<bool> regPending(32, false);
+    std::vector<int> regProducer(32, -1);
 
     FunctionalUnit intFU {FUType::INT, 1, 0};
     FunctionalUnit mulFU {FUType::MUL, 1, 0};
@@ -254,12 +292,23 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
             newInstr.executing = false;
             newInstr.waitingReason = "Not started";
 
+            newInstr.qj = -1;
+            newInstr.qk = -1;
+
+            if (newInstr.instr.rs1 != -1) {
+                newInstr.qj = regProducer[newInstr.instr.rs1];
+            }
+
+            if (newInstr.instr.rs2 != -1) {
+                newInstr.qk = regProducer[newInstr.instr.rs2];
+            }
+
             activeInstructions.push_back(newInstr);
 
             statusTable[pc].issueCycle = cycle;
 
             if(writesRegister(newInstr.instr)){
-                regPending[newInstr.instr.rd] = true;
+                regProducer[newInstr.instr.rd] = pc;
             }
 
             std::cout << "Issued: " << newInstr.instr.rawText << "\n";
@@ -271,7 +320,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
         for (auto& active : activeInstructions) {
             if(!active.executing){
                 // Check for RAW dependency. Don't execute if detected
-                if(hasRawDependency(active.instr, regPending)){
+                if(active.qj != -1 || active.qk != -1){
                     //std::cout << "Waiting " << active.instr.rawText << " | RAW dependency\n";
                     active.waitingReason = "RAW dependency";
                     continue;
@@ -297,7 +346,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
         }
 
         printFUState(intFU, mulFU, memFU);
-        printRegisterPending(regPending);
+        printRegisterProducer(regProducer);
         printActiveInstructions(activeInstructions);
 
         // Complete finished instructions
@@ -305,10 +354,14 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
             if (activeInstructions[i].remainingCycles == 0) {
                 int index = activeInstructions[i].instructionIndex;
 
-                executeInstruction(activeInstructions[i].instr);
+                ExecutionResult result = executeInstruction(activeInstructions[i].instr);
 
-                if (writesRegister(activeInstructions[i].instr)) {
-                    regPending[activeInstructions[i].instr.rd] = false;
+                if (result.writesRegister) {
+                    int rd = result.destinationRegister;
+
+                    if (regProducer[rd] == index) {
+                        regProducer[rd] = -1;
+                    }
                 }
 
                 FUType type = getFUType(activeInstructions[i].instr.opcode);
@@ -322,8 +375,44 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 statusTable[index].writebackCycle = cycle;
                 statusTable[index].commitCycle = cycle;
 
-                std::cout << "Completed: "
-                          << activeInstructions[i].instr.rawText << "\n";
+                std::cout << "Completed: I" << index << " " << activeInstructions[i].instr.rawText << "\n";
+
+                if (result.writesRegister) {
+                    std::cout << "  Result: R" << result.destinationRegister
+                            << " = " << result.value << "\n";
+
+                    std::cout << "  Broadcast: I" << index << "\n";
+                }
+
+                if (result.writesMemory) {
+                    std::cout << "  Memory write: Mem[" << result.memoryAddress
+                            << "] = " << result.memoryValue << "\n";
+
+                    std::cout << "  No register broadcast\n";
+                }
+
+                // Wake up instructions waiting for this completed instruction
+                bool wokeSomeone = false;
+
+                for (auto& other : activeInstructions) {
+                    if (other.qj == index) {
+                        std::cout << "  Wakeup: I" << other.instructionIndex
+                                << " qj resolved by I" << index << "\n";
+                        other.qj = -1;
+                        wokeSomeone = true;
+                    }
+
+                    if (other.qk == index) {
+                        std::cout << "  Wakeup: I" << other.instructionIndex
+                                << " qk resolved by I" << index << "\n";
+                        other.qk = -1;
+                        wokeSomeone = true;
+                    }
+                }
+
+                if (result.writesRegister && !wokeSomeone) {
+                    std::cout << "  Wakeup: none\n";
+                }
 
                 activeInstructions.erase(activeInstructions.begin() + i);
             } else {

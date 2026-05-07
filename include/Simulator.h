@@ -7,6 +7,18 @@
 #include "Memory.h"
 #include "InstructionStatus.h"
 
+
+struct ExecutionResult {
+    bool writesRegister;
+    int destinationRegister;
+    int value;
+
+    bool writesMemory;
+    int memoryAddress;
+    int memoryValue;
+};
+
+
 class Simulator {
 private:
     RegisterFile rf;
@@ -18,5 +30,5 @@ public:
 
     void execute(const std::vector<Instruction>& instructions);
 
-    void executeInstruction(const Instruction& instr);
+    ExecutionResult executeInstruction(const Instruction& instr);
 };
