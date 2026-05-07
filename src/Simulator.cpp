@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+#include <queue>
+
 Simulator::Simulator() {
 
     rf.write(1, 10);
@@ -11,6 +13,34 @@ Simulator::Simulator() {
     mem.store(0, 99);
 }
 
+// Types of functional units
+enum class FUType {
+    INT,
+    MUL,
+    MEM,
+    NONE
+};
+
+struct FunctionalUnit {
+    FUType type;
+
+    int totalUnits;
+    int busyUnits;
+};
+
+struct CDBMessage {
+    bool valid;
+    int producerTag;
+    int destinationRegister;
+    int value;
+
+    std::string rawText;
+};
+
+// Forward declaration
+static FUType getFUType(OpCode opcode);
+
+// Clock cycles required to perform operation
 static int getLatency(OpCode opcode){
     switch (opcode) {
         case OpCode::ADD:
@@ -29,99 +59,54 @@ static int getLatency(OpCode opcode){
     }
 }
 
-struct ActiveInstruction {
-    Instruction instr;
-    int instructionIndex;
-    int remainingCycles;
-    bool executing;
-    std::string waitingReason;
+/*************************************** 
+* Reservation Station                  * 
+***************************************/
+static int countRSEntries(
+    const std::vector<ActiveInstruction>& activeInstructions,
+    FUType type
+) {
+    int count = 0;
 
-    int qj; // tag for source operand 1
-    int qk; // tag for source operand 2
-};
-
-ExecutionResult Simulator::executeInstruction(const Instruction& instr) {
-    ExecutionResult result;
-    result.writesRegister = false;
-    result.destinationRegister = -1;
-    result.value = 0;
-
-    result.writesMemory = false;
-    result.memoryAddress = -1;
-    result.memoryValue = 0;
-
-    switch (instr.opcode) {
-        case OpCode::ADD: {
-            int value = rf.read(instr.rs1) + rf.read(instr.rs2);
-            rf.write(instr.rd, value);
-
-            result.writesRegister = true;
-            result.destinationRegister = instr.rd;
-            result.value = value;
-            break;
+    for (const auto& active : activeInstructions) {
+        if (getFUType(active.instr.opcode) == type) {
+            count++;
         }
-
-        case OpCode::SUB: {
-            int value = rf.read(instr.rs1) - rf.read(instr.rs2);
-            rf.write(instr.rd, value);
-
-            result.writesRegister = true;
-            result.destinationRegister = instr.rd;
-            result.value = value;
-            break;
-        }
-
-        case OpCode::MUL: {
-            int value = rf.read(instr.rs1) * rf.read(instr.rs2);
-            rf.write(instr.rd, value);
-
-            result.writesRegister = true;
-            result.destinationRegister = instr.rd;
-            result.value = value;
-            break;
-        }
-
-        case OpCode::LD: {
-            int address = rf.read(instr.rs1) + instr.immediate;
-            int value = mem.load(address);
-            rf.write(instr.rd, value);
-
-            result.writesRegister = true;
-            result.destinationRegister = instr.rd;
-            result.value = value;
-            break;
-        }
-
-        case OpCode::SD: {
-            int address = rf.read(instr.rs1) + instr.immediate;
-            int value = rf.read(instr.rs2);
-            mem.store(address, value);
-
-            result.writesMemory = true;
-            result.memoryAddress = address;
-            result.memoryValue = value;
-            break;
-        }
-
-        default:
-            break;
     }
 
-    return result;
+    return count;
 }
+
+static int getRSCapacity(
+    FUType type,
+    int intCapacity,
+    int mulCapacity,
+    int memCapacity
+) {
+    switch (type) {
+        case FUType::INT:
+            return intCapacity;
+
+        case FUType::MUL:
+            return mulCapacity;
+
+        case FUType::MEM:
+            return memCapacity;
+
+        default:
+            return 0;
+    }
+}
+
 
 // Check if the instruction writes to a register (i.e., has a destination register)
 static bool writesRegister(const Instruction& instr) {
     return instr.rd != -1;
 }
 
-// Types of functional units
-enum class FUType {
-    INT,
-    MUL,
-    MEM,
-    NONE
-};
+/*************************************** 
+* Functional Unit Section              * 
+***************************************/
 
 // Determine which functional unit is used based on OpCode
 static FUType getFUType(OpCode opcode) {
@@ -141,13 +126,6 @@ static FUType getFUType(OpCode opcode) {
             return FUType::NONE;
     }
 }
-
-struct FunctionalUnit {
-    FUType type;
-
-    int totalUnits;
-    int busyUnits;
-};
 
 // Return proper Functional Unit
 static FunctionalUnit* getFU(
@@ -177,6 +155,10 @@ static std::string fuTypeToString(FUType type) {
         default: return "NONE";
     }
 }
+
+/*************************************** 
+* Debug Printing                       * 
+***************************************/
 
 static void printFUState(
     const FunctionalUnit& intFU,
@@ -230,6 +212,20 @@ static void printActiveInstructions(
 
         std::cout << " | rem: " << active.remainingCycles;
 
+        std::cout << " | vj: ";
+        if (active.qj == -1) {
+            std::cout << active.vj;
+        } else {
+            std::cout << "-";
+        }
+
+        std::cout << " | vk: ";
+        if (active.qk == -1) {
+            std::cout << active.vk;
+        } else {
+            std::cout << "-";
+        }
+
         std::cout << " | qj: ";
         printTag(active.qj);
 
@@ -251,9 +247,7 @@ static void printRegisterProducer(const std::vector<int>& regProducer) {
 
     for (int i = 0; i < regProducer.size(); i++) {
         if (regProducer[i] != -1) {
-            std::cout << "  R" << i
-                      << " <- I" << regProducer[i]
-                      << "\n";
+            std::cout << "  R" << i << " <- I" << regProducer[i] << "\n";
             anyPending = true;
         }
     }
@@ -263,125 +257,361 @@ static void printRegisterProducer(const std::vector<int>& regProducer) {
     }
 }
 
+static void printRSState(
+    const std::vector<ActiveInstruction>& activeInstructions,
+    int intCapacity,
+    int mulCapacity,
+    int memCapacity
+) {
+    int intCount = countRSEntries(activeInstructions, FUType::INT);
+    int mulCount = countRSEntries(activeInstructions, FUType::MUL);
+    int memCount = countRSEntries(activeInstructions, FUType::MEM);
+
+    std::cout << "RS State:\n";
+    std::cout << "  INT RS: " << intCount << "/" << intCapacity << "\n";
+    std::cout << "  MUL RS: " << mulCount << "/" << mulCapacity << "\n";
+    std::cout << "  MEM RS: " << memCount << "/" << memCapacity << "\n";
+}
+
+static void printCDBQueue(std::queue<CDBMessage> cdbQueue) {
+    std::cout << "CDB Queue:\n";
+
+    if (cdbQueue.empty()) {
+        std::cout << "  none\n";
+        return;
+    }
+
+    while (!cdbQueue.empty()) {
+        CDBMessage msg = cdbQueue.front();
+        cdbQueue.pop();
+
+        std::cout << "  I" << msg.producerTag
+                  << ": " << msg.rawText
+                  << " | value: " << msg.value
+                  << " -> R" << msg.destinationRegister
+                  << "\n";
+    }
+}
+
+static bool broadcastCDB(
+    const CDBMessage& cdb,
+    std::vector<ActiveInstruction>& activeInstructions,
+    std::vector<int>& regProducer,
+    RegisterFile& rf
+) {
+    if (!cdb.valid) {
+        return false;
+    }
+
+    bool wokeSomeone = false;
+
+    std::cout << "  Broadcast: I" << cdb.producerTag << "\n";
+
+    if (regProducer[cdb.destinationRegister] == cdb.producerTag) {
+        rf.write(cdb.destinationRegister, cdb.value);
+        regProducer[cdb.destinationRegister] = -1;
+
+        std::cout << "  RF Write: R" << cdb.destinationRegister
+                  << " = " << cdb.value << "\n";
+    } else {
+        std::cout << "  RF Write: skipped, newer producer owns R"
+                  << cdb.destinationRegister << "\n";
+    }
+
+    for (auto& other : activeInstructions) {
+        if (other.qj == cdb.producerTag) {
+            other.qj = -1;
+            other.vj = cdb.value;
+
+            std::cout << "  Wakeup: I" << other.instructionIndex
+                      << " qj resolved by I" << cdb.producerTag
+                      << " with value " << cdb.value << "\n";
+
+            wokeSomeone = true;
+        }
+
+        if (other.qk == cdb.producerTag) {
+            other.qk = -1;
+            other.vk = cdb.value;
+
+            std::cout << "  Wakeup: I" << other.instructionIndex
+                      << " qk resolved by I" << cdb.producerTag
+                      << " with value " << cdb.value << "\n";
+
+            wokeSomeone = true;
+        }
+    }
+
+    if (!wokeSomeone) {
+        std::cout << "  Wakeup: none\n";
+    }
+
+    return wokeSomeone;
+}
+
+/*************************************** 
+* Execution                            * 
+***************************************/
+
+ExecutionResult Simulator::computeResult(const ActiveInstruction& active) {
+    ExecutionResult result;
+    result.writesRegister = false;
+    result.destinationRegister = -1;
+    result.value = 0;
+
+    result.writesMemory = false;
+    result.memoryAddress = -1;
+    result.memoryValue = 0;
+
+    const Instruction& instr = active.instr;
+
+    switch (instr.opcode) {
+        case OpCode::ADD: {
+            int value = active.vj + active.vk;
+            //rf.write(instr.rd, value);
+
+            result.writesRegister = true;
+            result.destinationRegister = instr.rd;
+            result.value = value;
+            break;
+        }
+
+        case OpCode::SUB: {
+            int value = active.vj - active.vk;
+            //rf.write(instr.rd, value);
+
+            result.writesRegister = true;
+            result.destinationRegister = instr.rd;
+            result.value = value;
+            break;
+        }
+
+        case OpCode::MUL: {
+            int value = active.vj * active.vk;
+            //rf.write(instr.rd, value);
+
+            result.writesRegister = true;
+            result.destinationRegister = instr.rd;
+            result.value = value;
+            break;
+        }
+
+        case OpCode::LD: {
+            int address = active.vj + instr.immediate;
+            int value = mem.load(address);
+            //rf.write(instr.rd, value);
+
+            result.writesRegister = true;
+            result.destinationRegister = instr.rd;
+            result.value = value;
+            break;
+        }
+
+        case OpCode::SD: {
+            int address = active.vj + instr.immediate;
+            int value = active.vk;
+            mem.store(address, value);
+
+            result.writesMemory = true;
+            result.memoryAddress = address;
+            result.memoryValue = value;
+            break;
+        }
+
+        default:
+            break;
+    }
+
+    return result;
+}
+
+
+
 void Simulator::execute(const std::vector<Instruction>& instructions) {
+
+    const int INT_RS_CAPACITY = 1;
+    const int MUL_RS_CAPACITY = 1;
+    const int MEM_RS_CAPACITY = 1;
+
     int cycle = 1;
     int pc = 0;
 
     statusTable.clear();
     statusTable.resize(instructions.size());
 
-    std::vector<ActiveInstruction> activeInstructions;
+    std::vector<ActiveInstruction> activeInstructions; // Act as our reservation station
 
-    std::vector<int> regProducer(32, -1);
+    std::vector<int> regProducer(32, -1); // Initialize register producers. -1 means no registers currently writing to it
 
-    FunctionalUnit intFU {FUType::INT, 1, 0};
+    std::queue<CDBMessage> cdbQueue;
+
+    // Functional unit initialization
+    FunctionalUnit intFU {FUType::INT, 2, 0};
     FunctionalUnit mulFU {FUType::MUL, 1, 0};
     FunctionalUnit memFU {FUType::MEM, 1, 0};
 
-    while (pc < instructions.size() || !activeInstructions.empty()) {
+    while (pc < instructions.size() || !activeInstructions.empty() || !cdbQueue.empty()) {
 
         std::cout << "\nCycle " << cycle << "\n";
 
 
         // Issue one instruction per cycle, in order
         if (pc < instructions.size()) {
-            ActiveInstruction newInstr;
-            newInstr.instr = instructions[pc];
-            newInstr.instructionIndex = pc;
-            newInstr.remainingCycles = getLatency(newInstr.instr.opcode);
-            newInstr.executing = false;
-            newInstr.waitingReason = "Not started";
 
-            newInstr.qj = -1;
-            newInstr.qk = -1;
+            const Instruction& instrToIssue = instructions[pc];
 
-            if (newInstr.instr.rs1 != -1) {
-                newInstr.qj = regProducer[newInstr.instr.rs1];
+            FUType rsType = getFUType(instrToIssue.opcode);
+
+            int currentEntries = countRSEntries(activeInstructions, rsType);
+
+            int capacity = getRSCapacity(
+                rsType,
+                INT_RS_CAPACITY,
+                MUL_RS_CAPACITY,
+                MEM_RS_CAPACITY
+            );
+            
+            if(currentEntries >= capacity){
+                std::cout << "Issue stalled: " << instrToIssue.rawText
+                  << " | " << fuTypeToString(rsType)
+                  << " RS full\n";
             }
+            else{
+                ActiveInstruction newInstr;
+                newInstr.instr = instructions[pc];
+                newInstr.instructionIndex = pc;
+                newInstr.remainingCycles = getLatency(newInstr.instr.opcode);
+                newInstr.executing = false;
+                newInstr.waitingReason = "Not started";
 
-            if (newInstr.instr.rs2 != -1) {
-                newInstr.qk = regProducer[newInstr.instr.rs2];
-            }
+                newInstr.issueCycle = cycle;
 
-            activeInstructions.push_back(newInstr);
+                newInstr.qj = -1;
+                newInstr.qk = -1;
+                newInstr.vj = 0;
+                newInstr.vk = 0;
 
-            statusTable[pc].issueCycle = cycle;
+                if (newInstr.instr.rs1 != -1) { // Source register 1
+                    int producer = regProducer[newInstr.instr.rs1];
+                    if (producer == -1){
+                        newInstr.vj = rf.read(newInstr.instr.rs1); // Read value from register file if no producer/RAW dependency
+                        newInstr.qj= -1;
+                    }
+                    else{
+                        newInstr.qj = producer; // Instruction waits for producer to broadcast
+                    }
+                }
 
-            if(writesRegister(newInstr.instr)){
-                regProducer[newInstr.instr.rd] = pc;
-            }
+                if (newInstr.instr.rs2 != -1) { // Source register 2
+                    int producer = regProducer[newInstr.instr.rs2];
+                    if (producer == -1){
+                        newInstr.vk = rf.read(newInstr.instr.rs2); // Read value from register file if no producer/RAW dependency
+                        newInstr.qk= -1;
+                    }
+                    else{
+                        newInstr.qk = producer; // Instruction waits for producer to broadcast
+                    }
+                }
 
-            std::cout << "Issued: " << newInstr.instr.rawText << "\n";
+                activeInstructions.push_back(newInstr); // Add new instruction to reservation station
 
-            pc++;
+                statusTable[pc].issueCycle = cycle; // Record issue cycle 
+
+                if(writesRegister(newInstr.instr)){ // Check if instruction writes to a register, if so it is a producer
+                    regProducer[newInstr.instr.rd] = pc;
+                }
+
+                std::cout << "Issued: " << newInstr.instr.rawText << "\n";
+
+                pc++;
+                }
         }
 
         // Execution stage
         for (auto& active : activeInstructions) {
             if(!active.executing){
+                if (active.issueCycle == cycle) {
+                    active.waitingReason = "issued this cycle";
+                    continue;
+                }
                 // Check for RAW dependency. Don't execute if detected
                 if(active.qj != -1 || active.qk != -1){
-                    //std::cout << "Waiting " << active.instr.rawText << " | RAW dependency\n";
                     active.waitingReason = "RAW dependency";
                     continue;
                 }
 
                 FUType type = getFUType(active.instr.opcode);
                 FunctionalUnit* fu = getFU(type, intFU, mulFU, memFU);
+
+                // Check for structural hazard/no FU available
                 if(!fuAvailable(fu)){
-                    //std::cout << "Waiting " << active.instr.rawText << " | structural hazard: FU busy\n";
                     active.waitingReason = fuTypeToString(type) + " FU busy";
                     continue;
                 }
+
+                // Update FU and active instruction status
                 fu->busyUnits++;
                 active.executing = true;
                 active.waitingReason = "";
 
                 statusTable[active.instructionIndex].executeStartCycle = cycle;
             }
-            
-            //std::cout << "Executing: " << active.instr.rawText << " | remaining: " << active.remainingCycles << "\n";
-
             active.remainingCycles--;
         }
 
+        // Print state of system
         printFUState(intFU, mulFU, memFU);
+        printRSState(activeInstructions, INT_RS_CAPACITY, MUL_RS_CAPACITY, MEM_RS_CAPACITY);
         printRegisterProducer(regProducer);
         printActiveInstructions(activeInstructions);
+        printCDBQueue(cdbQueue);
+
+        if (!cdbQueue.empty()) {
+            CDBMessage cdb = cdbQueue.front();
+            cdbQueue.pop();
+
+            std::cout << "CDB Broadcast: I" << cdb.producerTag
+                    << " " << cdb.rawText << "\n";
+
+            broadcastCDB(cdb, activeInstructions, regProducer, rf);
+            statusTable[cdb.producerTag].writebackCycle = cycle;
+            statusTable[cdb.producerTag].commitCycle = cycle;
+        } else {
+            std::cout << "CDB Broadcast: none\n";
+        }
 
         // Complete finished instructions
         for (int i = 0; i < activeInstructions.size(); ) {
             if (activeInstructions[i].remainingCycles == 0) {
                 int index = activeInstructions[i].instructionIndex;
 
-                ExecutionResult result = executeInstruction(activeInstructions[i].instr);
-
-                if (result.writesRegister) {
-                    int rd = result.destinationRegister;
-
-                    if (regProducer[rd] == index) {
-                        regProducer[rd] = -1;
-                    }
-                }
+                ExecutionResult result = computeResult(activeInstructions[i]);
 
                 FUType type = getFUType(activeInstructions[i].instr.opcode);
                 FunctionalUnit* fu = getFU(type, intFU, mulFU, memFU);
 
+                // Free FU
                 if (fu != nullptr) {
                     fu->busyUnits--;
                 }
 
                 statusTable[index].executeEndCycle = cycle;
-                statusTable[index].writebackCycle = cycle;
-                statusTable[index].commitCycle = cycle;
 
-                std::cout << "Completed: I" << index << " " << activeInstructions[i].instr.rawText << "\n";
+                // Print completion message
+                std::cout << "Execution complete: I" << index << " " << activeInstructions[i].instr.rawText << "\n";
 
                 if (result.writesRegister) {
-                    std::cout << "  Result: R" << result.destinationRegister
+                    std::cout << "  Result queued for CDB: R" << result.destinationRegister
                             << " = " << result.value << "\n";
 
-                    std::cout << "  Broadcast: I" << index << "\n";
+                    CDBMessage cdb;
+                    cdb.valid = result.writesRegister;
+                    cdb.producerTag = index;
+                    cdb.destinationRegister = result.destinationRegister;
+                    cdb.value = result.value;
+                    cdb.rawText = activeInstructions[i].instr.rawText;
+
+                    cdbQueue.push(cdb);
                 }
 
                 if (result.writesMemory) {
@@ -389,29 +619,6 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                             << "] = " << result.memoryValue << "\n";
 
                     std::cout << "  No register broadcast\n";
-                }
-
-                // Wake up instructions waiting for this completed instruction
-                bool wokeSomeone = false;
-
-                for (auto& other : activeInstructions) {
-                    if (other.qj == index) {
-                        std::cout << "  Wakeup: I" << other.instructionIndex
-                                << " qj resolved by I" << index << "\n";
-                        other.qj = -1;
-                        wokeSomeone = true;
-                    }
-
-                    if (other.qk == index) {
-                        std::cout << "  Wakeup: I" << other.instructionIndex
-                                << " qk resolved by I" << index << "\n";
-                        other.qk = -1;
-                        wokeSomeone = true;
-                    }
-                }
-
-                if (result.writesRegister && !wokeSomeone) {
-                    std::cout << "  Wakeup: none\n";
                 }
 
                 activeInstructions.erase(activeInstructions.begin() + i);

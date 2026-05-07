@@ -18,6 +18,23 @@ struct ExecutionResult {
     int memoryValue;
 };
 
+struct ActiveInstruction {
+    Instruction instr;
+    int instructionIndex;
+    int remainingCycles;
+    bool executing;
+    std::string waitingReason;
+
+    int issueCycle;
+
+    int qj; // tag for source operand 1
+    int qk; // tag for source operand 2
+
+    int vj; // value for source operand 1
+    int vk; // value for source operand 2
+};
+
+
 
 class Simulator {
 private:
@@ -30,5 +47,5 @@ public:
 
     void execute(const std::vector<Instruction>& instructions);
 
-    ExecutionResult executeInstruction(const Instruction& instr);
+    ExecutionResult computeResult(const ActiveInstruction& active);
 };

@@ -784,7 +784,14 @@ CMakeFiles/simulator.dir/src/Simulator.cpp.o: ../src/Simulator.cpp \
   /usr/include/c++/11/istream \
   /usr/include/c++/11/bits/istream.tcc \
   ../include/Memory.h \
-  ../include/InstructionStatus.h
+  ../include/InstructionStatus.h \
+  /usr/include/c++/11/queue \
+  /usr/include/c++/11/deque \
+  /usr/include/c++/11/bits/stl_deque.h \
+  /usr/include/c++/11/bits/deque.tcc \
+  /usr/include/c++/11/bits/stl_heap.h \
+  /usr/include/c++/11/bits/stl_queue.h \
+  /usr/include/c++/11/bits/uses_allocator.h
 
 CMakeFiles/simulator.dir/src/main.cpp.o: ../src/main.cpp \
   /usr/include/stdc-predef.h \
@@ -981,6 +988,8 @@ CMakeFiles/simulator.dir/src/main.cpp.o: ../src/main.cpp \
 
 ../src/main.cpp:
 
+/usr/include/c++/11/bits/stl_deque.h:
+
 ../include/InstructionStatus.h:
 
 ../include/RegisterFile.h:
@@ -1135,6 +1144,8 @@ CMakeFiles/simulator.dir/src/main.cpp.o: ../src/main.cpp \
 
 /usr/include/c++/11/bits/stl_uninitialized.h:
 
+/usr/include/c++/11/bits/stl_queue.h:
+
 /usr/include/c++/11/bits/stl_iterator_base_funcs.h:
 
 /usr/include/ctype.h:
@@ -1251,6 +1262,8 @@ CMakeFiles/simulator.dir/src/main.cpp.o: ../src/main.cpp \
 
 /usr/include/c++/11/ext/type_traits.h:
 
+/usr/include/c++/11/bits/deque.tcc:
+
 /usr/include/c++/11/algorithm:
 
 /usr/include/x86_64-linux-gnu/bits/select.h:
@@ -1303,6 +1316,8 @@ CMakeFiles/simulator.dir/src/main.cpp.o: ../src/main.cpp \
 
 /usr/include/x86_64-linux-gnu/bits/types/clock_t.h:
 
+/usr/include/c++/11/queue:
+
 /usr/include/x86_64-linux-gnu/bits/stdio_lim.h:
 
 /usr/include/x86_64-linux-gnu/bits/types/FILE.h:
@@ -1316,6 +1331,8 @@ CMakeFiles/simulator.dir/src/main.cpp.o: ../src/main.cpp \
 /usr/include/x86_64-linux-gnu/bits/wctype-wchar.h:
 
 /usr/include/x86_64-linux-gnu/bits/types/locale_t.h:
+
+/usr/include/c++/11/deque:
 
 /usr/include/c++/11/ios:
 
