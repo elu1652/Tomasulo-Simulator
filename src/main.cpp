@@ -1,14 +1,29 @@
 #include "Parser.h"
 #include "Simulator.h"
 
-int main() {
+#include <iostream>
+#include <string>
+
+int main(int argc, char* argv[]) {
+    std::string filename;
+
+    if (argc >= 2) {
+        filename = argv[1];          // use file passed from terminal
+    } else {
+        filename = "../tests/basic_arithmetic.asm";    // default file if no argument given
+    }
+
+    std::cout << "Running program: " << filename << "\n";
 
     Parser parser;
+    std::vector<Instruction> instructions = parser.parseFile(filename);
 
-    auto instructions = parser.parseFile("../examples/reg_producer.asm");
+    if (instructions.empty()) {
+        std::cerr << "No instructions loaded from: " << filename << "\n";
+        return 1;
+    }
 
     Simulator sim;
-
     sim.execute(instructions);
 
     return 0;

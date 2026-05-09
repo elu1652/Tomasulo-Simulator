@@ -37,7 +37,18 @@ std::vector<Instruction> Parser::parseFile(const std::string& filename) {
     std::string line;
 
     while(std::getline(file,line)){
-        if(line.empty()) continue; 
+        // Remove comments
+        size_t commentPos = line.find('#');
+        if (commentPos != std::string::npos) {
+            line = line.substr(0, commentPos);
+        }
+
+        // Trim whitespace
+        line.erase(0, line.find_first_not_of(" \t\r\n"));
+        line.erase(line.find_last_not_of(" \t\r\n") + 1);
+
+        // Skip empty lines
+        if (line.empty()) continue;
 
         Instruction instr;
         instr.rawText = line;
