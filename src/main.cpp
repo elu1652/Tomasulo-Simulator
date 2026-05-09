@@ -5,7 +5,7 @@ int main() {
 
     Parser parser;
 
-    auto instructions = parser.parseFile("../examples/load_rs.asm");
+    auto instructions = parser.parseFile("../examples/reg_producer.asm");
 
     Simulator sim;
 

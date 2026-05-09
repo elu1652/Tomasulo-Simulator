@@ -120,6 +120,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
     const int MUL_RS_CAPACITY = 2;
     const int LOAD_BUFFER_CAPACITY = 1;
     const int STORE_BUFFER_CAPACITY = 2;
+    const int ROB_CAPACITY = 4;
 
     int cycle = 1;
     int pc = 0;
@@ -157,7 +158,12 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
             int capacity = getRSCapacity(rsType, INT_RS_CAPACITY, MUL_RS_CAPACITY, LOAD_BUFFER_CAPACITY, STORE_BUFFER_CAPACITY);
             
-            if(currentEntries >= capacity){
+            if (robQueue.size() >= ROB_CAPACITY) {
+                std::cout << "Issue stalled: " 
+                        << instructions[pc].rawText 
+                        << " | ROB full\n";
+            }
+            else if(currentEntries >= capacity){
                 std::cout << "Issue stalled: " << instrToIssue.rawText
                   << " | " << rsTypeToString(rsType)
                   << " RS full\n";
@@ -183,6 +189,10 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                         newInstr.vj = rf.read(newInstr.instr.rs1); // Read value from register file if no producer/RAW dependency
                         newInstr.qj= -1;
                     }
+                    else if (rob[producer].ready && rob[producer].writesRegister) {
+                        newInstr.vj = rob[producer].value; // Read value from ROB if it's in ROB waiting to be committed
+                        newInstr.qj = -1;
+                    }
                     else{
                         newInstr.qj = producer; // Instruction waits for producer to broadcast
                     }
@@ -193,6 +203,10 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                     if (producer == -1){
                         newInstr.vk = rf.read(newInstr.instr.rs2); // Read value from register file if no producer/RAW dependency
                         newInstr.qk= -1;
+                    }
+                    else if (rob[producer].ready && rob[producer].writesRegister) {
+                        newInstr.vk = rob[producer].value; // Read value from ROB if it's in ROB waiting to be committed
+                        newInstr.qk = -1;
                     }
                     else{
                         newInstr.qk = producer; // Instruction waits for producer to broadcast
@@ -260,6 +274,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
         printRegisterProducer(regProducer);
         printActiveInstructions(activeInstructions);
         printCDBQueue(cdbQueue);
+        printROB(robQueue, rob, ROB_CAPACITY);
 
         // Commit ROB entries
         commitROB(

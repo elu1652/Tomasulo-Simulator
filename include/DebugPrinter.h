@@ -34,5 +34,6 @@ void printCDBQueue(std::queue<CDBMessage> cdbQueue);
 
 void printROB(
     const std::queue<int>& robQueueOriginal,
-    const std::vector<ROBEntry>& rob
+    const std::vector<ROBEntry>& rob,
+    int robCapacity
 );
