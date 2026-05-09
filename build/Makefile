@@ -129,6 +129,78 @@ simulator/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/build
 .PHONY : simulator/fast
 
+src/CDB.o: src/CDB.cpp.o
+.PHONY : src/CDB.o
+
+# target to build an object file
+src/CDB.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/CDB.cpp.o
+.PHONY : src/CDB.cpp.o
+
+src/CDB.i: src/CDB.cpp.i
+.PHONY : src/CDB.i
+
+# target to preprocess a source file
+src/CDB.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/CDB.cpp.i
+.PHONY : src/CDB.cpp.i
+
+src/CDB.s: src/CDB.cpp.s
+.PHONY : src/CDB.s
+
+# target to generate assembly for a file
+src/CDB.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/CDB.cpp.s
+.PHONY : src/CDB.cpp.s
+
+src/DebugPrinter.o: src/DebugPrinter.cpp.o
+.PHONY : src/DebugPrinter.o
+
+# target to build an object file
+src/DebugPrinter.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/DebugPrinter.cpp.o
+.PHONY : src/DebugPrinter.cpp.o
+
+src/DebugPrinter.i: src/DebugPrinter.cpp.i
+.PHONY : src/DebugPrinter.i
+
+# target to preprocess a source file
+src/DebugPrinter.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/DebugPrinter.cpp.i
+.PHONY : src/DebugPrinter.cpp.i
+
+src/DebugPrinter.s: src/DebugPrinter.cpp.s
+.PHONY : src/DebugPrinter.s
+
+# target to generate assembly for a file
+src/DebugPrinter.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/DebugPrinter.cpp.s
+.PHONY : src/DebugPrinter.cpp.s
+
+src/FunctionalUnit.o: src/FunctionalUnit.cpp.o
+.PHONY : src/FunctionalUnit.o
+
+# target to build an object file
+src/FunctionalUnit.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/FunctionalUnit.cpp.o
+.PHONY : src/FunctionalUnit.cpp.o
+
+src/FunctionalUnit.i: src/FunctionalUnit.cpp.i
+.PHONY : src/FunctionalUnit.i
+
+# target to preprocess a source file
+src/FunctionalUnit.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/FunctionalUnit.cpp.i
+.PHONY : src/FunctionalUnit.cpp.i
+
+src/FunctionalUnit.s: src/FunctionalUnit.cpp.s
+.PHONY : src/FunctionalUnit.s
+
+# target to generate assembly for a file
+src/FunctionalUnit.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/FunctionalUnit.cpp.s
+.PHONY : src/FunctionalUnit.cpp.s
+
 src/Memory.o: src/Memory.cpp.o
 .PHONY : src/Memory.o
 
@@ -201,6 +273,30 @@ src/RegisterFile.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/RegisterFile.cpp.s
 .PHONY : src/RegisterFile.cpp.s
 
+src/ReservationStation.o: src/ReservationStation.cpp.o
+.PHONY : src/ReservationStation.o
+
+# target to build an object file
+src/ReservationStation.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/ReservationStation.cpp.o
+.PHONY : src/ReservationStation.cpp.o
+
+src/ReservationStation.i: src/ReservationStation.cpp.i
+.PHONY : src/ReservationStation.i
+
+# target to preprocess a source file
+src/ReservationStation.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/ReservationStation.cpp.i
+.PHONY : src/ReservationStation.cpp.i
+
+src/ReservationStation.s: src/ReservationStation.cpp.s
+.PHONY : src/ReservationStation.s
+
+# target to generate assembly for a file
+src/ReservationStation.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/ReservationStation.cpp.s
+.PHONY : src/ReservationStation.cpp.s
+
 src/Simulator.o: src/Simulator.cpp.o
 .PHONY : src/Simulator.o
 
@@ -258,6 +354,15 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... simulator"
+	@echo "... src/CDB.o"
+	@echo "... src/CDB.i"
+	@echo "... src/CDB.s"
+	@echo "... src/DebugPrinter.o"
+	@echo "... src/DebugPrinter.i"
+	@echo "... src/DebugPrinter.s"
+	@echo "... src/FunctionalUnit.o"
+	@echo "... src/FunctionalUnit.i"
+	@echo "... src/FunctionalUnit.s"
 	@echo "... src/Memory.o"
 	@echo "... src/Memory.i"
 	@echo "... src/Memory.s"
@@ -267,6 +372,9 @@ help:
 	@echo "... src/RegisterFile.o"
 	@echo "... src/RegisterFile.i"
 	@echo "... src/RegisterFile.s"
+	@echo "... src/ReservationStation.o"
+	@echo "... src/ReservationStation.i"
+	@echo "... src/ReservationStation.s"
 	@echo "... src/Simulator.o"
 	@echo "... src/Simulator.i"
 	@echo "... src/Simulator.s"

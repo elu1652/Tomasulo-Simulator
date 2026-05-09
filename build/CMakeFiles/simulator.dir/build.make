@@ -97,10 +97,80 @@ CMakeFiles/simulator.dir/src/Parser.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/simulator.dir/src/Parser.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/elu1652/Desktop/Projects/tomasulo-simulator/src/Parser.cpp -o CMakeFiles/simulator.dir/src/Parser.cpp.s
 
+CMakeFiles/simulator.dir/src/Simulator.cpp.o: CMakeFiles/simulator.dir/flags.make
+CMakeFiles/simulator.dir/src/Simulator.cpp.o: ../src/Simulator.cpp
+CMakeFiles/simulator.dir/src/Simulator.cpp.o: CMakeFiles/simulator.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/elu1652/Desktop/Projects/tomasulo-simulator/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/simulator.dir/src/Simulator.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/simulator.dir/src/Simulator.cpp.o -MF CMakeFiles/simulator.dir/src/Simulator.cpp.o.d -o CMakeFiles/simulator.dir/src/Simulator.cpp.o -c /home/elu1652/Desktop/Projects/tomasulo-simulator/src/Simulator.cpp
+
+CMakeFiles/simulator.dir/src/Simulator.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/simulator.dir/src/Simulator.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/elu1652/Desktop/Projects/tomasulo-simulator/src/Simulator.cpp > CMakeFiles/simulator.dir/src/Simulator.cpp.i
+
+CMakeFiles/simulator.dir/src/Simulator.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/simulator.dir/src/Simulator.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/elu1652/Desktop/Projects/tomasulo-simulator/src/Simulator.cpp -o CMakeFiles/simulator.dir/src/Simulator.cpp.s
+
+CMakeFiles/simulator.dir/src/FunctionalUnit.cpp.o: CMakeFiles/simulator.dir/flags.make
+CMakeFiles/simulator.dir/src/FunctionalUnit.cpp.o: ../src/FunctionalUnit.cpp
+CMakeFiles/simulator.dir/src/FunctionalUnit.cpp.o: CMakeFiles/simulator.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/elu1652/Desktop/Projects/tomasulo-simulator/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/simulator.dir/src/FunctionalUnit.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/simulator.dir/src/FunctionalUnit.cpp.o -MF CMakeFiles/simulator.dir/src/FunctionalUnit.cpp.o.d -o CMakeFiles/simulator.dir/src/FunctionalUnit.cpp.o -c /home/elu1652/Desktop/Projects/tomasulo-simulator/src/FunctionalUnit.cpp
+
+CMakeFiles/simulator.dir/src/FunctionalUnit.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/simulator.dir/src/FunctionalUnit.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/elu1652/Desktop/Projects/tomasulo-simulator/src/FunctionalUnit.cpp > CMakeFiles/simulator.dir/src/FunctionalUnit.cpp.i
+
+CMakeFiles/simulator.dir/src/FunctionalUnit.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/simulator.dir/src/FunctionalUnit.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/elu1652/Desktop/Projects/tomasulo-simulator/src/FunctionalUnit.cpp -o CMakeFiles/simulator.dir/src/FunctionalUnit.cpp.s
+
+CMakeFiles/simulator.dir/src/ReservationStation.cpp.o: CMakeFiles/simulator.dir/flags.make
+CMakeFiles/simulator.dir/src/ReservationStation.cpp.o: ../src/ReservationStation.cpp
+CMakeFiles/simulator.dir/src/ReservationStation.cpp.o: CMakeFiles/simulator.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/elu1652/Desktop/Projects/tomasulo-simulator/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/simulator.dir/src/ReservationStation.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/simulator.dir/src/ReservationStation.cpp.o -MF CMakeFiles/simulator.dir/src/ReservationStation.cpp.o.d -o CMakeFiles/simulator.dir/src/ReservationStation.cpp.o -c /home/elu1652/Desktop/Projects/tomasulo-simulator/src/ReservationStation.cpp
+
+CMakeFiles/simulator.dir/src/ReservationStation.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/simulator.dir/src/ReservationStation.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/elu1652/Desktop/Projects/tomasulo-simulator/src/ReservationStation.cpp > CMakeFiles/simulator.dir/src/ReservationStation.cpp.i
+
+CMakeFiles/simulator.dir/src/ReservationStation.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/simulator.dir/src/ReservationStation.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/elu1652/Desktop/Projects/tomasulo-simulator/src/ReservationStation.cpp -o CMakeFiles/simulator.dir/src/ReservationStation.cpp.s
+
+CMakeFiles/simulator.dir/src/CDB.cpp.o: CMakeFiles/simulator.dir/flags.make
+CMakeFiles/simulator.dir/src/CDB.cpp.o: ../src/CDB.cpp
+CMakeFiles/simulator.dir/src/CDB.cpp.o: CMakeFiles/simulator.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/elu1652/Desktop/Projects/tomasulo-simulator/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/simulator.dir/src/CDB.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/simulator.dir/src/CDB.cpp.o -MF CMakeFiles/simulator.dir/src/CDB.cpp.o.d -o CMakeFiles/simulator.dir/src/CDB.cpp.o -c /home/elu1652/Desktop/Projects/tomasulo-simulator/src/CDB.cpp
+
+CMakeFiles/simulator.dir/src/CDB.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/simulator.dir/src/CDB.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/elu1652/Desktop/Projects/tomasulo-simulator/src/CDB.cpp > CMakeFiles/simulator.dir/src/CDB.cpp.i
+
+CMakeFiles/simulator.dir/src/CDB.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/simulator.dir/src/CDB.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/elu1652/Desktop/Projects/tomasulo-simulator/src/CDB.cpp -o CMakeFiles/simulator.dir/src/CDB.cpp.s
+
+CMakeFiles/simulator.dir/src/DebugPrinter.cpp.o: CMakeFiles/simulator.dir/flags.make
+CMakeFiles/simulator.dir/src/DebugPrinter.cpp.o: ../src/DebugPrinter.cpp
+CMakeFiles/simulator.dir/src/DebugPrinter.cpp.o: CMakeFiles/simulator.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/elu1652/Desktop/Projects/tomasulo-simulator/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/simulator.dir/src/DebugPrinter.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/simulator.dir/src/DebugPrinter.cpp.o -MF CMakeFiles/simulator.dir/src/DebugPrinter.cpp.o.d -o CMakeFiles/simulator.dir/src/DebugPrinter.cpp.o -c /home/elu1652/Desktop/Projects/tomasulo-simulator/src/DebugPrinter.cpp
+
+CMakeFiles/simulator.dir/src/DebugPrinter.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/simulator.dir/src/DebugPrinter.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/elu1652/Desktop/Projects/tomasulo-simulator/src/DebugPrinter.cpp > CMakeFiles/simulator.dir/src/DebugPrinter.cpp.i
+
+CMakeFiles/simulator.dir/src/DebugPrinter.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/simulator.dir/src/DebugPrinter.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/elu1652/Desktop/Projects/tomasulo-simulator/src/DebugPrinter.cpp -o CMakeFiles/simulator.dir/src/DebugPrinter.cpp.s
+
 CMakeFiles/simulator.dir/src/RegisterFile.cpp.o: CMakeFiles/simulator.dir/flags.make
 CMakeFiles/simulator.dir/src/RegisterFile.cpp.o: ../src/RegisterFile.cpp
 CMakeFiles/simulator.dir/src/RegisterFile.cpp.o: CMakeFiles/simulator.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/elu1652/Desktop/Projects/tomasulo-simulator/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/simulator.dir/src/RegisterFile.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/elu1652/Desktop/Projects/tomasulo-simulator/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building CXX object CMakeFiles/simulator.dir/src/RegisterFile.cpp.o"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/simulator.dir/src/RegisterFile.cpp.o -MF CMakeFiles/simulator.dir/src/RegisterFile.cpp.o.d -o CMakeFiles/simulator.dir/src/RegisterFile.cpp.o -c /home/elu1652/Desktop/Projects/tomasulo-simulator/src/RegisterFile.cpp
 
 CMakeFiles/simulator.dir/src/RegisterFile.cpp.i: cmake_force
@@ -114,7 +184,7 @@ CMakeFiles/simulator.dir/src/RegisterFile.cpp.s: cmake_force
 CMakeFiles/simulator.dir/src/Memory.cpp.o: CMakeFiles/simulator.dir/flags.make
 CMakeFiles/simulator.dir/src/Memory.cpp.o: ../src/Memory.cpp
 CMakeFiles/simulator.dir/src/Memory.cpp.o: CMakeFiles/simulator.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/elu1652/Desktop/Projects/tomasulo-simulator/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/simulator.dir/src/Memory.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/elu1652/Desktop/Projects/tomasulo-simulator/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building CXX object CMakeFiles/simulator.dir/src/Memory.cpp.o"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/simulator.dir/src/Memory.cpp.o -MF CMakeFiles/simulator.dir/src/Memory.cpp.o.d -o CMakeFiles/simulator.dir/src/Memory.cpp.o -c /home/elu1652/Desktop/Projects/tomasulo-simulator/src/Memory.cpp
 
 CMakeFiles/simulator.dir/src/Memory.cpp.i: cmake_force
@@ -125,39 +195,33 @@ CMakeFiles/simulator.dir/src/Memory.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/simulator.dir/src/Memory.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/elu1652/Desktop/Projects/tomasulo-simulator/src/Memory.cpp -o CMakeFiles/simulator.dir/src/Memory.cpp.s
 
-CMakeFiles/simulator.dir/src/Simulator.cpp.o: CMakeFiles/simulator.dir/flags.make
-CMakeFiles/simulator.dir/src/Simulator.cpp.o: ../src/Simulator.cpp
-CMakeFiles/simulator.dir/src/Simulator.cpp.o: CMakeFiles/simulator.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/elu1652/Desktop/Projects/tomasulo-simulator/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/simulator.dir/src/Simulator.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/simulator.dir/src/Simulator.cpp.o -MF CMakeFiles/simulator.dir/src/Simulator.cpp.o.d -o CMakeFiles/simulator.dir/src/Simulator.cpp.o -c /home/elu1652/Desktop/Projects/tomasulo-simulator/src/Simulator.cpp
-
-CMakeFiles/simulator.dir/src/Simulator.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/simulator.dir/src/Simulator.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/elu1652/Desktop/Projects/tomasulo-simulator/src/Simulator.cpp > CMakeFiles/simulator.dir/src/Simulator.cpp.i
-
-CMakeFiles/simulator.dir/src/Simulator.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/simulator.dir/src/Simulator.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/elu1652/Desktop/Projects/tomasulo-simulator/src/Simulator.cpp -o CMakeFiles/simulator.dir/src/Simulator.cpp.s
-
 # Object files for target simulator
 simulator_OBJECTS = \
 "CMakeFiles/simulator.dir/src/main.cpp.o" \
 "CMakeFiles/simulator.dir/src/Parser.cpp.o" \
+"CMakeFiles/simulator.dir/src/Simulator.cpp.o" \
+"CMakeFiles/simulator.dir/src/FunctionalUnit.cpp.o" \
+"CMakeFiles/simulator.dir/src/ReservationStation.cpp.o" \
+"CMakeFiles/simulator.dir/src/CDB.cpp.o" \
+"CMakeFiles/simulator.dir/src/DebugPrinter.cpp.o" \
 "CMakeFiles/simulator.dir/src/RegisterFile.cpp.o" \
-"CMakeFiles/simulator.dir/src/Memory.cpp.o" \
-"CMakeFiles/simulator.dir/src/Simulator.cpp.o"
+"CMakeFiles/simulator.dir/src/Memory.cpp.o"
 
 # External object files for target simulator
 simulator_EXTERNAL_OBJECTS =
 
 simulator: CMakeFiles/simulator.dir/src/main.cpp.o
 simulator: CMakeFiles/simulator.dir/src/Parser.cpp.o
+simulator: CMakeFiles/simulator.dir/src/Simulator.cpp.o
+simulator: CMakeFiles/simulator.dir/src/FunctionalUnit.cpp.o
+simulator: CMakeFiles/simulator.dir/src/ReservationStation.cpp.o
+simulator: CMakeFiles/simulator.dir/src/CDB.cpp.o
+simulator: CMakeFiles/simulator.dir/src/DebugPrinter.cpp.o
 simulator: CMakeFiles/simulator.dir/src/RegisterFile.cpp.o
 simulator: CMakeFiles/simulator.dir/src/Memory.cpp.o
-simulator: CMakeFiles/simulator.dir/src/Simulator.cpp.o
 simulator: CMakeFiles/simulator.dir/build.make
 simulator: CMakeFiles/simulator.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/elu1652/Desktop/Projects/tomasulo-simulator/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Linking CXX executable simulator"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/elu1652/Desktop/Projects/tomasulo-simulator/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Linking CXX executable simulator"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/simulator.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.
