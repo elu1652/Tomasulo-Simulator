@@ -1,10 +1,22 @@
-# Force C/C++ file detection
 *.h linguist-language=C++
 *.hpp linguist-language=C++
 *.hh linguist-language=C++
-*.cxx linguist-language=C++
+*.hxx linguist-language=C++
+*.c linguist-language=C++
 *.cpp linguist-language=C++
+*.cc linguist-language=C++
+*.cxx linguist-language=C++
 
-# Exclude Makefiles from language statistics
-Makefile linguist-generated
-*.mk linguist-generated
+Makefile linguist-vendored
+makefile linguist-vendored
+GNUmakefile linguist-vendored
+**/Makefile linguist-vendored
+**/makefile linguist-vendored
+**/GNUmakefile linguist-vendored
+*.mk linguist-vendored
+**/*.mk linguist-vendored
+
+CMakeLists.txt linguist-vendored
+**/CMakeLists.txt linguist-vendored
+*.cmake linguist-vendored
+**/*.cmake linguist-vendored
