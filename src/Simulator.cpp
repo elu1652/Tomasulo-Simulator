@@ -28,6 +28,14 @@ struct FunctionalUnit {
     int busyUnits;
 };
 
+enum class RSType {
+    INT,
+    MUL,
+    LOAD,
+    STORE,
+    NONE
+};
+
 struct CDBMessage {
     bool valid;
     int producerTag;
@@ -39,6 +47,7 @@ struct CDBMessage {
 
 // Forward declaration
 static FUType getFUType(OpCode opcode);
+static RSType getRSType(OpCode opcode);
 
 // Clock cycles required to perform operation
 static int getLatency(OpCode opcode){
@@ -62,14 +71,11 @@ static int getLatency(OpCode opcode){
 /*************************************** 
 * Reservation Station                  * 
 ***************************************/
-static int countRSEntries(
-    const std::vector<ActiveInstruction>& activeInstructions,
-    FUType type
-) {
+static int countRSEntries(const std::vector<ActiveInstruction>& activeInstructions, RSType type){
     int count = 0;
 
     for (const auto& active : activeInstructions) {
-        if (getFUType(active.instr.opcode) == type) {
+        if (getRSType(active.instr.opcode) == type) {
             count++;
         }
     }
@@ -77,24 +83,52 @@ static int countRSEntries(
     return count;
 }
 
-static int getRSCapacity(
-    FUType type,
-    int intCapacity,
-    int mulCapacity,
-    int memCapacity
-) {
+static int getRSCapacity(RSType type, int intCapacity, int mulCapacity, int loadCapacity, int storeCapacity){
     switch (type) {
-        case FUType::INT:
+        case RSType::INT:
             return intCapacity;
 
-        case FUType::MUL:
+        case RSType::MUL:
             return mulCapacity;
 
-        case FUType::MEM:
-            return memCapacity;
+        case RSType::LOAD:
+            return loadCapacity;
+
+        case RSType::STORE:
+            return storeCapacity;
 
         default:
             return 0;
+    }
+}
+
+static RSType getRSType(OpCode opcode) {
+    switch (opcode) {
+        case OpCode::ADD:
+        case OpCode::SUB:
+            return RSType::INT;
+
+        case OpCode::MUL:
+            return RSType::MUL;
+
+        case OpCode::LD:
+            return RSType::LOAD;
+
+        case OpCode::SD:
+            return RSType::STORE;
+
+        default:
+            return RSType::NONE;
+    }
+}
+
+static std::string rsTypeToString(RSType type) {
+    switch (type) {
+        case RSType::INT: return "INT";
+        case RSType::MUL: return "MUL";
+        case RSType::LOAD: return "LOAD";
+        case RSType::STORE: return "STORE";
+        default: return "NONE";
     }
 }
 
@@ -261,16 +295,19 @@ static void printRSState(
     const std::vector<ActiveInstruction>& activeInstructions,
     int intCapacity,
     int mulCapacity,
-    int memCapacity
+    int loadCapacity,
+    int storeCapacity
 ) {
-    int intCount = countRSEntries(activeInstructions, FUType::INT);
-    int mulCount = countRSEntries(activeInstructions, FUType::MUL);
-    int memCount = countRSEntries(activeInstructions, FUType::MEM);
+    int intCount = countRSEntries(activeInstructions, RSType::INT);
+    int mulCount = countRSEntries(activeInstructions, RSType::MUL);
+    int loadCount = countRSEntries(activeInstructions, RSType::LOAD);
+    int storeCount = countRSEntries(activeInstructions, RSType::STORE);
 
     std::cout << "RS State:\n";
     std::cout << "  INT RS: " << intCount << "/" << intCapacity << "\n";
     std::cout << "  MUL RS: " << mulCount << "/" << mulCapacity << "\n";
-    std::cout << "  MEM RS: " << memCount << "/" << memCapacity << "\n";
+    std::cout << "  Load Buffer: " << loadCount << "/" << loadCapacity << "\n";
+    std::cout << "  Store Buffer: " << storeCount << "/" << storeCapacity << "\n";
 }
 
 static void printCDBQueue(std::queue<CDBMessage> cdbQueue) {
@@ -429,9 +466,10 @@ ExecutionResult Simulator::computeResult(const ActiveInstruction& active) {
 
 void Simulator::execute(const std::vector<Instruction>& instructions) {
 
-    const int INT_RS_CAPACITY = 1;
-    const int MUL_RS_CAPACITY = 1;
-    const int MEM_RS_CAPACITY = 1;
+    const int INT_RS_CAPACITY = 2;
+    const int MUL_RS_CAPACITY = 2;
+    const int LOAD_BUFFER_CAPACITY = 1;
+    const int STORE_BUFFER_CAPACITY = 2;
 
     int cycle = 1;
     int pc = 0;
@@ -460,22 +498,17 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
             const Instruction& instrToIssue = instructions[pc];
 
-            FUType rsType = getFUType(instrToIssue.opcode);
+            RSType rsType = getRSType(instrToIssue.opcode);
 
             int currentEntries = countRSEntries(activeInstructions, rsType);
 
-            int capacity = getRSCapacity(
-                rsType,
-                INT_RS_CAPACITY,
-                MUL_RS_CAPACITY,
-                MEM_RS_CAPACITY
-            );
+            int capacity = getRSCapacity(rsType, INT_RS_CAPACITY, MUL_RS_CAPACITY, LOAD_BUFFER_CAPACITY, STORE_BUFFER_CAPACITY);
             
             if(currentEntries >= capacity){
                 std::cout << "Issue stalled: " << instrToIssue.rawText
-                  << " | " << fuTypeToString(rsType)
+                  << " | " << rsTypeToString(rsType)
                   << " RS full\n";
-            }
+            }   
             else{
                 ActiveInstruction newInstr;
                 newInstr.instr = instructions[pc];
@@ -561,7 +594,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
         // Print state of system
         printFUState(intFU, mulFU, memFU);
-        printRSState(activeInstructions, INT_RS_CAPACITY, MUL_RS_CAPACITY, MEM_RS_CAPACITY);
+        printRSState(activeInstructions, INT_RS_CAPACITY, MUL_RS_CAPACITY, LOAD_BUFFER_CAPACITY, STORE_BUFFER_CAPACITY);
         printRegisterProducer(regProducer);
         printActiveInstructions(activeInstructions);
         printCDBQueue(cdbQueue);
@@ -619,6 +652,8 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                             << "] = " << result.memoryValue << "\n";
 
                     std::cout << "  No register broadcast\n";
+                    statusTable[index].writebackCycle = cycle;
+                    statusTable[index].commitCycle = cycle;
                 }
 
                 activeInstructions.erase(activeInstructions.begin() + i);

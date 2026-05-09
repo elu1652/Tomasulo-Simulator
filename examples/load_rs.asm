@@ -1,0 +1,6 @@
+LD R1, 0(R0)
+LD R2, 4(R0)
+SD R3, 8(R0)
+SD R4, 12(R0)
+SD R5, 16(R0)
+ADD R3, R4, R5
