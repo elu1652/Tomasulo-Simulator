@@ -1,0 +1,10 @@
+# Force C/C++ file detection
+*.h linguist-language=C++
+*.hpp linguist-language=C++
+*.hh linguist-language=C++
+*.cxx linguist-language=C++
+*.cpp linguist-language=C++
+
+# Exclude Makefiles from language statistics
+Makefile linguist-generated
+*.mk linguist-generated

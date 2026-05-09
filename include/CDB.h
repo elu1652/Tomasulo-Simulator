@@ -2,6 +2,7 @@
 
 #include "RegisterFile.h"
 #include "Simulator.h"
+#include "ROB.h"
 #include <string>
 #include <vector>
 
@@ -16,6 +17,5 @@ struct CDBMessage {
 bool broadcastCDB(
     const CDBMessage& cdb,
     std::vector<ActiveInstruction>& activeInstructions,
-    std::vector<int>& regProducer,
-    RegisterFile& rf
+    std::vector<ROBEntry>& rob
 );

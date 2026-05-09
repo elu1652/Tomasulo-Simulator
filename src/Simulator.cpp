@@ -3,6 +3,7 @@
 #include "ReservationStation.h"
 #include "CDB.h"
 #include "DebugPrinter.h"
+#include "ROB.h"
 
 #include <iostream>
 #include <queue>
@@ -97,7 +98,6 @@ ExecutionResult Simulator::computeResult(const ActiveInstruction& active) {
         case OpCode::SD: {
             int address = active.vj + instr.immediate;
             int value = active.vk;
-            mem.store(address, value);
 
             result.writesMemory = true;
             result.memoryAddress = address;
@@ -133,12 +133,15 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
     std::queue<CDBMessage> cdbQueue;
 
+    std::vector<ROBEntry> rob(instructions.size());
+    std::queue<int> robQueue;
+
     // Functional unit initialization
     FunctionalUnit intFU {FUType::INT, 2, 0};
     FunctionalUnit mulFU {FUType::MUL, 1, 0};
     FunctionalUnit memFU {FUType::MEM, 1, 0};
 
-    while (pc < instructions.size() || !activeInstructions.empty() || !cdbQueue.empty()) {
+    while (pc < instructions.size() || !activeInstructions.empty() || !cdbQueue.empty() || !robQueue.empty()) {
 
         std::cout << "\nCycle " << cycle << "\n";
 
@@ -206,6 +209,15 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
                 std::cout << "Issued: " << newInstr.instr.rawText << "\n";
 
+                int tag = pc;
+
+                rob[tag].busy = true;
+                rob[tag].ready = false;
+                rob[tag].tag = tag;
+                rob[tag].rawText = newInstr.instr.rawText;
+
+                robQueue.push(tag);
+
                 pc++;
                 }
         }
@@ -249,6 +261,18 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
         printActiveInstructions(activeInstructions);
         printCDBQueue(cdbQueue);
 
+        // Commit ROB entries
+        commitROB(
+            robQueue,
+            rob,
+            regProducer,
+            rf,
+            mem,
+            statusTable,
+            cycle
+        );
+
+        // Broadcast on CDB
         if (!cdbQueue.empty()) {
             CDBMessage cdb = cdbQueue.front();
             cdbQueue.pop();
@@ -256,9 +280,9 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
             std::cout << "CDB Broadcast: I" << cdb.producerTag
                     << " " << cdb.rawText << "\n";
 
-            broadcastCDB(cdb, activeInstructions, regProducer, rf);
+            broadcastCDB(cdb, activeInstructions, rob);
             statusTable[cdb.producerTag].writebackCycle = cycle;
-            statusTable[cdb.producerTag].commitCycle = cycle;
+            
         } else {
             std::cout << "CDB Broadcast: none\n";
         }
@@ -298,12 +322,20 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 }
 
                 if (result.writesMemory) {
-                    std::cout << "  Memory write: Mem[" << result.memoryAddress
-                            << "] = " << result.memoryValue << "\n";
+                    ROBEntry& entry = rob[index];
 
-                    std::cout << "  No register broadcast\n";
+                    entry.ready = true;
+                    entry.writesMemory = true;
+                    entry.memoryAddress = result.memoryAddress;
+                    entry.memoryValue = result.memoryValue;
+
                     statusTable[index].writebackCycle = cycle;
-                    statusTable[index].commitCycle = cycle;
+
+                    std::cout << "  Store result ready in ROB: Mem["
+                            << result.memoryAddress << "] = "
+                            << result.memoryValue << "\n";
+
+                    std::cout << "  No CDB broadcast\n";
                 }
 
                 activeInstructions.erase(activeInstructions.begin() + i);

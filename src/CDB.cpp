@@ -3,8 +3,7 @@
 bool broadcastCDB(
     const CDBMessage& cdb,
     std::vector<ActiveInstruction>& activeInstructions,
-    std::vector<int>& regProducer,
-    RegisterFile& rf
+    std::vector<ROBEntry>& rob
 ) {
     if (!cdb.valid) {
         return false;
@@ -12,18 +11,17 @@ bool broadcastCDB(
 
     bool wokeSomeone = false;
 
-    std::cout << "  Broadcast: I" << cdb.producerTag << "\n";
+    std::cout << "  Broadcast: I" << cdb.producerTag << "\n"; // Producer
 
-    if (regProducer[cdb.destinationRegister] == cdb.producerTag) {
-        rf.write(cdb.destinationRegister, cdb.value);
-        regProducer[cdb.destinationRegister] = -1;
+    ROBEntry& entry = rob[cdb.producerTag];
+    entry.ready = true;
+    entry.writesRegister = true;
+    entry.destinationRegister = cdb.destinationRegister;
+    entry.value = cdb.value;
 
-        std::cout << "  RF Write: R" << cdb.destinationRegister
-                  << " = " << cdb.value << "\n";
-    } else {
-        std::cout << "  RF Write: skipped, newer producer owns R"
-                  << cdb.destinationRegister << "\n";
-    }
+    std::cout << "  ROB Write: I" << cdb.producerTag
+              << " value = " << cdb.value
+              << " -> R" << cdb.destinationRegister << "\n";
 
     for (auto& other : activeInstructions) {
         if (other.qj == cdb.producerTag) {

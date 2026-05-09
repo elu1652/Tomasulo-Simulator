@@ -16,4 +16,5 @@ add_executable(simulator
     src/DebugPrinter.cpp
     src/RegisterFile.cpp
     src/Memory.cpp
+    src/ROB.cpp
 )

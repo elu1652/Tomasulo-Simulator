@@ -135,3 +135,40 @@ void printCDBQueue(std::queue<CDBMessage> cdbQueue) {
                   << "\n";
     }
 }
+
+void printROB(
+    const std::queue<int>& robQueueOriginal,
+    const std::vector<ROBEntry>& rob
+) {
+    std::queue<int> robQueue = robQueueOriginal;
+
+    std::cout << "ROB:\n";
+
+    if (robQueue.empty()) {
+        std::cout << "  empty\n";
+        return;
+    }
+
+    while (!robQueue.empty()) {
+        int tag = robQueue.front();
+        robQueue.pop();
+
+        const ROBEntry& entry = rob[tag];
+
+        std::cout << "  I" << tag
+                  << " | " << entry.rawText
+                  << " | ready: " << (entry.ready ? "yes" : "no");
+
+        if (entry.writesRegister) {
+            std::cout << " | R" << entry.destinationRegister
+                      << " = " << entry.value;
+        }
+
+        if (entry.writesMemory) {
+            std::cout << " | Mem[" << entry.memoryAddress
+                      << "] = " << entry.memoryValue;
+        }
+
+        std::cout << "\n";
+    }
+}

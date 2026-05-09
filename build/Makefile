@@ -249,6 +249,30 @@ src/Parser.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/Parser.cpp.s
 .PHONY : src/Parser.cpp.s
 
+src/ROB.o: src/ROB.cpp.o
+.PHONY : src/ROB.o
+
+# target to build an object file
+src/ROB.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/ROB.cpp.o
+.PHONY : src/ROB.cpp.o
+
+src/ROB.i: src/ROB.cpp.i
+.PHONY : src/ROB.i
+
+# target to preprocess a source file
+src/ROB.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/ROB.cpp.i
+.PHONY : src/ROB.cpp.i
+
+src/ROB.s: src/ROB.cpp.s
+.PHONY : src/ROB.s
+
+# target to generate assembly for a file
+src/ROB.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/ROB.cpp.s
+.PHONY : src/ROB.cpp.s
+
 src/RegisterFile.o: src/RegisterFile.cpp.o
 .PHONY : src/RegisterFile.o
 
@@ -369,6 +393,9 @@ help:
 	@echo "... src/Parser.o"
 	@echo "... src/Parser.i"
 	@echo "... src/Parser.s"
+	@echo "... src/ROB.o"
+	@echo "... src/ROB.i"
+	@echo "... src/ROB.s"
 	@echo "... src/RegisterFile.o"
 	@echo "... src/RegisterFile.i"
 	@echo "... src/RegisterFile.s"
