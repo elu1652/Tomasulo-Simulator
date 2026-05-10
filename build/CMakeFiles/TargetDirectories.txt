@@ -1,3 +1,0 @@
-/home/elu1652/Desktop/Projects/tomasulo-simulator/build/CMakeFiles/simulator.dir
-/home/elu1652/Desktop/Projects/tomasulo-simulator/build/CMakeFiles/edit_cache.dir
-/home/elu1652/Desktop/Projects/tomasulo-simulator/build/CMakeFiles/rebuild_cache.dir
