@@ -26,10 +26,17 @@ The goal is to show how instructions move through an out-of-order execution engi
 - Stores commit through the ROB
 - Cycle-by-cycle debug output
 - Instruction timing table
-- BEQ/BNE non-speculative branch support
+- BEQ/BNE branch support
 - Forward and backward branch tests
 - Automated test runner
 - Test file generator GUI
+- Static always-not-taken branch prediction
+- Speculative fall-through issue
+- Branch misprediction detection
+- PC redirect on taken branch
+- Flush younger wrong-path instructions from RS/ROB/CDB
+- Register producer cleanup on flush
+- Flushed instruction marking in status table
 
 ---
 
@@ -242,31 +249,28 @@ Terminal will display the number of passed and failed tests.
 
 ## Current Limitations
 
-* The current ROB tag is the instruction index.
-* Branch instructions are implemented non-speculatively; prediction and speculative recovery are not implemented yet.
-* Speculative execution is not implemented yet.
-* Branch prediction is not implemented yet.
+* The simulator supports a small custom ISA rather than full RISC-V.
+* Only static always-not-taken branch prediction is implemented.
+* No dynamic 1-bit or 2-bit branch predictor yet.
+* ROB capacity is logical; physical ROB slots are not reused yet.
+* The current ROB tag is the dynamic instruction ID.
 * Load-store ordering is simplified.
 * There is no full load-store queue yet.
-* The simulator supports a small custom ISA rather than full RISC-V.
-* ROB uses dynamic IDs but physical ROB slots are not reused yet
+* Automated tests currently mainly validate final register/memory state, so some speculative behavior still needs stronger test checks.
 
 ---
 
 ## Planned Features
 
-* Static branch prediction
-* Speculative execution
-* ROB and reservation station flush on branch misprediction
+* Stronger automated testing for speculative execution
+* Commit-count or flush-count validation in the test runner
+* Dynamic branch prediction, such as 1-bit or 2-bit predictors
 * True circular ROB with reusable physical slots
 * Load-store queue
-* More automated test checking
 * CPI and performance experiments
 
 ---
 
 ## Project Status
 
-The simulator currently implements a non-speculative Tomasulo-style pipeline with ROB-based commit and basic BEQ/BNE branch support.
-
-The next major milestone is static branch prediction with ROB/reservation-station flush on misprediction.
+The simulator currently implements Tomasulo-style out-of-order execution with ROB-based commit and static always-not-taken branch speculation, including misprediction recovery by flushing younger wrong-path instructions.

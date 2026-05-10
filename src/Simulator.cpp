@@ -12,11 +12,6 @@
 
 Simulator::Simulator() {
 
-    //rf.write(1, 10);
-    //rf.write(3, 5);
-    //rf.write(5, 2);
-
-    //mem.store(0, 99);
 }
 
 // Clock cycles required to perform operation
