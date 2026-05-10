@@ -170,8 +170,9 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
     FunctionalUnit mulFU {FUType::MUL, 1, 0};
     FunctionalUnit memFU {FUType::MEM, 1, 0};
 
-    
-    BranchPredictor branchPredictor;
+    // Branch predictor used for speculative issue.
+    // Change the predictor type here to compare prediction strategies.
+    BranchPredictor branchPredictor(BranchPredictorType::OneBit);
 
     // Main simulation loop.
     // The simulator continues until there are no more instructions to fetch,
@@ -183,9 +184,10 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
 
         // ISSUE STAGE
-        // Issue at most one instruction per cycle, in program order.
-        // With always-not-taken branch prediction, branches do not stall issue;
-        // the PC naturally advances to the fall-through path.
+        // Issue at most one instruction per cycle in order.
+        // Branches use the configured branch predictor to choose the next PC.
+        // If predicted taken, issue continues from the branch target;
+        // otherwise, issue continues down the fall-through path.
         if (pc < instructions.size()) {
 
             const Instruction& instrToIssue = instructions[pc];
@@ -447,9 +449,8 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                             << (result.branchTaken ? "taken" : "not taken")
                             << "\n";
 
-                    // Static always-not-taken branch prediction.
-                    // Since issue already followed pc + 1, a taken branch is a misprediction.
-                    // Recovery redirects the PC and flushes all younger wrong-path instructions.
+                    // Compare the stored prediction made at issue time against the actual branch result.
+                    // On a misprediction, redirect the PC and flush all younger wrong-path instructions.
                     bool predictedTaken = activeInstructions[i].predictedTaken;
                     
                     int branchPc = statusTable[index].staticPc;

@@ -1,15 +1,59 @@
 #include "BranchPredictor.h"
 
+BranchPredictor::BranchPredictor(BranchPredictorType type): type(type) {
+    
+}
+
 bool BranchPredictor::predict(int pc) const {
-    auto it = table.find(pc);
+    switch (type) {
+        case BranchPredictorType::AlwaysNotTaken:
+            return false;
 
-    if (it == table.end()) {
-        return false; // Default prediction: not taken
+        case BranchPredictorType::OneBit: {
+            auto it = oneBitTable.find(pc);
+
+            if (it == oneBitTable.end()) {
+                return false;
+            }
+
+            return it->second;
+        }
+
+        case BranchPredictorType::TwoBit: {
+            auto it = twoBitTable.find(pc);
+
+            if (it == twoBitTable.end()) {
+                return false;
+            }
+
+            return it->second >= 2;
+        }
+
+        default:
+            return false;
     }
-
-    return it->second;
 }
 
 void BranchPredictor::update(int pc, bool taken) {
-    table[pc] = taken;
+    switch (type) {
+        case BranchPredictorType::AlwaysNotTaken:
+            // Static predictor does not learn.
+            return;
+
+        case BranchPredictorType::OneBit:
+            oneBitTable[pc] = taken;
+            return;
+
+        case BranchPredictorType::TwoBit: {
+            int& state = twoBitTable[pc];
+
+            if (taken && state < 3) {
+                state++;
+            } else if (!taken && state > 0) {
+                state--;
+            }
+
+            return;
+        }
+    }
 }
