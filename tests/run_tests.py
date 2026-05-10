@@ -30,24 +30,34 @@ def build_project():
 def parse_expectations(test_file):
     expected_regs = {}
     expected_mem = {}
+    expected_commit_counts = {}
 
     with open(test_file, "r") as f:
         for line in f:
             line = line.strip()
 
+            # Register expectations
             reg_match = re.match(r"#\s*EXPECT_REG\s+R(\d+)\s+(-?\d+)", line)
             if reg_match:
                 reg = int(reg_match.group(1))
                 value = int(reg_match.group(2))
                 expected_regs[reg] = value
 
+            # Memory expectations
             mem_match = re.match(r"#\s*EXPECT_MEM\s+(\d+)\s+(-?\d+)", line)
             if mem_match:
                 addr = int(mem_match.group(1))
                 value = int(mem_match.group(2))
                 expected_mem[addr] = value
 
-    return expected_regs, expected_mem
+            # Expected number of commits
+            commit_match = re.match(r"#\s*EXPECT_COMMIT_COUNT\s+(.+)\s+(\d+)\s*$", line)
+            if commit_match:
+                instr = commit_match.group(1).strip()
+                count = int(commit_match.group(2))
+                expected_commit_counts[instr] = count
+
+    return expected_regs, expected_mem, expected_commit_counts
 
 
 def parse_final_registers(output):
@@ -91,9 +101,19 @@ def parse_final_memory(output):
 
     return mem
 
+def parse_commit_counts(output):
+    commit_counts = {}
+
+    for line in output.splitlines():
+        match = re.match(r"ROB Commit:\s+I\d+\s+(.+)", line.strip())
+        if match:
+            instr = match.group(1).strip()
+            commit_counts[instr] = commit_counts.get(instr, 0) + 1
+
+    return commit_counts
 
 def run_test(test_file):
-    expected_regs, expected_mem = parse_expectations(test_file)
+    expected_regs, expected_mem, expected_commit_counts = parse_expectations(test_file)
 
     result = subprocess.run(
         [str(SIMULATOR), str(test_file)],
@@ -110,6 +130,7 @@ def run_test(test_file):
 
     actual_regs = parse_final_registers(output)
     actual_mem = parse_final_memory(output)
+    actual_commit_counts = parse_commit_counts(output)
 
     failures = []
 
@@ -127,6 +148,14 @@ def run_test(test_file):
         if actual_value != expected_value:
             failures.append(
                 f"Mem[{addr}]: expected {expected_value}, got {actual_value}"
+            )
+
+    for instr, expected_count in expected_commit_counts.items():
+        actual_count = actual_commit_counts.get(instr, 0)
+
+        if actual_count != expected_count:
+            failures.append(
+                f"Commit count for '{instr}': expected {expected_count}, got {actual_count}"
             )
 
     if failures:

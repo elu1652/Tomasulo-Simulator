@@ -14,8 +14,7 @@ class TestFileGenerator(tk.Tk):
         super().__init__()
 
         self.title("Tomasulo Test File Generator")
-        self.geometry("850x640")
-        #self.minsize(800, 640)
+        self.geometry("900x700")
 
         self.create_widgets()
 
@@ -45,6 +44,15 @@ class TestFileGenerator(tk.Tk):
         self.expected_mem_text = tk.Text(self, height=3, width=80)
         self.expected_mem_text.pack(fill="x", padx=10)
 
+        # Expected commit counts
+        tk.Label(
+            self,
+            text="Expected commit counts, one per line (example: ADD R2, R1, R3 | 1)"
+        ).pack(anchor="w", padx=10, pady=(8, 0))
+
+        self.expected_commit_text = tk.Text(self, height=3, width=80)
+        self.expected_commit_text.pack(fill="x", padx=10)
+
         # Assembly code
         tk.Label(self, text="Assembly code").pack(anchor="w", padx=10, pady=(8, 0))
         self.code_text = tk.Text(self, height=8, width=80)
@@ -69,6 +77,7 @@ class TestFileGenerator(tk.Tk):
         description_lines = self.get_clean_lines(self.description_text)
         expected_regs = self.get_clean_lines(self.expected_regs_text)
         expected_mem = self.get_clean_lines(self.expected_mem_text)
+        expected_commits = self.get_clean_lines(self.expected_commit_text)
         code_lines = self.get_clean_lines(self.code_text)
 
         if not filename:
@@ -90,7 +99,7 @@ class TestFileGenerator(tk.Tk):
             for line in description_lines:
                 output.append(f"# {line}")
 
-        if expected_regs or expected_mem:
+        if expected_regs or expected_mem or expected_commits:
             output.append("#")
             output.append("# Expected final state:")
 
@@ -115,6 +124,25 @@ class TestFileGenerator(tk.Tk):
 
             addr, value = parts
             output.append(f"# EXPECT_MEM {addr} {value}")
+
+        for line in expected_commits:
+            if "|" not in line:
+                raise ValueError(
+                    f"Invalid expected commit count line: {line}\n"
+                    "Use format: ADD R2, R1, R3 | 1"
+                )
+
+            instr, count = line.rsplit("|", 1)
+            instr = instr.strip()
+            count = count.strip()
+
+            if not instr:
+                raise ValueError(f"Instruction cannot be empty: {line}")
+
+            if not count.isdigit():
+                raise ValueError(f"Commit count must be a non-negative integer: {line}")
+
+            output.append(f"# EXPECT_COMMIT_COUNT {instr} {count}")
 
         output.append("")
 
@@ -175,6 +203,7 @@ class TestFileGenerator(tk.Tk):
         self.description_text.delete("1.0", "end")
         self.expected_regs_text.delete("1.0", "end")
         self.expected_mem_text.delete("1.0", "end")
+        self.expected_commit_text.delete("1.0", "end")
         self.code_text.delete("1.0", "end")
 
 
