@@ -5,6 +5,8 @@ FUType getFUType(OpCode opcode) {
     switch (opcode) {
         case OpCode::ADD:
         case OpCode::SUB:
+        case OpCode::BEQ:
+        case OpCode::BNE:
             return FUType::INT;
 
         case OpCode::MUL:

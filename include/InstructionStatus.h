@@ -1,6 +1,9 @@
 #pragma once
 
 struct InstructionStatus {
+    int staticPc = -1;
+    std::string rawText;
+    
     int issueCycle = -1;
     int executeStartCycle = -1;
     int executeEndCycle = -1;

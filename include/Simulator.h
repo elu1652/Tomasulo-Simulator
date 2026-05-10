@@ -16,6 +16,10 @@ struct ExecutionResult {
     bool writesMemory;
     int memoryAddress;
     int memoryValue;
+
+    bool isBranch = false;
+    bool branchTaken = false;
+    int branchTarget = -1;
 };
 
 struct ActiveInstruction {

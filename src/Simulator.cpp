@@ -22,6 +22,8 @@ static int getLatency(OpCode opcode){
     switch (opcode) {
         case OpCode::ADD:
         case OpCode::SUB:
+        case OpCode::BEQ:
+        case OpCode::BNE:
             return 1;
 
         case OpCode::MUL:
@@ -104,6 +106,19 @@ ExecutionResult Simulator::computeResult(const ActiveInstruction& active) {
             result.memoryValue = value;
             break;
         }
+        case OpCode::BNE: {
+            result.isBranch = true;
+            result.branchTaken = active.vj != active.vk;
+            result.branchTarget = instr.branchTarget;
+            break;
+        }
+
+        case OpCode::BEQ: {
+            result.isBranch = true;
+            result.branchTaken = active.vj == active.vk;
+            result.branchTarget = instr.branchTarget;
+            break;
+        }
 
         default:
             break;
@@ -125,8 +140,12 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
     int cycle = 1;
     int pc = 0;
 
+    int nextDynamicId = 0;
+
+    bool unresolvedBranchInFlight = false;
+
     statusTable.clear();
-    statusTable.resize(instructions.size());
+    // statusTable.resize(instructions.size());
 
     std::vector<ActiveInstruction> activeInstructions; // Act as our reservation station
 
@@ -134,7 +153,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
     std::queue<CDBMessage> cdbQueue;
 
-    std::vector<ROBEntry> rob(instructions.size());
+    std::vector<ROBEntry> rob;
     std::queue<int> robQueue;
 
     // Functional unit initialization
@@ -158,7 +177,10 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
             int capacity = getRSCapacity(rsType, INT_RS_CAPACITY, MUL_RS_CAPACITY, LOAD_BUFFER_CAPACITY, STORE_BUFFER_CAPACITY);
             
-            if (robQueue.size() >= ROB_CAPACITY) {
+            if (unresolvedBranchInFlight) {
+                std::cout << "Issue stalled: unresolved branch\n";
+            }
+            else if (robQueue.size() >= ROB_CAPACITY) {
                 std::cout << "Issue stalled: " 
                         << instructions[pc].rawText 
                         << " | ROB full\n";
@@ -169,9 +191,11 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                   << " RS full\n";
             }   
             else{
+                int dynamicId = nextDynamicId++;
+
                 ActiveInstruction newInstr;
                 newInstr.instr = instructions[pc];
-                newInstr.instructionIndex = pc;
+                newInstr.instructionIndex = dynamicId;
                 newInstr.remainingCycles = getLatency(newInstr.instr.opcode);
                 newInstr.executing = false;
                 newInstr.waitingReason = "Not started";
@@ -182,6 +206,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 newInstr.qk = -1;
                 newInstr.vj = 0;
                 newInstr.vk = 0;
+                bool isBranch = newInstr.instr.opcode == OpCode::BEQ || newInstr.instr.opcode == OpCode::BNE;
 
                 if (newInstr.instr.rs1 != -1) { // Source register 1
                     int producer = regProducer[newInstr.instr.rs1];
@@ -215,21 +240,32 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
                 activeInstructions.push_back(newInstr); // Add new instruction to reservation station
 
-                statusTable[pc].issueCycle = cycle; // Record issue cycle 
+                //statusTable[pc].issueCycle = cycle; // Record issue cycle 
+                InstructionStatus status;
+                status.staticPc = pc;
+                status.rawText = newInstr.instr.rawText;
+                status.issueCycle = cycle;
+                statusTable.push_back(status);
 
                 if(writesRegister(newInstr.instr)){ // Check if instruction writes to a register, if so it is a producer
-                    regProducer[newInstr.instr.rd] = pc;
+                    regProducer[newInstr.instr.rd] = dynamicId;
                 }
 
                 std::cout << "Issued: " << newInstr.instr.rawText << "\n";
 
-                int tag = pc;
+                if (isBranch) {
+                    unresolvedBranchInFlight = true;
+                }
 
-                rob[tag].busy = true;
-                rob[tag].ready = false;
-                rob[tag].tag = tag;
-                rob[tag].rawText = newInstr.instr.rawText;
+                int tag = dynamicId;
 
+                ROBEntry entry;
+                entry.busy = true;
+                entry.ready = false;
+                entry.tag = tag;
+                entry.rawText = newInstr.instr.rawText;
+
+                rob.push_back(entry);
                 robQueue.push(tag);
 
                 pc++;
@@ -353,6 +389,38 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                     std::cout << "  No CDB broadcast\n";
                 }
 
+                if (result.isBranch) {
+                    ROBEntry& entry = rob[index];
+                    entry.ready = true;
+
+                    statusTable[index].writebackCycle = cycle;
+
+                    std::cout << "  Branch resolved: "
+                            << (result.branchTaken ? "taken" : "not taken")
+                            << "\n";
+
+                    if (result.branchTaken) {
+                        pc = result.branchTarget;
+
+                        std::cout << "  PC updated to instruction "
+                                << result.branchTarget
+                                << "\n";
+                    }
+
+                    unresolvedBranchInFlight = false;
+                    std::cout << "  ROB entry ready\n";
+                }
+
+                if (!result.writesRegister && !result.writesMemory && !result.isBranch) {
+                    ROBEntry& entry = rob[index];
+                    entry.ready = true;
+
+                    statusTable[index].writebackCycle = cycle;
+
+                    std::cout << "  No register/memory result\n";
+                    std::cout << "  ROB entry ready\n";
+                }
+
                 activeInstructions.erase(activeInstructions.begin() + i);
             } else {
                 i++;
@@ -369,14 +437,16 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
     std::cout << "\nInstruction Status Table:\n";
 
-    for (int i = 0; i < instructions.size(); i++) {
-        std::cout
-            << instructions[i].rawText
-            << " | Issue: " << statusTable[i].issueCycle
-            << " | Exec Start: " << statusTable[i].executeStartCycle
-            << " | Exec End: " << statusTable[i].executeEndCycle
-            << " | WB: " << statusTable[i].writebackCycle
-            << " | Commit: " << statusTable[i].commitCycle
-            << "\n";
+    for (int i = 0; i < statusTable.size(); i++) {
+    std::cout
+        << "I" << i
+        << " | pc: " << statusTable[i].staticPc
+        << " | " << statusTable[i].rawText
+        << " | Issue: " << statusTable[i].issueCycle
+        << " | Exec Start: " << statusTable[i].executeStartCycle
+        << " | Exec End: " << statusTable[i].executeEndCycle
+        << " | WB: " << statusTable[i].writebackCycle
+        << " | Commit: " << statusTable[i].commitCycle
+        << "\n";
     }
-}
+}   

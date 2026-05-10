@@ -38,6 +38,8 @@ RSType getRSType(OpCode opcode) {
     switch (opcode) {
         case OpCode::ADD:
         case OpCode::SUB:
+        case OpCode::BEQ:
+        case OpCode::BNE:
             return RSType::INT;
 
         case OpCode::MUL:

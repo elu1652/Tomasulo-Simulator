@@ -8,6 +8,7 @@ enum class OpCode {
     MUL,
     LD,
     SD,
+    BEQ,
     BNE,
     INVALID
 };
@@ -22,5 +23,7 @@ struct Instruction {
     int immediate = 0;
 
     std::string label;
+    int branchTarget = -1;
+    
     std::string rawText;
 };
