@@ -172,7 +172,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
     // Branch predictor used for speculative issue.
     // Change the predictor type here to compare prediction strategies.
-    BranchPredictor branchPredictor(BranchPredictorType::OneBit);
+    BranchPredictor branchPredictor(BranchPredictorType::AlwaysTaken);
 
     // Main simulation loop.
     // The simulator continues until there are no more instructions to fetch,
@@ -230,6 +230,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                     newInstr.instr.opcode == OpCode::BNE;
 
                 if (newInstr.isBranch) {
+                    newInstr.predictorStateBefore = branchPredictor.getState(pc);
                     newInstr.predictedTaken = branchPredictor.predict(pc);
                     newInstr.predictedTarget =
                         newInstr.predictedTaken ? newInstr.instr.branchTarget : pc + 1;
@@ -280,6 +281,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 status.issueCycle = cycle;
                 status.isBranch = newInstr.isBranch;
                 status.predictedTaken = newInstr.predictedTaken;
+                status.predictorStateBefore = newInstr.predictorStateBefore;
                 statusTable.push_back(status);
 
                 // Register-writing instructions become the newest producer for their destination register.
@@ -455,6 +457,10 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                     
                     int branchPc = statusTable[index].staticPc;
                     branchPredictor.update(branchPc, result.branchTaken);
+
+                    int predictorStateAfter = branchPredictor.getState(branchPc);
+                    activeInstructions[i].predictorStateAfter = predictorStateAfter;
+                    statusTable[index].predictorStateAfter = predictorStateAfter;
 
                     if (result.branchTaken != predictedTaken) {
                         std::cout << "  Branch misprediction detected\n";

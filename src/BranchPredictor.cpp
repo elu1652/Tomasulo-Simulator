@@ -1,13 +1,16 @@
 #include "BranchPredictor.h"
 
 BranchPredictor::BranchPredictor(BranchPredictorType type): type(type) {
-    
+
 }
 
 bool BranchPredictor::predict(int pc) const {
     switch (type) {
         case BranchPredictorType::AlwaysNotTaken:
             return false;
+
+        case BranchPredictorType::AlwaysTaken:
+            return true;
 
         case BranchPredictorType::OneBit: {
             auto it = oneBitTable.find(pc);
@@ -23,7 +26,7 @@ bool BranchPredictor::predict(int pc) const {
             auto it = twoBitTable.find(pc);
 
             if (it == twoBitTable.end()) {
-                return false;
+                return false; // weakly not taken
             }
 
             return it->second >= 2;
@@ -45,6 +48,10 @@ void BranchPredictor::update(int pc, bool taken) {
             return;
 
         case BranchPredictorType::TwoBit: {
+            if (twoBitTable.find(pc) == twoBitTable.end()) {
+                twoBitTable[pc] = 1; // weakly not taken
+            }
+
             int& state = twoBitTable[pc];
 
             if (taken && state < 3) {
@@ -55,5 +62,31 @@ void BranchPredictor::update(int pc, bool taken) {
 
             return;
         }
+    }
+}
+
+int BranchPredictor::getState(int pc) const {
+    switch (type) {
+        case BranchPredictorType::AlwaysNotTaken:
+            return 0;
+
+        case BranchPredictorType::OneBit: {
+            auto it = oneBitTable.find(pc);
+            if (it == oneBitTable.end()) {
+                return 0;
+            }
+            return it->second ? 1 : 0;
+        }
+
+        case BranchPredictorType::TwoBit: {
+            auto it = twoBitTable.find(pc);
+            if (it == twoBitTable.end()) {
+                return 1; // weakly not taken default
+            }
+            return it->second;
+        }
+
+        default:
+            return -1;
     }
 }

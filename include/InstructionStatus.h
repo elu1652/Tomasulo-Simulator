@@ -18,4 +18,7 @@ struct InstructionStatus {
     bool predictedTaken = false;
     bool actualTaken = false;
     bool branchResolved = false;
+
+    int predictorStateBefore = -1;
+    int predictorStateAfter = -1;
 };

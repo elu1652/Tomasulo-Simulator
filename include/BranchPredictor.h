@@ -4,6 +4,7 @@
 
 enum class BranchPredictorType {
     AlwaysNotTaken,
+    AlwaysTaken,
     OneBit,
     TwoBit
 };
@@ -30,4 +31,5 @@ public:
 
     bool predict(int pc) const;
     void update(int pc, bool taken);
+    int getState(int pc) const;
 };

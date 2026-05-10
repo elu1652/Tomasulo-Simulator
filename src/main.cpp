@@ -10,7 +10,7 @@ int main(int argc, char* argv[]) {
     if (argc >= 2) {
         filename = argv[1];          // use file passed from terminal
     } else {
-        filename = "../tests/backward_branch.asm";    // default file if no argument given
+        filename = "../tests/nested_loop.asm";    // default file if no argument given
     }
 
     std::cout << "Running program: " << filename << "\n";

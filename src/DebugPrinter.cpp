@@ -240,6 +240,10 @@ void printBranchPredictionSummary(const std::vector<InstructionStatus>& statusTa
         return taken ? "T" : "NT";
     };
 
+    auto stateString = [](int state) {
+        return state == -1 ? std::string("-") : std::to_string(state);
+    };
+
     std::cout << "\nBranch Prediction Summary:\n";
 
     std::cout
@@ -247,12 +251,15 @@ void printBranchPredictionSummary(const std::vector<InstructionStatus>& statusTa
         << std::setw(6)  << "ID"
         << std::setw(6)  << "PC"
         << std::setw(28) << "Instruction"
+        << std::setw(13) << "StateBefore"
         << std::setw(12) << "Predicted"
         << std::setw(10) << "Actual"
+        << std::setw(12) << "StateAfter"
         << std::setw(8)  << "Result"
+        
         << "\n";
 
-    std::cout << std::string(70, '-') << "\n";
+    std::cout << std::string(94, '-') << "\n";
 
     for (int i = 0; i < statusTable.size(); i++) {
         const auto& status = statusTable[i];
@@ -279,8 +286,10 @@ void printBranchPredictionSummary(const std::vector<InstructionStatus>& statusTa
             << std::setw(6)  << ("I" + std::to_string(i))
             << std::setw(6)  << status.staticPc
             << std::setw(28) << status.rawText
+            << std::setw(13) << stateString(status.predictorStateBefore)
             << std::setw(12) << takenString(status.predictedTaken)
             << std::setw(10) << (status.branchResolved ? takenString(status.actualTaken) : "-")
+            << std::setw(12) << stateString(status.predictorStateAfter)
             << std::setw(8)  << result
             << "\n";
     }

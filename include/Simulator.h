@@ -40,6 +40,9 @@ struct ActiveInstruction {
     bool isBranch = false;
     bool predictedTaken = false;
     int predictedTarget = -1;
+
+    int predictorStateBefore = -1;
+    int predictorStateAfter = -1;
 };
 
 
