@@ -18,4 +18,5 @@ add_executable(simulator
     src/Memory.cpp
     src/ROB.cpp
     src/Flush.cpp
+    src/BranchPredictor.cpp
 )

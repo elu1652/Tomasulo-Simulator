@@ -36,6 +36,10 @@ struct ActiveInstruction {
 
     int vj; // value for source operand 1
     int vk; // value for source operand 2
+
+    bool isBranch = false;
+    bool predictedTaken = false;
+    int predictedTarget = -1;
 };
 
 

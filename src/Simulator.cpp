@@ -5,6 +5,7 @@
 #include "DebugPrinter.h"
 #include "ROB.h"
 #include "Flush.h"
+#include "BranchPredictor.h"
 
 #include <iostream>
 #include <queue>
@@ -169,6 +170,9 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
     FunctionalUnit mulFU {FUType::MUL, 1, 0};
     FunctionalUnit memFU {FUType::MEM, 1, 0};
 
+    
+    BranchPredictor branchPredictor;
+
     // Main simulation loop.
     // The simulator continues until there are no more instructions to fetch,
     // no active reservation station entries, no pending CDB broadcasts,
@@ -218,6 +222,20 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 newInstr.qk = -1;
                 newInstr.vj = 0;
                 newInstr.vk = 0;
+
+                newInstr.isBranch =
+                    newInstr.instr.opcode == OpCode::BEQ ||
+                    newInstr.instr.opcode == OpCode::BNE;
+
+                if (newInstr.isBranch) {
+                    newInstr.predictedTaken = branchPredictor.predict(pc);
+                    newInstr.predictedTarget =
+                        newInstr.predictedTaken ? newInstr.instr.branchTarget : pc + 1;
+
+                    std::cout << "  Branch prediction: "
+                            << (newInstr.predictedTaken ? "taken" : "not taken")
+                            << "\n";
+                }
 
                 // Source operands are read either from the architectural register file,
                 // from a ready ROB entry, or as producer tags if the value is still pending.
@@ -280,8 +298,12 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 rob.push_back(entry);
                 robQueue.push(tag);
 
-                pc++;
+                if (newInstr.isBranch && newInstr.predictedTaken) {
+                    pc = newInstr.instr.branchTarget;
+                } else {
+                    pc++;
                 }
+            }
         }
 
         // EXECUTE STAGE
@@ -422,17 +444,30 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                     // Static always-not-taken branch prediction.
                     // Since issue already followed pc + 1, a taken branch is a misprediction.
                     // Recovery redirects the PC and flushes all younger wrong-path instructions.
-                    bool predictedTaken = false; 
+                    bool predictedTaken = activeInstructions[i].predictedTaken;
+                    
+                    int branchPc = statusTable[index].staticPc;
+                    branchPredictor.update(branchPc, result.branchTaken);
 
                     if (result.branchTaken != predictedTaken) {
                         std::cout << "  Branch misprediction detected\n";
-                        std::cout << "  Predicted: not taken\n";
-                        std::cout << "  Actual: taken\n";
+                        
+                        std::cout << "  Predicted: "
+                                << (predictedTaken ? "taken" : "not taken")
+                                << "\n";
 
-                        pc = result.branchTarget;
+                        std::cout << "  Actual: "
+                                << (result.branchTaken ? "taken" : "not taken")
+                                << "\n";
+
+                        if (result.branchTaken) {
+                            pc = result.branchTarget;
+                        } else {
+                            pc = statusTable[index].staticPc + 1;
+                        }
 
                         std::cout << "  PC redirected to instruction "
-                                << result.branchTarget
+                                << pc
                                 << "\n";
 
                         flushActiveInstructions(activeInstructions, index, intFU, mulFU, memFU, statusTable);
