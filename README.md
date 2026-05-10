@@ -30,10 +30,13 @@ The goal is to show how instructions move through an out-of-order execution engi
 - Forward and backward branch tests
 - Automated test runner
 - Test file generator GUI
-- Static always-not-taken branch prediction
-- Speculative fall-through issue
+- Static always-not-taken branch prediction baseline
+- 1-bit dynamic branch predictor indexed by static PC
+- Speculative branch issue using predicted direction
 - Branch misprediction detection
-- PC redirect on taken branch
+- PC redirect on misprediction
+- Branch prediction summary table
+- Branch prediction accuracy reporting
 - Flush younger wrong-path instructions from RS/ROB/CDB
 - Register producer cleanup on flush
 - Flushed instruction marking in status table
@@ -230,6 +233,7 @@ Test title
 Description
 Expected registers
 Expected memory
+Expected commit counts
 Assembly code
 ```
 
@@ -238,33 +242,38 @@ Testing is automated by running:
 python3 tests/run_tests.py
 ```
 
-Automated testing runs all test files located in `tests/` and verifies resulting values with expected values. Errors are shown in terminal like:
+Automated testing runs all test files located in `tests/` and verifies expected final register values, memory values, and optional commit-count expectations.
 ```text
 [FAIL] add_immediate.asm
 R1: expected 8, got 7
+[PASS] backword_branch.asm
 ```
-Terminal will display the number of passed and failed tests.
+
+Expectations are written as:
+```asm
+# EXPECT_REG R1 5
+# EXPECT_MEM 0 99
+# EXPECT_COMMIT_COUNT ADD R2, R1, R3 1
+```
 
 ---
 
 ## Current Limitations
 
 * The simulator supports a small custom ISA rather than full RISC-V.
-* Only static always-not-taken branch prediction is implemented.
-* No dynamic 1-bit or 2-bit branch predictor yet.
+* A 1-bit dynamic branch predictor is implemented, but there is no 2-bit saturating-counter predictor yet.
 * ROB capacity is logical; physical ROB slots are not reused yet.
 * The current ROB tag is the dynamic instruction ID.
 * Load-store ordering is simplified.
 * There is no full load-store queue yet.
-* Automated tests currently mainly validate final register/memory state, so some speculative behavior still needs stronger test checks.
+* Automated tests validate final register/memory state and selected commit-count behavior, but they do not yet validate branch prediction accuracy as a correctness requirement.
 
 ---
 
 ## Planned Features
 
-* Stronger automated testing for speculative execution
-* Commit-count or flush-count validation in the test runner
-* Dynamic branch prediction, such as 1-bit or 2-bit predictors
+* More branch-speculation test cases
+* 2-bit dynamic branch predictor
 * True circular ROB with reusable physical slots
 * Load-store queue
 * CPI and performance experiments
@@ -273,4 +282,4 @@ Terminal will display the number of passed and failed tests.
 
 ## Project Status
 
-The simulator currently implements Tomasulo-style out-of-order execution with ROB-based commit and static always-not-taken branch speculation, including misprediction recovery by flushing younger wrong-path instructions.
+The simulator currently implements Tomasulo-style out-of-order execution with ROB-based commit and branch speculation. It includes a 1-bit dynamic branch predictor, misprediction recovery by flushing younger wrong-path instructions, and branch prediction summary output with accuracy reporting.
