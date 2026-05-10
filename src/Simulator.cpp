@@ -44,6 +44,51 @@ static bool writesRegister(const Instruction& instr) {
     return instr.rd != -1;
 }
 
+static void flushActiveInstructions(
+    std::vector<ActiveInstruction>& activeInstructions,
+    int branchIndex,
+    FunctionalUnit& intFU,
+    FunctionalUnit& mulFU,
+    FunctionalUnit& memFU
+) {
+    for (int i = 0; i < activeInstructions.size(); ) {
+        if (activeInstructions[i].instructionIndex > branchIndex) {
+            if (activeInstructions[i].executing) {
+                FUType type = getFUType(activeInstructions[i].instr.opcode);
+                FunctionalUnit* fu = getFU(type, intFU, mulFU, memFU);
+
+                if (fu != nullptr && fu->busyUnits > 0) {
+                    fu->busyUnits--;
+                }
+            }
+
+            std::cout << "  Flushed RS/active: I"
+                      << activeInstructions[i].instructionIndex
+                      << " "
+                      << activeInstructions[i].instr.rawText
+                      << "\n";
+
+            activeInstructions.erase(activeInstructions.begin() + i);
+        } else {
+            i++;
+        }
+    }
+}
+
+void flushRegProducers(std::vector<int>& regProducer, int branchIndex) {
+    for (int reg = 0; reg < regProducer.size(); reg++) {
+        if (regProducer[reg] > branchIndex) {
+            std::cout << "  Cleared producer: R"
+                      << reg
+                      << " <- I"
+                      << regProducer[reg]
+                      << "\n";
+
+            regProducer[reg] = -1;
+        }
+    }
+}
+
 ExecutionResult Simulator::computeResult(const ActiveInstruction& active) {
     ExecutionResult result;
     result.writesRegister = false;
@@ -410,22 +455,24 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
                     bool predictedTaken = false; // static always-not-taken predictor
 
-                if (result.branchTaken != predictedTaken) {
-                    std::cout << "  Branch misprediction detected\n";
-                    std::cout << "  Predicted: not taken\n";
-                    std::cout << "  Actual: taken\n";
+                    if (result.branchTaken != predictedTaken) {
+                        std::cout << "  Branch misprediction detected\n";
+                        std::cout << "  Predicted: not taken\n";
+                        std::cout << "  Actual: taken\n";
 
-                    pc = result.branchTarget;
+                        pc = result.branchTarget;
 
-                    std::cout << "  PC redirected to instruction "
-                            << result.branchTarget
-                            << "\n";
+                        std::cout << "  PC redirected to instruction "
+                                << result.branchTarget
+                                << "\n";
 
-                    // TODO: flush younger wrong-path instructions
-                } else {
-                    std::cout << "  Branch prediction correct\n";
-                }
-
+                        flushActiveInstructions(activeInstructions, index, intFU, mulFU, memFU);
+                        flushCDBQueue(cdbQueue, index);
+                        flushROBQueue(robQueue, rob, index);
+                        flushRegProducers(regProducer, index);
+                    } else {
+                        std::cout << "  Branch prediction correct\n";
+                    }
                     //unresolvedBranchInFlight = false;
                     std::cout << "  ROB entry ready\n";
                 }

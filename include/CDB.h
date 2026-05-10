@@ -19,3 +19,5 @@ bool broadcastCDB(
     std::vector<ActiveInstruction>& activeInstructions,
     std::vector<ROBEntry>& rob
 );
+
+void flushCDBQueue(std::queue<CDBMessage>& cdbQueue, int branchIndex);

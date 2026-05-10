@@ -33,3 +33,9 @@ void commitROB(
     std::vector<InstructionStatus>& statusTable,
     int cycle
 );
+
+void flushROBQueue(
+    std::queue<int>& robQueue,
+    std::vector<ROBEntry>& rob,
+    int branchIndex
+);

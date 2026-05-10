@@ -54,3 +54,31 @@ void commitROB(
     entry.busy = false;
     robQueue.pop();
 }
+
+void flushROBQueue(
+    std::queue<int>& robQueue,
+    std::vector<ROBEntry>& rob,
+    int branchIndex
+) {
+    std::queue<int> kept;
+
+    while (!robQueue.empty()) {
+        int tag = robQueue.front();
+        robQueue.pop();
+
+        if (tag > branchIndex) {
+            std::cout << "  Flushed ROB: I"
+                      << tag
+                      << " "
+                      << rob[tag].rawText
+                      << "\n";
+
+            rob[tag].busy = false;
+            rob[tag].ready = false;
+        } else {
+            kept.push(tag);
+        }
+    }
+
+    robQueue = kept;
+}

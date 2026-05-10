@@ -53,3 +53,24 @@ bool broadcastCDB(
 
     return wokeSomeone;
 }
+
+void flushCDBQueue(std::queue<CDBMessage>& cdbQueue, int branchIndex) {
+    std::queue<CDBMessage> kept;
+
+    while (!cdbQueue.empty()) {
+        CDBMessage msg = cdbQueue.front();
+        cdbQueue.pop();
+
+        if (msg.producerTag > branchIndex) {
+            std::cout << "  Flushed CDB: I"
+                      << msg.producerTag
+                      << " "
+                      << msg.rawText
+                      << "\n";
+        } else {
+            kept.push(msg);
+        }
+    }
+
+    cdbQueue = kept;
+}
