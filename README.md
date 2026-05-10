@@ -10,36 +10,18 @@ The goal is to show how instructions move through an out-of-order execution engi
 
 ## Current Features
 
-- Custom assembly-like input format
-- In-order instruction issue
-- Out-of-order execution
-- Reservation station capacity limits
-- Separate integer, multiply, load, and store reservation stations/buffers
-- Functional unit contention
-- Register renaming with producer tags
-- `Vj`, `Vk`, `Qj`, `Qk` operand tracking
-- Common Data Bus (CDB)
-- Single CDB broadcast per cycle
-- Reorder Buffer (ROB)
-- Logical ROB capacity
-- In-order commit
-- Stores commit through the ROB
-- Cycle-by-cycle debug output
-- Instruction timing table
-- BEQ/BNE branch support
-- Forward and backward branch tests
-- Automated test runner
-- Test file generator GUI
-- Static always-not-taken branch prediction baseline
-- 1-bit dynamic branch predictor indexed by static PC
-- Speculative branch issue using predicted direction
-- Branch misprediction detection
-- PC redirect on misprediction
-- Branch prediction summary table
-- Branch prediction accuracy reporting
-- Flush younger wrong-path instructions from RS/ROB/CDB
-- Register producer cleanup on flush
-- Flushed instruction marking in status table
+- Cycle-based Tomasulo-style out-of-order execution simulator
+- In-order issue with out-of-order execution and in-order ROB commit
+- Reservation stations for integer, multiply, load, and store operations
+- Functional unit capacity limits and structural hazard handling
+- Register renaming with producer tags and `Vj` / `Vk` / `Qj` / `Qk` operand tracking
+- Common Data Bus with single-result broadcast per cycle
+- Reorder Buffer with logical capacity, precise in-order commit, and store commit support
+- Speculative branch execution with misprediction recovery
+- Static, 1-bit, and 2-bit branch predictor modes indexed by static PC
+- Flush support for younger wrong-path instructions in RS/ROB/CDB
+- Cycle-by-cycle debug output, instruction timing table, and branch prediction summary
+- Automated test runner and GUI test-file generator
 
 ---
 
@@ -87,6 +69,8 @@ Simulator
       +--> Functional Units
       +--> Common Data Bus
       +--> Reorder Buffer
+      +--> Debug/State Printer
+      +--> Branch Predictor
       +--> Debug/State Printer
 ```
 
@@ -220,7 +204,7 @@ Example test files are stored in:
 tests/
 ```
 
-These tests cover arithmetic, RAW dependencies, repeated writes to the same register, self-dependencies, CDB contention, out-of-order writeback, ROB capacity stalls, load-use dependencies, and store commit behavior.
+These tests cover arithmetic, RAW dependencies, repeated writes to the same register, self-dependencies, CDB contention, out-of-order writeback, ROB capacity stalls, load-use dependencies, store commit behavior, branches, and speculative flush behavior.
 
 Test files can be easily created using the GUI displayed when running:
 ```bash
@@ -261,7 +245,7 @@ Expectations are written as:
 ## Current Limitations
 
 * The simulator supports a small custom ISA rather than full RISC-V.
-* A 1-bit dynamic branch predictor is implemented, but there is no 2-bit saturating-counter predictor yet.
+* 1-bit and 2-bit dynamic branch predictors are implemented but predictor type is currently selected in code rather than through a command-line option.
 * ROB capacity is logical; physical ROB slots are not reused yet.
 * The current ROB tag is the dynamic instruction ID.
 * Load-store ordering is simplified.
@@ -272,8 +256,8 @@ Expectations are written as:
 
 ## Planned Features
 
+* Command-line option for selecting predictor type
 * More branch-speculation test cases
-* 2-bit dynamic branch predictor
 * True circular ROB with reusable physical slots
 * Load-store queue
 * CPI and performance experiments
@@ -282,4 +266,4 @@ Expectations are written as:
 
 ## Project Status
 
-The simulator currently implements Tomasulo-style out-of-order execution with ROB-based commit and branch speculation. It includes a 1-bit dynamic branch predictor, misprediction recovery by flushing younger wrong-path instructions, and branch prediction summary output with accuracy reporting.
+The simulator currently implements Tomasulo-style out-of-order execution with ROB-based commit and branch speculation. It includes static, 1-bit, and 2-bit branch predictor modes, misprediction recovery by flushing younger wrong-path instructions, and branch prediction summary output with predictor state and accuracy reporting.
