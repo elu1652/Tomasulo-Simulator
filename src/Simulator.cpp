@@ -4,9 +4,11 @@
 #include "CDB.h"
 #include "DebugPrinter.h"
 #include "ROB.h"
+#include "Flush.h"
 
 #include <iostream>
 #include <queue>
+#include <iomanip>
 
 Simulator::Simulator() {
 
@@ -44,50 +46,6 @@ static bool writesRegister(const Instruction& instr) {
     return instr.rd != -1;
 }
 
-static void flushActiveInstructions(
-    std::vector<ActiveInstruction>& activeInstructions,
-    int branchIndex,
-    FunctionalUnit& intFU,
-    FunctionalUnit& mulFU,
-    FunctionalUnit& memFU
-) {
-    for (int i = 0; i < activeInstructions.size(); ) {
-        if (activeInstructions[i].instructionIndex > branchIndex) {
-            if (activeInstructions[i].executing) {
-                FUType type = getFUType(activeInstructions[i].instr.opcode);
-                FunctionalUnit* fu = getFU(type, intFU, mulFU, memFU);
-
-                if (fu != nullptr && fu->busyUnits > 0) {
-                    fu->busyUnits--;
-                }
-            }
-
-            std::cout << "  Flushed RS/active: I"
-                      << activeInstructions[i].instructionIndex
-                      << " "
-                      << activeInstructions[i].instr.rawText
-                      << "\n";
-
-            activeInstructions.erase(activeInstructions.begin() + i);
-        } else {
-            i++;
-        }
-    }
-}
-
-void flushRegProducers(std::vector<int>& regProducer, int branchIndex) {
-    for (int reg = 0; reg < regProducer.size(); reg++) {
-        if (regProducer[reg] > branchIndex) {
-            std::cout << "  Cleared producer: R"
-                      << reg
-                      << " <- I"
-                      << regProducer[reg]
-                      << "\n";
-
-            regProducer[reg] = -1;
-        }
-    }
-}
 
 ExecutionResult Simulator::computeResult(const ActiveInstruction& active) {
     ExecutionResult result;
@@ -466,7 +424,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                                 << result.branchTarget
                                 << "\n";
 
-                        flushActiveInstructions(activeInstructions, index, intFU, mulFU, memFU);
+                        flushActiveInstructions(activeInstructions, index, intFU, mulFU, memFU, statusTable);
                         flushCDBQueue(cdbQueue, index);
                         flushROBQueue(robQueue, rob, index);
                         flushRegProducers(regProducer, index);
@@ -503,16 +461,37 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
     std::cout << "\nInstruction Status Table:\n";
 
-    for (int i = 0; i < statusTable.size(); i++) {
+    auto cycleString = [](int cycle) {
+        return cycle == -1 ? std::string("-") : std::to_string(cycle);
+    };
+
     std::cout
-        << "I" << i
-        << " | pc: " << statusTable[i].staticPc
-        << " | " << statusTable[i].rawText
-        << " | Issue: " << statusTable[i].issueCycle
-        << " | Exec Start: " << statusTable[i].executeStartCycle
-        << " | Exec End: " << statusTable[i].executeEndCycle
-        << " | WB: " << statusTable[i].writebackCycle
-        << " | Commit: " << statusTable[i].commitCycle
+        << std::left
+        << std::setw(6)  << "ID"
+        << std::setw(6)  << "PC"
+        << std::setw(28) << "Instruction"
+        << std::setw(8)  << "Issue"
+        << std::setw(12) << "ExecStart"
+        << std::setw(10) << "ExecEnd"
+        << std::setw(8)  << "WB"
+        << std::setw(10) << "Commit"
+        << std::setw(8)  << "Flush"
         << "\n";
+
+    std::cout << std::string(104, '-') << "\n";
+
+    for (int i = 0; i < statusTable.size(); i++) {
+        std::cout
+            << std::left
+            << std::setw(6)  << ("I" + std::to_string(i))
+            << std::setw(6)  << statusTable[i].staticPc
+            << std::setw(28) << statusTable[i].rawText
+            << std::setw(8)  << cycleString(statusTable[i].issueCycle)
+            << std::setw(12) << cycleString(statusTable[i].executeStartCycle)
+            << std::setw(10) << cycleString(statusTable[i].executeEndCycle)
+            << std::setw(8)  << cycleString(statusTable[i].writebackCycle)
+            << std::setw(10) << cycleString(statusTable[i].commitCycle)
+            << std::setw(8)  << (statusTable[i].flushed ? "yes" : "no")
+            << "\n";
     }
 }   

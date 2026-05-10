@@ -177,6 +177,30 @@ src/DebugPrinter.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/DebugPrinter.cpp.s
 .PHONY : src/DebugPrinter.cpp.s
 
+src/Flush.o: src/Flush.cpp.o
+.PHONY : src/Flush.o
+
+# target to build an object file
+src/Flush.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/Flush.cpp.o
+.PHONY : src/Flush.cpp.o
+
+src/Flush.i: src/Flush.cpp.i
+.PHONY : src/Flush.i
+
+# target to preprocess a source file
+src/Flush.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/Flush.cpp.i
+.PHONY : src/Flush.cpp.i
+
+src/Flush.s: src/Flush.cpp.s
+.PHONY : src/Flush.s
+
+# target to generate assembly for a file
+src/Flush.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simulator.dir/build.make CMakeFiles/simulator.dir/src/Flush.cpp.s
+.PHONY : src/Flush.cpp.s
+
 src/FunctionalUnit.o: src/FunctionalUnit.cpp.o
 .PHONY : src/FunctionalUnit.o
 
@@ -384,6 +408,9 @@ help:
 	@echo "... src/DebugPrinter.o"
 	@echo "... src/DebugPrinter.i"
 	@echo "... src/DebugPrinter.s"
+	@echo "... src/Flush.o"
+	@echo "... src/Flush.i"
+	@echo "... src/Flush.s"
 	@echo "... src/FunctionalUnit.o"
 	@echo "... src/FunctionalUnit.i"
 	@echo "... src/FunctionalUnit.s"
