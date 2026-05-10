@@ -37,3 +37,5 @@ void printROB(
     const std::vector<ROBEntry>& rob,
     int robCapacity
 );
+
+void printInstructionStatusTable(const std::vector<InstructionStatus>& statusTable);

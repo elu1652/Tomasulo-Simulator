@@ -1,4 +1,5 @@
 #include "DebugPrinter.h"
+#include <iomanip>
 
 void printFUState(
     const FunctionalUnit& intFU,
@@ -176,4 +177,45 @@ void printROB(
 
         std::cout << "\n";
     }
+}
+
+void printInstructionStatusTable(const std::vector<InstructionStatus>& statusTable) {
+    // Final instruction status table.
+    // Dynamic instruction IDs are shown, so loop iterations appear as separate rows.
+    std::cout << "\nInstruction Status Table:\n";
+
+    auto cycleString = [](int cycle) {
+        return cycle == -1 ? std::string("-") : std::to_string(cycle);
+    };
+
+    std::cout
+        << std::left
+        << std::setw(6)  << "ID"
+        << std::setw(6)  << "PC"
+        << std::setw(28) << "Instruction"
+        << std::setw(8)  << "Issue"
+        << std::setw(12) << "ExecStart"
+        << std::setw(10) << "ExecEnd"
+        << std::setw(8)  << "WB"
+        << std::setw(10) << "Commit"
+        << std::setw(8)  << "Flush"
+        << "\n";
+
+    std::cout << std::string(104, '-') << "\n";
+
+    for (int i = 0; i < statusTable.size(); i++) {
+        std::cout
+            << std::left
+            << std::setw(6)  << ("I" + std::to_string(i))
+            << std::setw(6)  << statusTable[i].staticPc
+            << std::setw(28) << statusTable[i].rawText
+            << std::setw(8)  << cycleString(statusTable[i].issueCycle)
+            << std::setw(12) << cycleString(statusTable[i].executeStartCycle)
+            << std::setw(10) << cycleString(statusTable[i].executeEndCycle)
+            << std::setw(8)  << cycleString(statusTable[i].writebackCycle)
+            << std::setw(10) << cycleString(statusTable[i].commitCycle)
+            << std::setw(8)  << (statusTable[i].flushed ? "yes" : "no")
+            << "\n";
+    }
+
 }
