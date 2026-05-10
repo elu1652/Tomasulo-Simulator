@@ -13,4 +13,9 @@ struct InstructionStatus {
     int commitCycle = -1;
 
     bool flushed = false;
+
+    bool isBranch = false;
+    bool predictedTaken = false;
+    bool actualTaken = false;
+    bool branchResolved = false;
 };

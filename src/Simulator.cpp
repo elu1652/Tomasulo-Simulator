@@ -179,7 +179,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
     // and no uncommitted ROB entries.
     while (pc < instructions.size() || !activeInstructions.empty() || !cdbQueue.empty() || !robQueue.empty()) {
 
-        std::cout << "\nCycle " << cycle << "\n";
+        std::cout << "\n\nCycle " << cycle << "\n";
 
 
         // ISSUE STAGE
@@ -276,6 +276,8 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 status.staticPc = pc;
                 status.rawText = newInstr.instr.rawText;
                 status.issueCycle = cycle;
+                status.isBranch = newInstr.isBranch;
+                status.predictedTaken = newInstr.predictedTaken;
                 statusTable.push_back(status);
 
                 // Register-writing instructions become the newest producer for their destination register.
@@ -432,6 +434,10 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 }
 
                 if (result.isBranch) {
+                    statusTable[index].isBranch = true;
+                    statusTable[index].actualTaken = result.branchTaken;
+                    statusTable[index].branchResolved = true;
+
                     ROBEntry& entry = rob[index];
                     entry.ready = true;
 
@@ -505,4 +511,5 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
     mem.print();
 
     printInstructionStatusTable(statusTable);
+    printBranchPredictionSummary(statusTable);
 }   

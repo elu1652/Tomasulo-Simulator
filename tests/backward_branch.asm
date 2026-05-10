@@ -1,4 +1,4 @@
-# backword_branch.asm
+# backward_branch.asm
 #
 # Test: finite backward branch loop
 #

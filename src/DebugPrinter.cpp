@@ -217,5 +217,81 @@ void printInstructionStatusTable(const std::vector<InstructionStatus>& statusTab
             << std::setw(8)  << (statusTable[i].flushed ? "yes" : "no")
             << "\n";
     }
+}
 
+void printBranchPredictionSummary(const std::vector<InstructionStatus>& statusTable) {
+    int resolvedBranches = 0;
+    int correctPredictions = 0;
+    
+    bool hasBranch = false;
+
+    for (const auto& status : statusTable) {
+        if (status.isBranch) {
+            hasBranch = true;
+            break;
+        }
+    }
+
+    if (!hasBranch) {
+        return;
+    }
+
+    auto takenString = [](bool taken) {
+        return taken ? "T" : "NT";
+    };
+
+    std::cout << "\nBranch Prediction Summary:\n";
+
+    std::cout
+        << std::left
+        << std::setw(6)  << "ID"
+        << std::setw(6)  << "PC"
+        << std::setw(28) << "Instruction"
+        << std::setw(12) << "Predicted"
+        << std::setw(10) << "Actual"
+        << std::setw(8)  << "Result"
+        << "\n";
+
+    std::cout << std::string(70, '-') << "\n";
+
+    for (int i = 0; i < statusTable.size(); i++) {
+        const auto& status = statusTable[i];
+
+        if (!status.isBranch) {
+            continue;
+        }
+
+        std::string result = "-";
+
+        if (status.branchResolved) {
+            result = status.predictedTaken == status.actualTaken ? "Hit" : "Miss";
+        }
+        if (status.branchResolved) {
+            resolvedBranches++;
+
+            if (status.predictedTaken == status.actualTaken) {
+                correctPredictions++;
+            }
+        }
+
+        std::cout
+            << std::left
+            << std::setw(6)  << ("I" + std::to_string(i))
+            << std::setw(6)  << status.staticPc
+            << std::setw(28) << status.rawText
+            << std::setw(12) << takenString(status.predictedTaken)
+            << std::setw(10) << (status.branchResolved ? takenString(status.actualTaken) : "-")
+            << std::setw(8)  << result
+            << "\n";
+    }
+    if (resolvedBranches > 0) {
+        double accuracy =
+            100.0 * correctPredictions / resolvedBranches;
+
+        std::cout << "\nBranch prediction accuracy: "
+                << correctPredictions << "/"
+                << resolvedBranches << " correct = "
+                << std::fixed << std::setprecision(2)
+                << accuracy << "%\n\n";
+    }
 }

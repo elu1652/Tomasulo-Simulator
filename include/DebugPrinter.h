@@ -39,3 +39,5 @@ void printROB(
 );
 
 void printInstructionStatusTable(const std::vector<InstructionStatus>& statusTable);
+
+void printBranchPredictionSummary(const std::vector<InstructionStatus>& statusTable);
