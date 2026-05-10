@@ -59,7 +59,6 @@ ExecutionResult Simulator::computeResult(const ActiveInstruction& active) {
     switch (instr.opcode) {
         case OpCode::ADD: {
             int value = active.vj + active.vk;
-            //rf.write(instr.rd, value);
 
             result.writesRegister = true;
             result.destinationRegister = instr.rd;
@@ -78,7 +77,6 @@ ExecutionResult Simulator::computeResult(const ActiveInstruction& active) {
 
         case OpCode::SUB: {
             int value = active.vj - active.vk;
-            //rf.write(instr.rd, value);
 
             result.writesRegister = true;
             result.destinationRegister = instr.rd;
@@ -88,7 +86,6 @@ ExecutionResult Simulator::computeResult(const ActiveInstruction& active) {
 
         case OpCode::MUL: {
             int value = active.vj * active.vk;
-            //rf.write(instr.rd, value);
 
             result.writesRegister = true;
             result.destinationRegister = instr.rd;
@@ -99,7 +96,6 @@ ExecutionResult Simulator::computeResult(const ActiveInstruction& active) {
         case OpCode::LD: {
             int address = active.vj + instr.immediate;
             int value = mem.load(address);
-            //rf.write(instr.rd, value);
 
             result.writesRegister = true;
             result.destinationRegister = instr.rd;
@@ -152,10 +148,9 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
     int nextDynamicId = 0;
 
-    bool unresolvedBranchInFlight = false;
+    //bool unresolvedBranchInFlight = false;
 
     statusTable.clear();
-    // statusTable.resize(instructions.size());
 
     std::vector<ActiveInstruction> activeInstructions; // Act as our reservation station
 
@@ -186,11 +181,12 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
             int currentEntries = countRSEntries(activeInstructions, rsType);
 
             int capacity = getRSCapacity(rsType, INT_RS_CAPACITY, MUL_RS_CAPACITY, LOAD_BUFFER_CAPACITY, STORE_BUFFER_CAPACITY);
-            
+            /*
             if (unresolvedBranchInFlight) {
                 std::cout << "Issue stalled: unresolved branch\n";
             }
-            else if (robQueue.size() >= ROB_CAPACITY) {
+            */
+            if (robQueue.size() >= ROB_CAPACITY) {
                 std::cout << "Issue stalled: " 
                         << instructions[pc].rawText 
                         << " | ROB full\n";
@@ -250,7 +246,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
                 activeInstructions.push_back(newInstr); // Add new instruction to reservation station
 
-                //statusTable[pc].issueCycle = cycle; // Record issue cycle 
+                // Record instruction status
                 InstructionStatus status;
                 status.staticPc = pc;
                 status.rawText = newInstr.instr.rawText;
@@ -263,10 +259,13 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
                 std::cout << "Issued: " << newInstr.instr.rawText << "\n";
 
+                /*
                 if (isBranch) {
                     unresolvedBranchInFlight = true;
                 }
+                */
 
+                // Create ROB entry
                 int tag = dynamicId;
 
                 ROBEntry entry;
@@ -409,15 +408,25 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                             << (result.branchTaken ? "taken" : "not taken")
                             << "\n";
 
-                    if (result.branchTaken) {
-                        pc = result.branchTarget;
+                    bool predictedTaken = false; // static always-not-taken predictor
 
-                        std::cout << "  PC updated to instruction "
-                                << result.branchTarget
-                                << "\n";
-                    }
+                if (result.branchTaken != predictedTaken) {
+                    std::cout << "  Branch misprediction detected\n";
+                    std::cout << "  Predicted: not taken\n";
+                    std::cout << "  Actual: taken\n";
 
-                    unresolvedBranchInFlight = false;
+                    pc = result.branchTarget;
+
+                    std::cout << "  PC redirected to instruction "
+                            << result.branchTarget
+                            << "\n";
+
+                    // TODO: flush younger wrong-path instructions
+                } else {
+                    std::cout << "  Branch prediction correct\n";
+                }
+
+                    //unresolvedBranchInFlight = false;
                     std::cout << "  ROB entry ready\n";
                 }
 

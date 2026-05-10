@@ -44,7 +44,9 @@ SUB R1, R2, R3
 MUL R1, R2, R3
 LD  R1, offset(R2)
 SD  R1, offset(R2)
-````
+BNE R1, R2, loop
+BEQ R1, R2, loop
+```
 
 Example:
 
@@ -241,7 +243,7 @@ Terminal will display the number of passed and failed tests.
 ## Current Limitations
 
 * The current ROB tag is the instruction index.
-* Branch instructions are not fully implemented yet.
+* Branch instructions are implemented non-speculatively; prediction and speculative recovery are not implemented yet.
 * Speculative execution is not implemented yet.
 * Branch prediction is not implemented yet.
 * Load-store ordering is simplified.
