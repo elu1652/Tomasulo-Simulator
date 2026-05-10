@@ -26,6 +26,10 @@ The goal is to show how instructions move through an out-of-order execution engi
 - Stores commit through the ROB
 - Cycle-by-cycle debug output
 - Instruction timing table
+- BEQ/BNE non-speculative branch support
+- Forward and backward branch tests
+- Automated test runner
+- Test file generator GUI
 
 ---
 
@@ -35,6 +39,7 @@ The simulator currently supports:
 
 ```asm
 ADD R1, R2, R3
+ADDI R1, R1, 5
 SUB R1, R2, R3
 MUL R1, R2, R3
 LD  R1, offset(R2)
@@ -150,7 +155,7 @@ SUB R2, R3, R5
 MUL R4, R3, R5
 ```
 
-This tests arithmetic functions and commiting to architectural register.
+This tests arithmetic functions and committing to architectural register.
 
 Expected behavior:
 
@@ -203,27 +208,38 @@ Example test files are stored in:
 tests/
 ```
 
-Current tests include:
+These tests cover arithmetic, RAW dependencies, repeated writes to the same register, self-dependencies, CDB contention, out-of-order writeback, ROB capacity stalls, load-use dependencies, and store commit behavior.
 
+Test files can be easily created using the GUI displayed when running:
+```bash
+python3 tests/create_test.py
+```
+The GUI asks for:
 ```text
-basic_arithmetic.asm
-raw_dependency.asm
-waw_renaming.asm
-self_dependency.asm
-cdb_contention.asm
-out_of_order_writeback.asm
-rob_full.asm
-load_use_dependency.asm
-store_commit.asm
+File name
+Test title
+Description
+Expected registers
+Expected memory
+Assembly code
 ```
 
-These tests cover arithmetic, RAW dependencies, repeated writes to the same register, self-dependencies, CDB contention, out-of-order writeback, ROB capacity stalls, load-use dependencies, and store commit behavior.
+Testing is automated by running:
+```bash
+python3 tests/run_tests.py
+```
+
+Automated testing runs all test files located in `tests/` and verifies resulting values with expected values. Errors are shown in terminal like:
+```text
+[FAIL] add_immediate.asm
+R1: expected 8, got 7
+```
+Terminal will display the number of passed and failed tests.
 
 ---
 
 ## Current Limitations
 
-* ROB slots are not reused yet.
 * The current ROB tag is the instruction index.
 * Branch instructions are not fully implemented yet.
 * Speculative execution is not implemented yet.
@@ -231,12 +247,12 @@ These tests cover arithmetic, RAW dependencies, repeated writes to the same regi
 * Load-store ordering is simplified.
 * There is no full load-store queue yet.
 * The simulator supports a small custom ISA rather than full RISC-V.
+* ROB uses dynamic IDs but physical ROB slots are not reused yet
 
 ---
 
 ## Planned Features
 
-* Branch instructions such as `BEQ` and `BNE`
 * Static branch prediction
 * Speculative execution
 * ROB and reservation station flush on branch misprediction
@@ -249,6 +265,6 @@ These tests cover arithmetic, RAW dependencies, repeated writes to the same regi
 
 ## Project Status
 
-The simulator currently implements the core non-speculative Tomasulo pipeline with ROB-based commit.
+The simulator currently implements a non-speculative Tomasulo-style pipeline with ROB-based commit and basic BEQ/BNE branch support.
 
-The next major milestone is to add branch instructions without speculation, then extend that into branch prediction and speculative execution.
+The next major milestone is static branch prediction with ROB/reservation-station flush on misprediction.
