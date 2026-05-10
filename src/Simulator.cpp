@@ -41,7 +41,9 @@ static bool writesRegister(const Instruction& instr) {
     return instr.rd != -1;
 }
 
-
+// Compute the result of an instruction after it finishes execution.
+// Register results are queued for CDB broadcast.
+// Store and branch results update the ROB directly because they do not broadcast a register value.
 ExecutionResult Simulator::computeResult(const ActiveInstruction& active) {
     ExecutionResult result;
     result.writesRegister = false;
@@ -146,13 +148,16 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
     int nextDynamicId = 0;
 
-    //bool unresolvedBranchInFlight = false;
-
     statusTable.clear();
 
-    std::vector<ActiveInstruction> activeInstructions; // Act as our reservation station
+    // Active reservation station entries.
+    // Each entry tracks operand values/tags, execution state, and remaining latency.
+    std::vector<ActiveInstruction> activeInstructions; 
 
-    std::vector<int> regProducer(32, -1); // Initialize register producers. -1 means no registers currently writing to it
+    // Register renaming table.
+    // regProducer[R] stores the ROB/dynamic instruction tag that will produce R.
+    // -1 means the architectural register file currently has the latest value.
+    std::vector<int> regProducer(32, -1); 
 
     std::queue<CDBMessage> cdbQueue;
 
@@ -164,12 +169,19 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
     FunctionalUnit mulFU {FUType::MUL, 1, 0};
     FunctionalUnit memFU {FUType::MEM, 1, 0};
 
+    // Main simulation loop.
+    // The simulator continues until there are no more instructions to fetch,
+    // no active reservation station entries, no pending CDB broadcasts,
+    // and no uncommitted ROB entries.
     while (pc < instructions.size() || !activeInstructions.empty() || !cdbQueue.empty() || !robQueue.empty()) {
 
         std::cout << "\nCycle " << cycle << "\n";
 
 
-        // Issue one instruction per cycle, in order
+        // ISSUE STAGE
+        // Issue at most one instruction per cycle, in program order.
+        // With always-not-taken branch prediction, branches do not stall issue;
+        // the PC naturally advances to the fall-through path.
         if (pc < instructions.size()) {
 
             const Instruction& instrToIssue = instructions[pc];
@@ -179,11 +191,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
             int currentEntries = countRSEntries(activeInstructions, rsType);
 
             int capacity = getRSCapacity(rsType, INT_RS_CAPACITY, MUL_RS_CAPACITY, LOAD_BUFFER_CAPACITY, STORE_BUFFER_CAPACITY);
-            /*
-            if (unresolvedBranchInFlight) {
-                std::cout << "Issue stalled: unresolved branch\n";
-            }
-            */
+
             if (robQueue.size() >= ROB_CAPACITY) {
                 std::cout << "Issue stalled: " 
                         << instructions[pc].rawText 
@@ -210,8 +218,9 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 newInstr.qk = -1;
                 newInstr.vj = 0;
                 newInstr.vk = 0;
-                bool isBranch = newInstr.instr.opcode == OpCode::BEQ || newInstr.instr.opcode == OpCode::BNE;
 
+                // Source operands are read either from the architectural register file,
+                // from a ready ROB entry, or as producer tags if the value is still pending.
                 if (newInstr.instr.rs1 != -1) { // Source register 1
                     int producer = regProducer[newInstr.instr.rs1];
                     if (producer == -1){
@@ -251,19 +260,15 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 status.issueCycle = cycle;
                 statusTable.push_back(status);
 
-                if(writesRegister(newInstr.instr)){ // Check if instruction writes to a register, if so it is a producer
+                // Register-writing instructions become the newest producer for their destination register.
+                if(writesRegister(newInstr.instr)){
                     regProducer[newInstr.instr.rd] = dynamicId;
                 }
 
                 std::cout << "Issued: " << newInstr.instr.rawText << "\n";
 
-                /*
-                if (isBranch) {
-                    unresolvedBranchInFlight = true;
-                }
-                */
-
-                // Create ROB entry
+                // Allocate a ROB entry for every issued instruction.
+                // Even stores and branches enter the ROB so commit remains in program order.
                 int tag = dynamicId;
 
                 ROBEntry entry;
@@ -279,7 +284,9 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 }
         }
 
-        // Execution stage
+        // EXECUTE STAGE
+        // Ready instructions start execution when operands are available and a matching FU is free.
+        // Already-executing instructions decrement their remaining latency.
         for (auto& active : activeInstructions) {
             if(!active.executing){
                 if (active.issueCycle == cycle) {
@@ -319,7 +326,9 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
         printCDBQueue(cdbQueue);
         printROB(robQueue, rob, ROB_CAPACITY);
 
-        // Commit ROB entries
+        // COMMIT STAGE
+        // Commit happens before this cycle's CDB broadcast.
+        // A result that broadcasts this cycle cannot commit until a later cycle.
         commitROB(
             robQueue,
             rob,
@@ -330,7 +339,8 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
             cycle
         );
 
-        // Broadcast on CDB
+        // WRITEBACK / CDB BROADCAST STAGE
+        // Broadcast at most one queued result per cycle.
         if (!cdbQueue.empty()) {
             CDBMessage cdb = cdbQueue.front();
             cdbQueue.pop();
@@ -345,7 +355,10 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
             std::cout << "CDB Broadcast: none\n";
         }
 
-        // Complete finished instructions
+        // COMPLETION STAGE
+        // Instructions that reach zero remaining cycles finish here.
+        // Register-writing instructions enqueue a CDB message;
+        // stores and branches mark their ROB entries ready directly.
         for (int i = 0; i < activeInstructions.size(); ) {
             if (activeInstructions[i].remainingCycles == 0) {
                 int index = activeInstructions[i].instructionIndex;
@@ -406,7 +419,10 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                             << (result.branchTaken ? "taken" : "not taken")
                             << "\n";
 
-                    bool predictedTaken = false; // static always-not-taken predictor
+                    // Static always-not-taken branch prediction.
+                    // Since issue already followed pc + 1, a taken branch is a misprediction.
+                    // Recovery redirects the PC and flushes all younger wrong-path instructions.
+                    bool predictedTaken = false; 
 
                     if (result.branchTaken != predictedTaken) {
                         std::cout << "  Branch misprediction detected\n";
@@ -426,7 +442,6 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                     } else {
                         std::cout << "  Branch prediction correct\n";
                     }
-                    //unresolvedBranchInFlight = false;
                     std::cout << "  ROB entry ready\n";
                 }
 
@@ -454,6 +469,8 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
     std::cout << "\nMemory State:\n";
     mem.print();
 
+    // Final instruction status table.
+    // Dynamic instruction IDs are shown, so loop iterations appear as separate rows.
     std::cout << "\nInstruction Status Table:\n";
 
     auto cycleString = [](int cycle) {
