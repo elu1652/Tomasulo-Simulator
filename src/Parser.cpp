@@ -29,6 +29,7 @@ static int parseRegister(const std::string& token) {
 
 static OpCode parseOpCode(const std::string& token) {
     if (token == "ADD") return OpCode::ADD;
+    if (token == "ADDI") return OpCode::ADDI;
     if (token == "SUB") return OpCode::SUB;
     if (token == "MUL") return OpCode::MUL;
     if (token == "LD")  return OpCode::LD;
@@ -121,6 +122,14 @@ std::vector<Instruction> Parser::parseFile(const std::string& filename) {
             instr.rd = parseRegister(rdToken);
             instr.rs1 = parseRegister(rs1Token);
             instr.rs2 = parseRegister(rs2Token);
+        }
+        else if (instr.opcode == OpCode::ADDI) {
+            std::string rdToken, rs1Token, immToken;
+            ss >> rdToken >> rs1Token >> immToken;
+
+            instr.rd = parseRegister(rdToken);
+            instr.rs1 = parseRegister(rs1Token);
+            instr.immediate = std::stoi(immToken);
         }
         else if (instr.opcode == OpCode::LD) {
             std::string rdToken, addressToken;

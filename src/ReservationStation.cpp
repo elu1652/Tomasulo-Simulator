@@ -37,6 +37,7 @@ int getRSCapacity(RSType type, int intCapacity, int mulCapacity, int loadCapacit
 RSType getRSType(OpCode opcode) {
     switch (opcode) {
         case OpCode::ADD:
+        case OpCode::ADDI:
         case OpCode::SUB:
         case OpCode::BEQ:
         case OpCode::BNE:

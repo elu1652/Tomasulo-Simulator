@@ -10,17 +10,18 @@
 
 Simulator::Simulator() {
 
-    rf.write(1, 10);
-    rf.write(3, 5);
-    rf.write(5, 2);
+    //rf.write(1, 10);
+    //rf.write(3, 5);
+    //rf.write(5, 2);
 
-    mem.store(0, 99);
+    //mem.store(0, 99);
 }
 
 // Clock cycles required to perform operation
 static int getLatency(OpCode opcode){
     switch (opcode) {
         case OpCode::ADD:
+        case OpCode::ADDI:
         case OpCode::SUB:
         case OpCode::BEQ:
         case OpCode::BNE:
@@ -59,6 +60,15 @@ ExecutionResult Simulator::computeResult(const ActiveInstruction& active) {
         case OpCode::ADD: {
             int value = active.vj + active.vk;
             //rf.write(instr.rd, value);
+
+            result.writesRegister = true;
+            result.destinationRegister = instr.rd;
+            result.value = value;
+            break;
+        }
+
+        case OpCode::ADDI: {
+            int value = active.vj + instr.immediate;
 
             result.writesRegister = true;
             result.destinationRegister = instr.rd;

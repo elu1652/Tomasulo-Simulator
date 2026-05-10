@@ -4,6 +4,7 @@
 
 enum class OpCode {
     ADD,
+    ADDI,
     SUB,
     MUL,
     LD,
@@ -24,6 +25,6 @@ struct Instruction {
 
     std::string label;
     int branchTarget = -1;
-    
+
     std::string rawText;
 };
