@@ -6,6 +6,7 @@
 #include "RegisterFile.h"
 #include "Memory.h"
 #include "InstructionStatus.h"
+#include "BranchPredictor.h"
 
 
 struct ExecutionResult {
@@ -52,9 +53,10 @@ private:
     RegisterFile rf;
     Memory mem;
     std::vector<InstructionStatus> statusTable;
+    BranchPredictorType predictorType;
 
 public:
-    Simulator();
+    explicit Simulator(BranchPredictorType predictorType = BranchPredictorType::TwoBit);
 
     void execute(const std::vector<Instruction>& instructions);
 

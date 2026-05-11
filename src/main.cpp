@@ -1,16 +1,41 @@
 #include "Parser.h"
 #include "Simulator.h"
+#include <BranchPredictor.h>
 
 #include <iostream>
 #include <string>
 
 int main(int argc, char* argv[]) {
-    std::string filename;
+    std::string filename = "../tests/nested_loop.asm";
+    BranchPredictorType predictorType = BranchPredictorType::TwoBit;
 
-    if (argc >= 2) {
-        filename = argv[1];          // use file passed from terminal
-    } else {
-        filename = "../tests/nested_loop.asm";    // default file if no argument given
+    for (int i = 1; i < argc; i++) {
+        std::string arg = argv[i];
+
+        if (arg == "--predictor") {
+            if (i + 1 >= argc) {
+                std::cerr << "Missing predictor type after --predictor\n";
+                return 1;
+            }
+
+            std::string mode = argv[++i];
+
+            if (mode == "always-not-taken") {
+                predictorType = BranchPredictorType::AlwaysNotTaken;
+            } else if (mode == "always-taken") {
+                predictorType = BranchPredictorType::AlwaysTaken;
+            } else if (mode == "one-bit") {
+                predictorType = BranchPredictorType::OneBit;
+            } else if (mode == "two-bit") {
+                predictorType = BranchPredictorType::TwoBit;
+            } else {
+                std::cerr << "Unknown predictor type: " << mode << "\n";
+                std::cerr << "Valid options: always-not-taken, always-taken, one-bit, two-bit\n";
+                return 1;
+            }
+        } else {
+            filename = arg;
+        }
     }
 
     std::cout << "Running program: " << filename << "\n";
@@ -23,7 +48,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    Simulator sim;
+    Simulator sim(predictorType);
     sim.execute(instructions);
 
     return 0;

@@ -11,7 +11,7 @@
 #include <queue>
 #include <iomanip>
 
-Simulator::Simulator() {
+Simulator::Simulator(BranchPredictorType predictorType): predictorType(predictorType) {
 
 }
 
@@ -172,7 +172,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
     // Branch predictor used for speculative issue.
     // Change the predictor type here to compare prediction strategies.
-    BranchPredictor branchPredictor(BranchPredictorType::AlwaysTaken);
+    BranchPredictor branchPredictor(predictorType);
 
     // Main simulation loop.
     // The simulator continues until there are no more instructions to fetch,
