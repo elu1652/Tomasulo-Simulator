@@ -3,6 +3,7 @@
 #include "InstructionStatus.h"
 #include "FunctionalUnit.h"
 #include "ReservationStation.h"
+#include "ROB.h"
 
 #include <vector>
 
@@ -15,4 +16,8 @@ void flushActiveInstructions(
     std::vector<InstructionStatus>& statusTable
 );
 
-void flushRegProducers(std::vector<int>& regProducer, int branchIndex);
+void flushRegProducers(
+    std::vector<int>& regProducer,
+    const ReorderBuffer& rob,
+    int branchIndex
+);

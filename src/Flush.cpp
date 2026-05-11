@@ -37,13 +37,30 @@ void flushActiveInstructions(
     }
 }
 
-void flushRegProducers(std::vector<int>& regProducer, int branchIndex) {
-    for (int reg = 0; reg < regProducer.size(); reg++) {
-        if (regProducer[reg] > branchIndex) {
+void flushRegProducers(
+    std::vector<int>& regProducer,
+    const ReorderBuffer& rob,
+    int branchIndex
+) {
+    for (int reg = 0; reg < static_cast<int>(regProducer.size()); reg++) {
+        int tag = regProducer[reg];
+
+        if (tag == -1) {
+            continue;
+        }
+
+        if (tag < 0 || tag >= rob.capacity()) {
+            regProducer[reg] = -1;
+            continue;
+        }
+
+        const ROBEntry& entry = rob.entries[tag];
+
+        if (!entry.busy || entry.instructionId > branchIndex) {
             std::cout << "  Cleared producer: R"
                       << reg
-                      << " <- I"
-                      << regProducer[reg]
+                      << " <- ROB"
+                      << tag
                       << "\n";
 
             regProducer[reg] = -1;

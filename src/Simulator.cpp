@@ -9,7 +9,6 @@
 
 #include <iostream>
 #include <queue>
-#include <iomanip>
 
 Simulator::Simulator(BranchPredictorType predictorType): predictorType(predictorType) {
 
@@ -156,14 +155,14 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
     std::vector<ActiveInstruction> activeInstructions; 
 
     // Register renaming table.
-    // regProducer[R] stores the ROB/dynamic instruction tag that will produce R.
+    // regProducer[R] stores the physical ROB slot that will produce R.
     // -1 means the architectural register file currently has the latest value.
-    std::vector<int> regProducer(32, -1); 
+    std::vector<int> regProducer(32, -1);
 
     std::queue<CDBMessage> cdbQueue;
-
-    std::vector<ROBEntry> rob;
-    std::queue<int> robQueue;
+    
+    ReorderBuffer circularROB(ROB_CAPACITY);
+    std::vector<ROBEntry>& robEntries = circularROB.entries;
 
     // Functional unit initialization
     FunctionalUnit intFU {FUType::INT, 2, 0};
@@ -178,7 +177,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
     // The simulator continues until there are no more instructions to fetch,
     // no active reservation station entries, no pending CDB broadcasts,
     // and no uncommitted ROB entries.
-    while (pc < instructions.size() || !activeInstructions.empty() || !cdbQueue.empty() || !robQueue.empty()) {
+    while (pc < instructions.size() || !activeInstructions.empty() || !cdbQueue.empty() || !circularROB.empty()) {
 
         std::cout << "\n\nCycle " << cycle << "\n";
 
@@ -198,7 +197,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
             int capacity = getRSCapacity(rsType, INT_RS_CAPACITY, MUL_RS_CAPACITY, LOAD_BUFFER_CAPACITY, STORE_BUFFER_CAPACITY);
 
-            if (robQueue.size() >= ROB_CAPACITY) {
+            if (circularROB.full()) {
                 std::cout << "Issue stalled: " 
                         << instructions[pc].rawText 
                         << " | ROB full\n";
@@ -225,6 +224,19 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 newInstr.vj = 0;
                 newInstr.vk = 0;
 
+                newInstr.robTag = -1;
+
+                // Allocate a physical ROB slot for every issued instruction.
+                // Stores and branches also enter the ROB so commit stays in program order.
+                int robTag = allocateROB(circularROB, dynamicId, newInstr.instr.rawText);
+
+                if (robTag == -1) {
+                    std::cout << "Internal error: ROB allocation failed\n";
+                    return;
+                }
+
+                newInstr.robTag = robTag;
+
                 newInstr.isBranch =
                     newInstr.instr.opcode == OpCode::BEQ ||
                     newInstr.instr.opcode == OpCode::BNE;
@@ -243,32 +255,32 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 // Source operands are read either from the architectural register file,
                 // from a ready ROB entry, or as producer tags if the value is still pending.
                 if (newInstr.instr.rs1 != -1) { // Source register 1
-                    int producer = regProducer[newInstr.instr.rs1];
-                    if (producer == -1){
+                    int producerTag = regProducer[newInstr.instr.rs1];
+                    if (producerTag == -1){
                         newInstr.vj = rf.read(newInstr.instr.rs1); // Read value from register file if no producer/RAW dependency
                         newInstr.qj= -1;
                     }
-                    else if (rob[producer].ready && rob[producer].writesRegister) {
-                        newInstr.vj = rob[producer].value; // Read value from ROB if it's in ROB waiting to be committed
+                    else if (robEntries[producerTag].ready && robEntries[producerTag].writesRegister) {
+                        newInstr.vj = robEntries[producerTag].value; // Read value from ROB if it's in ROB waiting to be committed
                         newInstr.qj = -1;
                     }
                     else{
-                        newInstr.qj = producer; // Instruction waits for producer to broadcast
+                        newInstr.qj = producerTag; // Instruction waits for producer to broadcast
                     }
                 }
 
                 if (newInstr.instr.rs2 != -1) { // Source register 2
-                    int producer = regProducer[newInstr.instr.rs2];
-                    if (producer == -1){
+                    int producerTag = regProducer[newInstr.instr.rs2];
+                    if (producerTag == -1){
                         newInstr.vk = rf.read(newInstr.instr.rs2); // Read value from register file if no producer/RAW dependency
                         newInstr.qk= -1;
                     }
-                    else if (rob[producer].ready && rob[producer].writesRegister) {
-                        newInstr.vk = rob[producer].value; // Read value from ROB if it's in ROB waiting to be committed
+                    else if (robEntries[producerTag].ready && robEntries[producerTag].writesRegister) {
+                        newInstr.vk = robEntries[producerTag].value; // Read value from ROB if it's in ROB waiting to be committed
                         newInstr.qk = -1;
                     }
                     else{
-                        newInstr.qk = producer; // Instruction waits for producer to broadcast
+                        newInstr.qk = producerTag; // Instruction waits for producer to broadcast
                     }
                 }
 
@@ -286,23 +298,10 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
                 // Register-writing instructions become the newest producer for their destination register.
                 if(writesRegister(newInstr.instr)){
-                    regProducer[newInstr.instr.rd] = dynamicId;
+                    regProducer[newInstr.instr.rd] = newInstr.robTag;
                 }
 
-                std::cout << "Issued: " << newInstr.instr.rawText << "\n";
-
-                // Allocate a ROB entry for every issued instruction.
-                // Even stores and branches enter the ROB so commit remains in program order.
-                int tag = dynamicId;
-
-                ROBEntry entry;
-                entry.busy = true;
-                entry.ready = false;
-                entry.tag = tag;
-                entry.rawText = newInstr.instr.rawText;
-
-                rob.push_back(entry);
-                robQueue.push(tag);
+                std::cout << "Issued: " << newInstr.instr.rawText << "\n";                
 
                 if (newInstr.isBranch && newInstr.predictedTaken) {
                     pc = newInstr.instr.branchTarget;
@@ -352,14 +351,13 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
         printRegisterProducer(regProducer);
         printActiveInstructions(activeInstructions);
         printCDBQueue(cdbQueue);
-        printROB(robQueue, rob, ROB_CAPACITY);
+        printROB(circularROB);
 
         // COMMIT STAGE
         // Commit happens before this cycle's CDB broadcast.
         // A result that broadcasts this cycle cannot commit until a later cycle.
         commitROB(
-            robQueue,
-            rob,
+            circularROB,
             regProducer,
             rf,
             mem,
@@ -376,7 +374,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
             std::cout << "CDB Broadcast: I" << cdb.producerTag
                     << " " << cdb.rawText << "\n";
 
-            broadcastCDB(cdb, activeInstructions, rob);
+            broadcastCDB(cdb, activeInstructions, robEntries);
             statusTable[cdb.producerTag].writebackCycle = cycle;
             
         } else {
@@ -416,12 +414,13 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                     cdb.destinationRegister = result.destinationRegister;
                     cdb.value = result.value;
                     cdb.rawText = activeInstructions[i].instr.rawText;
+                    cdb.robTag = activeInstructions[i].robTag;     // physical ROB slot
 
                     cdbQueue.push(cdb);
                 }
 
                 if (result.writesMemory) {
-                    ROBEntry& entry = rob[index];
+                    ROBEntry& entry = robEntries[activeInstructions[i].robTag];
 
                     entry.ready = true;
                     entry.writesMemory = true;
@@ -442,7 +441,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                     statusTable[index].actualTaken = result.branchTaken;
                     statusTable[index].branchResolved = true;
 
-                    ROBEntry& entry = rob[index];
+                    ROBEntry& entry = robEntries[activeInstructions[i].robTag];
                     entry.ready = true;
 
                     statusTable[index].writebackCycle = cycle;
@@ -485,8 +484,8 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
                         flushActiveInstructions(activeInstructions, index, intFU, mulFU, memFU, statusTable);
                         flushCDBQueue(cdbQueue, index);
-                        flushROBQueue(robQueue, rob, index);
-                        flushRegProducers(regProducer, index);
+                        flushROB(circularROB, index);
+                        flushRegProducers(regProducer, circularROB, index);
                     } else {
                         std::cout << "  Branch prediction correct\n";
                     }
@@ -494,7 +493,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 }
 
                 if (!result.writesRegister && !result.writesMemory && !result.isBranch) {
-                    ROBEntry& entry = rob[index];
+                    ROBEntry& entry = robEntries[activeInstructions[i].robTag];
                     entry.ready = true;
 
                     statusTable[index].writebackCycle = cycle;

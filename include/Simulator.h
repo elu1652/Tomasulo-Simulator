@@ -44,6 +44,8 @@ struct ActiveInstruction {
 
     int predictorStateBefore = -1;
     int predictorStateAfter = -1;
+
+    int robTag;
 };
 
 

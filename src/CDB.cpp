@@ -13,29 +13,31 @@ bool broadcastCDB(
 
     std::cout << "  Broadcast: I" << cdb.producerTag << "\n"; // Producer
 
-    ROBEntry& entry = rob[cdb.producerTag];
+    ROBEntry& entry = rob[cdb.robTag];
     entry.ready = true;
     entry.writesRegister = true;
     entry.destinationRegister = cdb.destinationRegister;
     entry.value = cdb.value;
 
-    std::cout << "  ROB Write: I" << cdb.producerTag
-              << " value = " << cdb.value
-              << " -> R" << cdb.destinationRegister << "\n";
+    std::cout << "  ROB Write: ROB" << cdb.robTag
+          << " / I" << cdb.producerTag
+          << " value = " << cdb.value
+          << " -> R" << cdb.destinationRegister << "\n";
 
     for (auto& other : activeInstructions) {
-        if (other.qj == cdb.producerTag) {
+        if (other.qj == cdb.robTag) {
             other.qj = -1;
             other.vj = cdb.value;
 
             std::cout << "  Wakeup: I" << other.instructionIndex
-                      << " qj resolved by I" << cdb.producerTag
-                      << " with value " << cdb.value << "\n";
+                    << " qj resolved by ROB" << cdb.robTag
+                    << " / I" << cdb.producerTag
+                    << " with value " << cdb.value << "\n";
 
             wokeSomeone = true;
         }
 
-        if (other.qk == cdb.producerTag) {
+        if (other.qk == cdb.robTag) {
             other.qk = -1;
             other.vk = cdb.value;
 

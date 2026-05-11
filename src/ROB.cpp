@@ -2,33 +2,33 @@
 #include "RegisterFile.h"
 #include "Memory.h"
 #include "InstructionStatus.h"
-#include <queue>
+#include <iostream>
 
 
 void commitROB(
-    std::queue<int>& robQueue,
-    std::vector<ROBEntry>& rob,
+    ReorderBuffer& rob,
     std::vector<int>& regProducer,
     RegisterFile& rf,
     Memory& mem,
     std::vector<InstructionStatus>& statusTable,
     int cycle
 ) {
-    if (robQueue.empty()) {
+    if (rob.empty()) {
         std::cout << "ROB Commit: none\n";
         return;
     }
 
-    int tag = robQueue.front();
-    ROBEntry& entry = rob[tag];
+    int tag = rob.head;
+    ROBEntry& entry = rob.entries[tag];
 
     if (!entry.ready) {
-        std::cout << "ROB Commit: stalled at I" << tag
+        std::cout << "ROB Commit: stalled at I"
+                  << entry.instructionId
                   << " not ready\n";
         return;
     }
 
-    std::cout << "ROB Commit: I" << tag
+    std::cout << "ROB Commit: I" << entry.instructionId
               << " " << entry.rawText << "\n";
 
     if (entry.writesRegister) {
@@ -49,36 +49,60 @@ void commitROB(
                   << "] = " << entry.memoryValue << "\n";
     }
 
-    statusTable[tag].commitCycle = cycle;
+    statusTable[entry.instructionId].commitCycle = cycle;
 
-    entry.busy = false;
-    robQueue.pop();
+    entry = ROBEntry{};
+
+    rob.head = (rob.head + 1) % rob.capacity();
+    rob.count--;
 }
 
-void flushROBQueue(
-    std::queue<int>& robQueue,
-    std::vector<ROBEntry>& rob,
+void flushROB(
+    ReorderBuffer& rob,
     int branchIndex
 ) {
-    std::queue<int> kept;
+    if (rob.empty()) {
+        return;
+    }
 
-    while (!robQueue.empty()) {
-        int tag = robQueue.front();
-        robQueue.pop();
+    int keptCount = 0;
 
-        if (tag > branchIndex) {
+    for (int i = 0; i < rob.count; i++) {
+        int slot = (rob.head + i) % rob.capacity();
+        ROBEntry& entry = rob.entries[slot];
+
+        if (entry.busy && entry.instructionId > branchIndex) {
             std::cout << "  Flushed ROB: I"
-                      << tag
+                      << entry.instructionId
                       << " "
-                      << rob[tag].rawText
+                      << entry.rawText
                       << "\n";
 
-            rob[tag].busy = false;
-            rob[tag].ready = false;
+            entry = ROBEntry{};
         } else {
-            kept.push(tag);
+            keptCount++;
         }
     }
 
-    robQueue = kept;
+    rob.count = keptCount;
+    rob.tail = (rob.head + rob.count) % rob.capacity();
+}
+
+int allocateROB(ReorderBuffer& rob, int instructionId, const std::string& rawText) {
+    if (rob.full()) return -1;
+
+    int tag = rob.tail;
+    ROBEntry& entry = rob.entries[tag];
+
+    entry = ROBEntry{};
+    entry.busy = true;
+    entry.ready = false;
+    entry.robTag = tag;
+    entry.instructionId = instructionId;
+    entry.rawText = rawText;
+
+    rob.tail = (rob.tail + 1) % rob.capacity();
+    rob.count++;
+
+    return tag;
 }

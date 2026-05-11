@@ -6,9 +6,12 @@
 #include <string>
 #include <vector>
 
+#include <queue>
+
 struct CDBMessage {
     bool valid;
     int producerTag;
+    int robTag;
     int destinationRegister;
     int value;
     std::string rawText;
@@ -17,7 +20,7 @@ struct CDBMessage {
 bool broadcastCDB(
     const CDBMessage& cdb,
     std::vector<ActiveInstruction>& activeInstructions,
-    std::vector<ROBEntry>& rob
+    std::vector<ROBEntry>& robEntries
 );
 
 void flushCDBQueue(std::queue<CDBMessage>& cdbQueue, int branchIndex);

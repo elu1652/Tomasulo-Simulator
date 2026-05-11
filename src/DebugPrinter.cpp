@@ -25,7 +25,7 @@ void printTag(int tag) {
     if (tag == -1) {
         std::cout << "-";
     } else {
-        std::cout << "I" << tag;
+        std::cout << "ROB" << tag;
     }
 }
 
@@ -88,7 +88,7 @@ void printRegisterProducer(const std::vector<int>& regProducer) {
 
     for (int i = 0; i < regProducer.size(); i++) {
         if (regProducer[i] != -1) {
-            std::cout << "  R" << i << " <- I" << regProducer[i] << "\n";
+            std::cout << "  R" << i << " <- ROB" << regProducer[i] << "\n";
             anyPending = true;
         }
     }
@@ -137,31 +137,28 @@ void printCDBQueue(std::queue<CDBMessage> cdbQueue) {
     }
 }
 
-void printROB(
-    const std::queue<int>& robQueueOriginal,
-    const std::vector<ROBEntry>& rob,
-    int robCapacity
-) {
-    std::queue<int> robQueue = robQueueOriginal;
-
+void printROB(const ReorderBuffer& rob) {
     std::cout << "ROB: "
-          << robQueueOriginal.size()
-          << "/"
-          << robCapacity
-          << "\n";
+              << rob.count
+              << "/"
+              << rob.capacity()
+              << " | head: ROB"
+              << rob.head
+              << " | tail: ROB"
+              << rob.tail
+              << "\n";
 
-    if (robQueue.empty()) {
+    if (rob.empty()) {
         std::cout << "  empty\n";
         return;
     }
 
-    while (!robQueue.empty()) {
-        int tag = robQueue.front();
-        robQueue.pop();
+    for (int i = 0; i < rob.count; i++) {
+        int slot = (rob.head + i) % rob.capacity();
+        const ROBEntry& entry = rob.entries[slot];
 
-        const ROBEntry& entry = rob[tag];
-
-        std::cout << "  I" << tag
+        std::cout << "  ROB" << slot
+                  << " | I" << entry.instructionId
                   << " | " << entry.rawText
                   << " | ready: " << (entry.ready ? "yes" : "no");
 

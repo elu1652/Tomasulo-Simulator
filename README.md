@@ -2,7 +2,7 @@
 
 A cycle-based out-of-order CPU simulator written in C++.
 
-This project simulates core ideas from Tomasulo-style dynamic scheduling, including reservation stations, register renaming, functional unit contention, common data bus writeback, and reorder buffer commit.
+This project simulates core ideas from Tomasulo-style dynamic scheduling, including reservation stations, register renaming, functional unit contention, common data bus writeback, branch prediction, speculative recovery, and circular reorder buffer commit.
 
 The goal is to show how instructions move through an out-of-order execution engine cycle by cycle.
 
@@ -14,14 +14,19 @@ The goal is to show how instructions move through an out-of-order execution engi
 - In-order issue with out-of-order execution and in-order ROB commit
 - Reservation stations for integer, multiply, load, and store operations
 - Functional unit capacity limits and structural hazard handling
-- Register renaming with producer tags and `Vj` / `Vk` / `Qj` / `Qk` operand tracking
+- Register renaming with physical ROB producer tags and `Vj` / `Vk` / `Qj` / `Qk` operand tracking
+- True circular Reorder Buffer with reusable physical slots
+- Separate dynamic instruction IDs (`I#`) and physical ROB tags (`ROB#`)
+- Precise in-order commit from the circular ROB head
+- Store commit through the ROB
+- Flush support for younger wrong-path instructions in reservation stations, ROB, CDB, and register producer table
 - Common Data Bus with single-result broadcast per cycle
-- Reorder Buffer with logical capacity, precise in-order commit, and store commit support
 - Speculative branch execution with misprediction recovery
 - Static, 1-bit, and 2-bit branch predictor modes indexed by static PC
-- Flush support for younger wrong-path instructions in RS/ROB/CDB
 - Cycle-by-cycle debug output, instruction timing table, and branch prediction summary
 - Automated test runner and GUI test-file generator
+
+
 
 ---
 
@@ -61,22 +66,20 @@ flowchart TD
     Simulator["Simulator<br/>cycle loop + control logic"]
 
     PC["Program Counter<br/>pc"]
-    BP["BranchPredictor<br/>always NT / always T / 1-bit / 2-bit"]
+    BP["BranchPredictor<br/>static / 1-bit / 2-bit"]
 
     Active["vector&lt;ActiveInstruction&gt;<br/>reservation station entries"]
     RSCheck["RS Capacity Checks<br/>INT / MUL / LOAD / STORE"]
 
     RegFile["Register File<br/>architectural state"]
-    RegProducer["regProducer Table<br/>register renaming tags"]
+    RegProducer["regProducer Table<br/>R# -> ROB#"]
+    ROB["Circular ROB<br/>head / tail / count<br/>physical slots ROB0..ROB(N-1)"]
 
     FU["Functional Units<br/>INT / MUL / MEM"]
     ExecResult["ExecutionResult<br/>computed result / branch outcome"]
 
     CDBQ["CDB Queue<br/>pending broadcasts"]
     CDB["Common Data Bus<br/>one broadcast per cycle"]
-
-    ROB["ROB Entries<br/>result + readiness"]
-    ROBQ["ROB Queue<br/>in-order commit order"]
 
     Memory["Memory<br/>architectural memory"]
 
@@ -94,7 +97,6 @@ flowchart TD
     RSCheck --> Active
 
     Simulator --> ROB
-    Simulator --> ROBQ
 
     Simulator --> RegProducer
     Simulator --> RegFile
@@ -111,7 +113,7 @@ flowchart TD
     CDB --> ROB
     CDB --> Active
 
-    ROBQ --> ROB
+    
     ROB --> RegFile
     ROB --> Memory
 
@@ -127,7 +129,39 @@ flowchart TD
     Active --> Debug
 ```
 
-Instructions issue in program order, wait in reservation stations until operands and functional units are available, execute when ready, write results through the CDB or ROB, and finally commit in order through the ROB.
+Instructions issue in program order, wait in reservation stations until operands and functional units are available, execute when ready, write register results through the CDB or non-register results directly into the ROB, and finally commit in order from the circular ROB head.
+
+---
+
+## ROB and Tag Model
+
+The simulator separates dynamic instruction identity from physical ROB storage:
+
+```text
+I#    = dynamic instruction ID used for debug output and the instruction status table
+ROB#  = physical circular ROB slot used for renaming, operand dependencies, CDB wakeup, and commit storage
+```
+
+For example, dynamic instruction `I17` may occupy physical slot `ROB0`. Later, after that entry commits, `ROB0` may be reused by a newer instruction such as `I21`.
+
+The register producer table, `Qj`, and `Qk` all store physical ROB tags:
+
+```text
+Register Producers:
+  R2 <- ROB1
+
+Active Instructions:
+  I24: BNE R2, R0, inner | qj: ROB1
+```
+
+The CDB carries both identifiers:
+
+```text
+producerTag = dynamic instruction ID, used for printing/status table
+robTag      = physical ROB slot, used for ROB writeback and dependency wakeup
+```
+
+This keeps debug output readable while allowing physical ROB slots to wrap around and be reused.
 
 ---
 
@@ -139,10 +173,10 @@ Each simulator cycle currently follows this order:
 1. Issue one instruction if possible
 2. Execute / decrement active instructions
 3. Print debug state
-4. Commit one ready ROB head entry
+4. Commit one ready circular ROB head entry
 5. Broadcast one old CDB result
 6. Complete newly finished instructions
-7. Queue new CDB/store results
+7. Queue new CDB/store/branch results
 8. Advance to next cycle
 ```
 
@@ -240,16 +274,32 @@ CDB Broadcast
 Example ROB output:
 
 ```text
-ROB: 3/4
-  I1 | MUL R2, R3, R5 | ready: no
-  I2 | ADD R6, R3, R5 | ready: yes | R6 = 7
-  I3 | LD R1, 0(R0) | ready: yes | R1 = 99
+ROB: 4/4 | head: ROB1 | tail: ROB1
+  ROB1 | I1 | ADDI R3, R0, 0  | ready: yes | R3 = 0
+  ROB2 | I2 | ADDI R4, R0, 10 | ready: no
+  ROB3 | I3 | ADDI R5, R0, 1  | ready: no
+  ROB0 | I4 | ADDI R2, R0, 4  | ready: no
+```
+
+Example producer and wakeup output:
+
+```text
+Register Producers:
+  R2 <- ROB1
+
+Active Instructions:
+  I24: BNE R2, R0, inner | qj: ROB1
+
+CDB Broadcast: I23 SUB R2, R2, R5
+  Broadcast: I23
+  ROB Write: ROB1 / I23 value = 3 -> R2
+  Wakeup: I24 qj resolved by ROB1 / I23 with value 3
 ```
 
 Example issue stall:
 
 ```text
-ROB: 4/4
+ROB: 4/4 | head: ROB3 | tail: ROB3
 Issue stalled: LD R5, 4(R1) | ROB full
 ```
 
@@ -263,7 +313,7 @@ Example test files are stored in:
 tests/
 ```
 
-These tests cover arithmetic, RAW dependencies, repeated writes to the same register, self-dependencies, CDB contention, out-of-order writeback, ROB capacity stalls, load-use dependencies, store commit behavior, branches, and speculative flush behavior.
+These tests cover arithmetic, RAW dependencies, repeated writes to the same register, self-dependencies, CDB contention, out-of-order writeback, ROB capacity stalls, load-use dependencies, store commit behavior, branches, nested loops, speculative execution, and wrong-path flush behavior.
 
 Test files can be easily created using the GUI displayed when running:
 ```bash
@@ -289,7 +339,7 @@ Automated testing runs all test files located in `tests/` and verifies expected 
 ```text
 [FAIL] add_immediate.asm
 R1: expected 8, got 7
-[PASS] backword_branch.asm
+[PASS] backward_branch.asm
 ```
 
 Expectations are written as:
@@ -304,25 +354,25 @@ Expectations are written as:
 ## Current Limitations
 
 * The simulator supports a small custom ISA rather than full RISC-V.
-* 1-bit and 2-bit dynamic branch predictors are implemented but predictor type is currently selected in code rather than through a command-line option.
-* ROB capacity is logical; physical ROB slots are not reused yet.
-* The current ROB tag is the dynamic instruction ID.
 * Load-store ordering is simplified.
 * There is no full load-store queue yet.
+* Memory disambiguation is not implemented.
+* Functional units and reservation station sizes are currently fixed constants in the simulator.
 * Automated tests validate final register/memory state and selected commit-count behavior, but they do not yet validate branch prediction accuracy as a correctness requirement.
 
 ---
 
 ## Planned Features
 
-* Command-line option for selecting predictor type
 * More branch-speculation test cases
-* True circular ROB with reusable physical slots
 * Load-store queue
+* Stronger load/store ordering and memory dependency checks
 * CPI and performance experiments
+* More configurable simulator parameters
+* Optional validation of branch prediction statistics in tests
 
 ---
 
 ## Project Status
 
-The simulator currently implements Tomasulo-style out-of-order execution with ROB-based commit and branch speculation. It includes static, 1-bit, and 2-bit branch predictor modes, misprediction recovery by flushing younger wrong-path instructions, and branch prediction summary output with predictor state and accuracy reporting.
+The simulator currently implements Tomasulo-style out-of-order execution with reservation stations, physical ROB-tag-based register renaming, a single-broadcast CDB, a true circular ROB with reusable slots, in-order commit, and branch speculation. It includes static, 1-bit, and 2-bit branch predictor modes, misprediction recovery by flushing younger wrong-path instructions, and branch prediction summary output with predictor state and accuracy reporting.
