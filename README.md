@@ -52,26 +52,79 @@ MUL R4, R2, R5
 
 ## Architecture Overview
 
-The simulator models these main components:
+```mermaid
+flowchart TD
+    Program["Assembly Program<br/>(.asm file)"]
+    Parser["Parser<br/>labels, opcodes, operands"]
+    Instructions["vector&lt;Instruction&gt;<br/>static instruction list"]
 
-```text
-Assembly Program
-      |
-      v
-Parser
-      |
-      v
-Simulator
-      |
-      +--> Register File
-      +--> Memory
-      +--> Reservation Stations
-      +--> Functional Units
-      +--> Common Data Bus
-      +--> Reorder Buffer
-      +--> Debug/State Printer
-      +--> Branch Predictor
-      +--> Debug/State Printer
+    Simulator["Simulator<br/>cycle loop + control logic"]
+
+    PC["Program Counter<br/>pc"]
+    BP["BranchPredictor<br/>always NT / always T / 1-bit / 2-bit"]
+
+    Active["vector&lt;ActiveInstruction&gt;<br/>reservation station entries"]
+    RSCheck["RS Capacity Checks<br/>INT / MUL / LOAD / STORE"]
+
+    RegFile["Register File<br/>architectural state"]
+    RegProducer["regProducer Table<br/>register renaming tags"]
+
+    FU["Functional Units<br/>INT / MUL / MEM"]
+    ExecResult["ExecutionResult<br/>computed result / branch outcome"]
+
+    CDBQ["CDB Queue<br/>pending broadcasts"]
+    CDB["Common Data Bus<br/>one broadcast per cycle"]
+
+    ROB["ROB Entries<br/>result + readiness"]
+    ROBQ["ROB Queue<br/>in-order commit order"]
+
+    Memory["Memory<br/>architectural memory"]
+
+    Status["InstructionStatus Table<br/>timing + flush + branch info"]
+    Debug["DebugPrinter<br/>cycle trace + final tables"]
+
+    Program --> Parser
+    Parser --> Instructions
+    Instructions --> Simulator
+
+    Simulator --> PC
+    PC --> Instructions
+
+    Simulator --> RSCheck
+    RSCheck --> Active
+
+    Simulator --> ROB
+    Simulator --> ROBQ
+
+    Simulator --> RegProducer
+    Simulator --> RegFile
+
+    Simulator --> BP
+    BP --> PC
+
+    Active --> FU
+    FU --> ExecResult
+
+    ExecResult --> CDBQ
+    CDBQ --> CDB
+
+    CDB --> ROB
+    CDB --> Active
+
+    ROBQ --> ROB
+    ROB --> RegFile
+    ROB --> Memory
+
+    Simulator --> Status
+    Active --> Status
+    ROB --> Status
+    BP --> Status
+
+    Status --> Debug
+    RegFile --> Debug
+    Memory --> Debug
+    ROB --> Debug
+    Active --> Debug
 ```
 
 Instructions issue in program order, wait in reservation stations until operands and functional units are available, execute when ready, write results through the CDB or ROB, and finally commit in order through the ROB.
