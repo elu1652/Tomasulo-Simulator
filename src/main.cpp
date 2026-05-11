@@ -5,6 +5,21 @@
 #include <iostream>
 #include <string>
 
+std::string predictorTypeToString(BranchPredictorType type) {
+    switch (type) {
+        case BranchPredictorType::AlwaysNotTaken:
+            return "always-not-taken";
+        case BranchPredictorType::AlwaysTaken:
+            return "always-taken";
+        case BranchPredictorType::OneBit:
+            return "one-bit";
+        case BranchPredictorType::TwoBit:
+            return "two-bit";
+        default:
+            return "unknown";
+    }
+}
+
 int main(int argc, char* argv[]) {
     std::string filename = "../tests/nested_loop.asm";
     BranchPredictorType predictorType = BranchPredictorType::TwoBit;
@@ -40,6 +55,10 @@ int main(int argc, char* argv[]) {
 
     std::cout << "Running program: " << filename << "\n";
 
+    std::cout << "\nBranch predictor: "
+          << predictorTypeToString(predictorType)
+          << "\n";
+
     Parser parser;
     std::vector<Instruction> instructions = parser.parseFile(filename);
 
@@ -53,3 +72,4 @@ int main(int argc, char* argv[]) {
 
     return 0;
 }
+
