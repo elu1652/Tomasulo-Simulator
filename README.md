@@ -196,6 +196,12 @@ To run a specific test file:
 ./simulator ../tests/basic_arithmetic.asm
 ```
 
+To choose a branch predictor:
+
+```bash
+./simulator ../tests/nested_loop.asm --predictor two-bit
+```
+
 ## Example Program
 
 ```asm
