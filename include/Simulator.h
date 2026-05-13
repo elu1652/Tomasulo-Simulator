@@ -46,6 +46,9 @@ struct ActiveInstruction {
     int predictorStateAfter = -1;
 
     int robTag;
+
+    bool hasForwardedLoadValue = false;
+    int forwardedLoadValue = 0;
 };
 
 

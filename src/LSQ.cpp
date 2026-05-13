@@ -82,3 +82,65 @@ void LoadStoreQueue::flushYoungerThan(int branchInstructionId) {
         }
     }
 }
+
+LoadCheckResult LoadStoreQueue::checkLoad(
+    int instructionId,
+    int loadAddress
+) const {
+    LoadCheckResult result;
+
+    bool foundForwardingStore = false;
+    int forwardedValue = 0;
+
+    for (const LSQEntry& entry : entries) {
+        if (!entry.busy) {
+            continue;
+        }
+
+        // Only inspect older memory operations.
+        if (entry.instructionId >= instructionId) {
+            break;
+        }
+
+        if (!entry.isStore) {
+            continue;
+        }
+
+        // Older store address unknown:
+        // load must wait because it might be the same address.
+        if (!entry.addressReady) {
+            result.canExecute = false;
+            result.reason = "older store address pending";
+            return result;
+        }
+
+        // Older store has a different address:
+        // no memory dependency with this store.
+        if (entry.address != loadAddress) {
+            continue;
+        }
+
+        // Older store has same address but no value yet:
+        // load must wait.
+        if (!entry.valueReady) {
+            result.canExecute = false;
+            result.reason = "older store value pending";
+            return result;
+        }
+
+        // Older store has same address and value is ready:
+        // forward from it. Keep scanning in case there is a younger
+        // older store to the same address.
+        foundForwardingStore = true;
+        forwardedValue = entry.value;
+    }
+
+    result.canExecute = true;
+
+    if (foundForwardingStore) {
+        result.shouldForward = true;
+        result.forwardedValue = forwardedValue;
+    }
+
+    return result;
+}

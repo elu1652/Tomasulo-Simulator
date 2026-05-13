@@ -23,6 +23,13 @@ struct LSQEntry {
     std::string rawText;
 };
 
+struct LoadCheckResult {
+    bool canExecute = true;
+    bool shouldForward = false;
+    int forwardedValue = 0;
+    std::string reason;
+};
+
 struct LoadStoreQueue {
     std::vector<LSQEntry> entries;
 
@@ -35,4 +42,6 @@ struct LoadStoreQueue {
 
     void removeCommitted(int instructionId);
     void flushYoungerThan(int branchInstructionId);
+
+    LoadCheckResult checkLoad(int instructionId, int loadAddress) const;
 };

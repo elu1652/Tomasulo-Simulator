@@ -96,7 +96,12 @@ ExecutionResult Simulator::computeResult(const ActiveInstruction& active) {
 
         case OpCode::LD: {
             int address = active.vj + instr.immediate;
-            int value = mem.load(address);
+            int value;
+            if (active.hasForwardedLoadValue) {
+                value = active.forwardedLoadValue;
+            } else {
+                value = mem.load(address);
+            }
 
             result.writesRegister = true;
             result.destinationRegister = instr.rd;
@@ -340,10 +345,30 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 // Conservative LSQ rule:
                 // A load must wait until all older stores have committed.
                 // This prevents a load from reading stale memory before an older store updates memory.
-                if (active.instr.opcode == OpCode::LD &&
-                    lsq.hasOlderStore(active.instructionIndex)) {
-                    active.waitingReason = "older store pending";
-                    continue;
+                if (active.instr.opcode == OpCode::LD) {
+                    int loadAddress = active.vj + active.instr.immediate;
+
+                    LoadCheckResult loadCheck =
+                        lsq.checkLoad(active.instructionIndex, loadAddress);
+
+                    if (!loadCheck.canExecute) {
+                        active.waitingReason = loadCheck.reason;
+                        continue;
+                    }
+
+                    if (loadCheck.shouldForward) {
+                        active.hasForwardedLoadValue = true;
+                        active.forwardedLoadValue = loadCheck.forwardedValue;
+
+                        std::cout << "  LSQ Forward: I"
+                                << active.instructionIndex
+                                << " gets value "
+                                << loadCheck.forwardedValue
+                                << " from older store\n";
+                    } else {
+                        active.hasForwardedLoadValue = false;
+                        active.forwardedLoadValue = 0;
+                    }
                 }
 
                 FUType type = getFUType(active.instr.opcode);
