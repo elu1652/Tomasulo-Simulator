@@ -144,3 +144,13 @@ LoadCheckResult LoadStoreQueue::checkLoad(
 
     return result;
 }
+
+void LoadStoreQueue::markAddressReady(int instructionId, int address) {
+    for (LSQEntry& entry : entries) {
+        if (entry.busy && entry.instructionId == instructionId) {
+            entry.addressReady = true;
+            entry.address = address;
+            return;
+        }
+    }
+}

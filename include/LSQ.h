@@ -44,4 +44,6 @@ struct LoadStoreQueue {
     void flushYoungerThan(int branchInstructionId);
 
     LoadCheckResult checkLoad(int instructionId, int loadAddress) const;
+
+    void markAddressReady(int instructionId, int address);
 };

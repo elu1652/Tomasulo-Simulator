@@ -44,7 +44,9 @@ static bool writesRegister(const Instruction& instr) {
 
 // Compute the result of an instruction after it finishes execution.
 // Register results are queued for CDB broadcast.
-// Store and branch results update the ROB directly because they do not broadcast a register value.
+// Loads either read committed memory or use a value forwarded by the LSQ.
+// Stores produce an address/value pair that becomes ready in the ROB;
+// memory itself is updated only when the store commits.
 ExecutionResult Simulator::computeResult(const ActiveInstruction& active) {
     ExecutionResult result;
     result.writesRegister = false;
@@ -234,14 +236,6 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
                 newInstr.robTag = -1;
 
-                if (newInstr.instr.opcode == OpCode::LD) {
-                    lsq.addLoad(dynamicId, newInstr.robTag, newInstr.instr.rawText);
-                }
-
-                if (newInstr.instr.opcode == OpCode::SD) {
-                    lsq.addStore(dynamicId, newInstr.robTag, newInstr.instr.rawText);
-                }
-
                 // Allocate a physical ROB slot for every issued instruction.
                 // Stores and branches also enter the ROB so commit stays in program order.
                 int robTag = allocateROB(circularROB, dynamicId, newInstr.instr.rawText);
@@ -252,6 +246,16 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 }
 
                 newInstr.robTag = robTag;
+
+                // Loads and stores also enter the LSQ so memory ordering can be checked
+                // independently from register RAW dependencies.
+                if (newInstr.instr.opcode == OpCode::LD) {
+                    lsq.addLoad(dynamicId, newInstr.robTag, newInstr.instr.rawText);
+                }
+
+                if (newInstr.instr.opcode == OpCode::SD) {
+                    lsq.addStore(dynamicId, newInstr.robTag, newInstr.instr.rawText);
+                }
 
                 newInstr.isBranch =
                     newInstr.instr.opcode == OpCode::BEQ ||
@@ -336,15 +340,65 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                     active.waitingReason = "issued this cycle";
                     continue;
                 }
-                // Check for RAW dependency. Don't execute if detected
-                if(active.qj != -1 || active.qk != -1){
-                    active.waitingReason = "RAW dependency";
-                    continue;
+                // Check for dependencies
+                // qj = base register used to compute the memory address
+                // qk = store data value
+                
+                // The store address can be generated as soon as qj is ready,
+                // even if the store data qk is still waiting. This lets younger loads
+                // compare addresses early and bypass stores to different addresses.
+                if (active.instr.opcode == OpCode::SD) {
+                    if (active.qj != -1) {
+                        active.waitingReason = "store address RAW dependency";
+                        continue;
+                    }
+
+                    if (!active.memoryAddressComputed) {
+                        int address = active.vj + active.instr.immediate;
+                        lsq.markAddressReady(active.instructionIndex, address);
+                        active.memoryAddressComputed = true;
+
+                        std::cout << "  LSQ Address: I"
+                                << active.instructionIndex
+                                << " address = "
+                                << address
+                                << "\n";
+                    }
+
+                    if (active.qk != -1) {
+                        active.waitingReason = "store value RAW dependency";
+                        continue;
+                    }
+                } else {
+                    if(active.qj != -1 || active.qk != -1){
+                        active.waitingReason = "RAW dependency";
+                        continue;
+                    }
                 }
 
-                // Conservative LSQ rule:
-                // A load must wait until all older stores have committed.
-                // This prevents a load from reading stale memory before an older store updates memory.
+                // Loads and stores both record their computed effective address in the LSQ.
+                // For stores, this may already have happened above as soon as qj became ready.
+                // For loads, the address is recorded before checking older stores.
+                if ((active.instr.opcode == OpCode::LD ||
+                    active.instr.opcode == OpCode::SD) &&
+                    !active.memoryAddressComputed) {
+
+                    int address = active.vj + active.instr.immediate;
+                    lsq.markAddressReady(active.instructionIndex, address);
+                    active.memoryAddressComputed = true;
+
+                    std::cout << "  LSQ Address: I"
+                            << active.instructionIndex
+                            << " address = "
+                            << address
+                            << "\n";
+                }
+
+                // LSQ check for loads.
+                // A load may execute if all older stores have known different addresses.
+                // If an older store has the same address and its value is ready,
+                // the load forwards the value directly from the LSQ instead of waiting
+                // for the store to commit to memory.
                 if (active.instr.opcode == OpCode::LD) {
                     int loadAddress = active.vj + active.instr.immediate;
 
