@@ -6,6 +6,7 @@
 #include "ROB.h"
 #include "Flush.h"
 #include "BranchPredictor.h"
+#include "LSQ.h"
 
 #include <iostream>
 #include <queue>
@@ -139,7 +140,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
     const int INT_RS_CAPACITY = 2;
     const int MUL_RS_CAPACITY = 2;
-    const int LOAD_BUFFER_CAPACITY = 1;
+    const int LOAD_BUFFER_CAPACITY = 2;
     const int STORE_BUFFER_CAPACITY = 2;
     const int ROB_CAPACITY = 4;
 
@@ -164,10 +165,12 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
     ReorderBuffer circularROB(ROB_CAPACITY);
     std::vector<ROBEntry>& robEntries = circularROB.entries;
 
+    LoadStoreQueue lsq;
+
     // Functional unit initialization
     FunctionalUnit intFU {FUType::INT, 2, 0};
-    FunctionalUnit mulFU {FUType::MUL, 1, 0};
-    FunctionalUnit memFU {FUType::MEM, 1, 0};
+    FunctionalUnit mulFU {FUType::MUL, 2, 0};
+    FunctionalUnit memFU {FUType::MEM, 2, 0};
 
     // Branch predictor used for speculative issue.
     // Change the predictor type here to compare prediction strategies.
@@ -225,6 +228,14 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 newInstr.vk = 0;
 
                 newInstr.robTag = -1;
+
+                if (newInstr.instr.opcode == OpCode::LD) {
+                    lsq.addLoad(dynamicId, newInstr.robTag, newInstr.instr.rawText);
+                }
+
+                if (newInstr.instr.opcode == OpCode::SD) {
+                    lsq.addStore(dynamicId, newInstr.robTag, newInstr.instr.rawText);
+                }
 
                 // Allocate a physical ROB slot for every issued instruction.
                 // Stores and branches also enter the ROB so commit stays in program order.
@@ -326,6 +337,15 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                     continue;
                 }
 
+                // Conservative LSQ rule:
+                // A load must wait until all older stores have committed.
+                // This prevents a load from reading stale memory before an older store updates memory.
+                if (active.instr.opcode == OpCode::LD &&
+                    lsq.hasOlderStore(active.instructionIndex)) {
+                    active.waitingReason = "older store pending";
+                    continue;
+                }
+
                 FUType type = getFUType(active.instr.opcode);
                 FunctionalUnit* fu = getFU(type, intFU, mulFU, memFU);
 
@@ -356,7 +376,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
         // COMMIT STAGE
         // Commit happens before this cycle's CDB broadcast.
         // A result that broadcasts this cycle cannot commit until a later cycle.
-        commitROB(
+        int committedInstructionId = commitROB(
             circularROB,
             regProducer,
             rf,
@@ -364,6 +384,11 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
             statusTable,
             cycle
         );
+
+
+        if (committedInstructionId != -1) {
+            lsq.removeCommitted(committedInstructionId);
+        }
 
         // WRITEBACK / CDB BROADCAST STAGE
         // Broadcast at most one queued result per cycle.
@@ -427,6 +452,8 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                     entry.memoryAddress = result.memoryAddress;
                     entry.memoryValue = result.memoryValue;
 
+                    lsq.markStoreReady(index, result.memoryAddress, result.memoryValue);
+
                     statusTable[index].writebackCycle = cycle;
 
                     std::cout << "  Store result ready in ROB: Mem["
@@ -486,6 +513,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                         flushCDBQueue(cdbQueue, index);
                         flushROB(circularROB, index);
                         flushRegProducers(regProducer, circularROB, index);
+                        lsq.flushYoungerThan(index);
                     } else {
                         std::cout << "  Branch prediction correct\n";
                     }

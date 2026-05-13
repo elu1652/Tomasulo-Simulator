@@ -5,7 +5,7 @@
 #include <iostream>
 
 
-void commitROB(
+int commitROB(
     ReorderBuffer& rob,
     std::vector<int>& regProducer,
     RegisterFile& rf,
@@ -15,7 +15,7 @@ void commitROB(
 ) {
     if (rob.empty()) {
         std::cout << "ROB Commit: none\n";
-        return;
+        return -1;
     }
 
     int tag = rob.head;
@@ -25,7 +25,7 @@ void commitROB(
         std::cout << "ROB Commit: stalled at I"
                   << entry.instructionId
                   << " not ready\n";
-        return;
+        return -1;
     }
 
     std::cout << "ROB Commit: I" << entry.instructionId
@@ -51,10 +51,14 @@ void commitROB(
 
     statusTable[entry.instructionId].commitCycle = cycle;
 
+    int committedInstructionId = entry.instructionId;
+
     entry = ROBEntry{};
 
     rob.head = (rob.head + 1) % rob.capacity();
     rob.count--;
+
+    return committedInstructionId;
 }
 
 void flushROB(

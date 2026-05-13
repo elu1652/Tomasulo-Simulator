@@ -47,7 +47,7 @@ struct ReorderBuffer {
     }
 };
 
-void commitROB(
+int commitROB(
     ReorderBuffer& rob,
     std::vector<int>& regProducer,
     RegisterFile& rf,
