@@ -66,7 +66,7 @@
             <div class="component-sub" id="programBoxSub">current instruction</div>
           </div>
 
-          <div class="arrow horizontal arrow-program-issue" id="arrowProgramIssue">→</div>
+          <div class="arrow horizontal arrow-program-issue" id="arrowProgramIssue" aria-label="Program PC to Issue"></div>
 
           <div class="component issue" id="issueBox">
             <div class="component-title">Issue / Decode</div>
@@ -74,7 +74,7 @@
             <div class="component-sub" id="issueBoxSub">instruction issue</div>
           </div>
 
-          <div class="arrow horizontal arrow-issue-rs" id="arrowIssueRS">→</div>
+          <div class="arrow vertical arrow-issue-rs" id="arrowIssueRS" aria-label="Issue to Reservation Stations"></div>
 
           <div class="component rs" id="rsBox">
             <div class="component-title">Reservation Stations</div>
@@ -82,7 +82,7 @@
             <div class="component-sub">Qj/Qk + Vj/Vk</div>
           </div>
 
-          <div class="arrow horizontal arrow-rs-fu" id="arrowRSFU">→</div>
+          <div class="arrow horizontal arrow-rs-fu" id="arrowRSFU" aria-label="Reservation Stations to Functional Units"></div>
 
           <div class="component fu" id="fuBox">
             <div class="component-title">Functional Units</div>
@@ -90,7 +90,7 @@
             <div class="component-sub" id="fuBoxSub">execution</div>
           </div>
 
-          <div class="arrow horizontal arrow-fu-cdb" id="arrowFUCDB">→</div>
+          <div class="arrow vertical arrow-fu-cdb" id="arrowFUCDB" aria-label="Functional Units to CDB"></div>
 
           <div class="component cdb" id="cdbBox">
             <div class="component-title">Common Data Bus</div>
@@ -98,7 +98,7 @@
             <div class="component-sub">single broadcast/cycle</div>
           </div>
 
-          <div class="arrow horizontal arrow-cdb-rob" id="arrowCDBROB">→</div>
+          <div class="arrow vertical arrow-cdb-rob arrow-up" id="arrowCDBROB" aria-label="CDB to ROB"></div>
 
           <div class="component rob" id="robBox">
             <div class="component-title">Circular ROB</div>
@@ -106,7 +106,7 @@
             <div class="component-sub" id="robBoxSub">head/tail</div>
           </div>
 
-          <div class="arrow vertical arrow-rs-lsq" id="arrowRSLSQ">↓</div>
+          <div class="arrow vertical arrow-rs-lsq" id="arrowRSLSQ" aria-label="Reservation Stations to LSQ"></div>
 
           <div class="component lsq" id="lsqBox">
             <div class="component-title">Load-Store Queue</div>
@@ -114,7 +114,7 @@
             <div class="component-sub">memory ordering</div>
           </div>
 
-          <div class="arrow horizontal arrow-lsq-mem" id="arrowLSQMemory">→</div>
+          <div class="arrow horizontal arrow-lsq-mem" id="arrowLSQMemory" aria-label="LSQ to Memory"></div>
 
           <div class="component memory" id="memoryBox">
             <div class="component-title">Memory</div>
@@ -122,7 +122,7 @@
             <div class="component-sub">commit-visible state</div>
           </div>
 
-          <div class="arrow vertical arrow-rob-commit" id="arrowROBCommit">↓</div>
+          <div class="arrow horizontal arrow-rob-commit" id="arrowROBCommit" aria-label="ROB to Commit"></div>
 
           <div class="component commit" id="commitBox">
             <div class="component-title">Commit</div>

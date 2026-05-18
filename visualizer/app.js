@@ -245,6 +245,7 @@ function render() {
 
   const cycle = trace.cycles[currentIndex];
   const events = cycle.events || [];
+  const rob = cycle.rob || { head: "-", tail: "-", count: 0, entries: [] };
 
   if (cycleSlider) {
     cycleSlider.value = currentIndex;
@@ -257,14 +258,14 @@ function render() {
   setText(cdbText, cycle.cdbBroadcast || "none");
   setText(commitText, cycle.commitEvent || "none");
 
-  setText(robHeadText, `ROB${cycle.rob.head}`);
-  setText(robTailText, `ROB${cycle.rob.tail}`);
-  setText(robCountText, cycle.rob.count);
+  setText(robHeadText, `ROB${rob.head}`);
+  setText(robTailText, `ROB${rob.tail}`);
+  setText(robCountText, rob.count);
 
   renderProgram(cycle);
   renderDatapath(cycle, events);
   renderEvents(events);
-  renderROB(cycle.rob.entries || []);
+  renderROB(rob.entries || []);
   renderReservationStations(cycle.activeInstructions || []);
   renderLSQ(cycle.lsq || []);
 }
@@ -334,11 +335,16 @@ function renderDatapath(cycle, events) {
   const hasMispredict = hasEvent(events, "Branch misprediction");
   const hasFlush = hasEvent(events, "Flushed");
   const hasBranch = hasEvent(events, "Branch resolved") || hasEvent(events, "Branch prediction");
-  const hasLSQ = hasEvent(events, "LSQ");
-  const hasMemory = hasEvent(events, "Memory Commit") || hasEvent(events, "Store result ready");
+  const hasMemoryInstruction = isMemoryInstruction(cycle.issuedInstruction);
+  const hasLSQ = hasMemoryInstruction || hasEvent(events, "LSQ");
+  const hasMemory =
+    hasEvent(events, "Memory Commit") ||
+    hasEvent(events, "Store result ready") ||
+    hasEvent(events, "Load result ready");
 
   const activeCount = cycle.activeInstructions ? cycle.activeInstructions.length : 0;
-  const robCount = cycle.rob ? cycle.rob.count : 0;
+  const rob = cycle.rob || { head: "-", tail: "-", count: 0 };
+  const robCount = rob.count;
   const lsqCount = cycle.lsq ? cycle.lsq.length : 0;
 
   setText(programBoxMain, `PC: ${cycle.pc}`);
@@ -364,7 +370,7 @@ function renderDatapath(cycle, events) {
   setText(cdbBoxMain, hasCDB ? cycle.cdbBroadcast : "none");
 
   setText(robBoxMain, `${robCount} entries`);
-  setText(robBoxSub, `head ROB${cycle.rob.head}, tail ROB${cycle.rob.tail}`);
+  setText(robBoxSub, `head ROB${rob.head}, tail ROB${rob.tail}`);
 
   setText(lsqBoxMain, `${lsqCount} entries`);
   setText(memoryBoxMain, hasMemory ? "memory event" : "loads/stores");
@@ -504,7 +510,7 @@ function renderROB(entries) {
       html += `
         <tr class="empty-row ${markerClass}">
           <td class="rob-slot">ROB${slot}</td>
-          <td>${markers || "-"}</td>
+          <td>${formatROBMarkers(markers)}</td>
           <td>no</td>
           <td>-</td>
           <td>-</td>
@@ -530,13 +536,17 @@ function renderROB(entries) {
     html += `
       <tr class="${rowClass} ${markerClass}">
         <td class="rob-slot">ROB${slot}</td>
-        <td>${markers || "-"}</td>
+        <td>${formatROBMarkers(markers)}</td>
         <td>yes</td>
         <td>
           <div class="rob-tag">I${entry.instructionId}</div>
           <div>${escapeHtml(entry.rawText)}</div>
         </td>
-        <td>${entry.ready ? "yes" : "no"}</td>
+        <td>
+          <span class="rob-ready-state ${entry.ready ? "ready" : "pending"}">
+            ${entry.ready ? "ready" : "pending"}
+          </span>
+        </td>
         <td>${destination}</td>
         <td>${entry.value}</td>
         <td>${memoryWrite}</td>
@@ -586,15 +596,29 @@ function getROBMarkers(slot) {
   const cycle = trace.cycles[currentIndex];
   const markers = [];
 
-  if (cycle.rob.head === slot) {
+  if (cycle.rob && cycle.rob.head === slot) {
     markers.push("HEAD");
   }
 
-  if (cycle.rob.tail === slot) {
+  if (cycle.rob && cycle.rob.tail === slot) {
     markers.push("TAIL");
   }
 
   return markers.join(" / ");
+}
+
+function formatROBMarkers(markerText) {
+  if (!markerText) {
+    return "-";
+  }
+
+  return markerText
+    .split(" / ")
+    .map((marker) => {
+      const className = marker.toLowerCase();
+      return `<span class="rob-marker ${className}">${marker}</span>`;
+    })
+    .join("");
 }
 
 function getROBMarkerClass(slot) {
@@ -605,11 +629,11 @@ function getROBMarkerClass(slot) {
   const cycle = trace.cycles[currentIndex];
   let className = "";
 
-  if (cycle.rob.head === slot) {
+  if (cycle.rob && cycle.rob.head === slot) {
     className += " head-row";
   }
 
-  if (cycle.rob.tail === slot) {
+  if (cycle.rob && cycle.rob.tail === slot) {
     className += " tail-row";
   }
 
@@ -667,7 +691,7 @@ function renderRSTable(container, entries, capacity, type) {
       html += `
         <tr class="empty-row">
           <td>${type}${i}</td>
-          <td>no</td>
+          <td><span class="rs-status empty">empty</span></td>
           <td>-</td>
           <td>-</td>
           <td>-</td>
@@ -682,14 +706,14 @@ function renderRSTable(container, entries, capacity, type) {
       continue;
     }
 
-    const rowClass = entry.executing ? "executing-row" : "waiting-row";
+    const rowClass = entry.executing ? "occupied-row executing-row" : "occupied-row waiting-row";
     const stateText = entry.executing ? "executing" : "waiting";
     const op = getOpcode(entry.rawText);
 
     html += `
       <tr class="${rowClass}">
         <td>${type}${i}</td>
-        <td>yes</td>
+        <td><span class="rs-status busy">busy</span></td>
         <td>${escapeHtml(entry.rawText)}</td>
         <td class="rs-op">${escapeHtml(op)}</td>
         <td>${entry.vj}</td>
@@ -731,6 +755,11 @@ function inferRSType(rawText) {
 
 function getOpcode(rawText) {
   return String(rawText).trim().split(/\s+/)[0].toUpperCase();
+}
+
+function isMemoryInstruction(rawText) {
+  const op = getOpcode(rawText);
+  return op === "LD" || op === "SD" || op === "LOAD" || op === "STORE";
 }
 
 function renderLSQ(entries) {
