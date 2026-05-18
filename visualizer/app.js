@@ -5,6 +5,9 @@ let playTimer = null;
 
 const traceFileInput = document.getElementById("traceFile");
 const programFileInput = document.getElementById("programFile");
+const assemblyInput = document.getElementById("assemblyInput");
+const runSimulationBtn = document.getElementById("runSimulationBtn");
+const runStatus = document.getElementById("runStatus");
 
 const prevBtn = document.getElementById("prevBtn");
 const nextBtn = document.getElementById("nextBtn");
@@ -102,6 +105,10 @@ if (programFileInput) {
   programFileInput.addEventListener("change", handleProgramFile);
 }
 
+if (runSimulationBtn) {
+  runSimulationBtn.addEventListener("click", runSimulationFromInput);
+}
+
 if (prevBtn) {
   prevBtn.addEventListener("click", previousCycle);
 }
@@ -127,6 +134,7 @@ if (cycleSlider) {
 }
 
 document.addEventListener("keydown", (event) => {
+  if (isEditableTarget(event.target)) return;
   if (!trace) return;
 
   if (event.key === "ArrowLeft") {
@@ -153,27 +161,8 @@ function handleTraceFile(event) {
   reader.onload = function (e) {
     try {
       const parsedTrace = JSON.parse(e.target.result);
-
-      if (!parsedTrace.cycles || !Array.isArray(parsedTrace.cycles)) {
-        alert("Invalid trace file: expected a cycles array.");
-        return;
-      }
-
-      trace = parsedTrace;
-
-      if (Array.isArray(trace.program)) {
-        programLines = trace.program;
-      }
-
-      currentIndex = 0;
-
-      if (cycleSlider) {
-        cycleSlider.min = 0;
-        cycleSlider.max = trace.cycles.length - 1;
-        cycleSlider.value = 0;
-      }
-
-      render();
+      loadTrace(parsedTrace);
+      setRunStatus("Loaded trace.json.", "success");
     } catch (error) {
       alert("Could not load trace file. Check the browser console for details.");
       console.error(error);
@@ -190,11 +179,80 @@ function handleProgramFile(event) {
   const reader = new FileReader();
 
   reader.onload = function (e) {
-    programLines = parseProgramLines(e.target.result);
+    const assemblyCode = e.target.result;
+    programLines = parseProgramLines(assemblyCode);
+
+    if (assemblyInput) {
+      assemblyInput.value = assemblyCode;
+    }
+
     render();
   };
 
   reader.readAsText(file);
+}
+
+async function runSimulationFromInput() {
+  if (!assemblyInput) return;
+
+  const assemblyCode = assemblyInput.value;
+
+  if (!assemblyCode.trim()) {
+    setRunStatus("Paste assembly code or load an .asm file first.", "error");
+    return;
+  }
+
+  pause();
+  setRunStatus("Running simulator...", "");
+  setRunButtonDisabled(true);
+
+  try {
+    const response = await fetch("/run", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ assembly: assemblyCode })
+    });
+
+    const payload = await response.json();
+
+    if (!response.ok) {
+      throw new Error(payload.error || "Simulation failed.");
+    }
+
+    loadTrace(payload, parseProgramLines(assemblyCode));
+    setRunStatus(`Simulation complete. Loaded ${payload.cycles.length} cycles.`, "success");
+  } catch (error) {
+    console.error(error);
+    setRunStatus(error.message, "error");
+  } finally {
+    setRunButtonDisabled(false);
+  }
+}
+
+function loadTrace(parsedTrace, nextProgramLines) {
+  if (!parsedTrace.cycles || !Array.isArray(parsedTrace.cycles)) {
+    throw new Error("Invalid trace file: expected a cycles array.");
+  }
+
+  trace = parsedTrace;
+
+  if (Array.isArray(nextProgramLines)) {
+    programLines = nextProgramLines;
+  } else if (Array.isArray(trace.program)) {
+    programLines = trace.program;
+  }
+
+  currentIndex = 0;
+
+  if (cycleSlider) {
+    cycleSlider.min = 0;
+    cycleSlider.max = trace.cycles.length - 1;
+    cycleSlider.value = 0;
+  }
+
+  render();
 }
 
 function parseProgramLines(text) {
@@ -854,6 +912,30 @@ function setText(element, value) {
   if (element) {
     element.textContent = value;
   }
+}
+
+function setRunStatus(message, state) {
+  if (!runStatus) return;
+
+  runStatus.textContent = message;
+  runStatus.classList.remove("success", "error");
+
+  if (state) {
+    runStatus.classList.add(state);
+  }
+}
+
+function setRunButtonDisabled(disabled) {
+  if (runSimulationBtn) {
+    runSimulationBtn.disabled = disabled;
+  }
+}
+
+function isEditableTarget(target) {
+  if (!target) return false;
+
+  const tagName = target.tagName ? target.tagName.toLowerCase() : "";
+  return tagName === "input" || tagName === "textarea" || target.isContentEditable;
 }
 
 function escapeHtml(value) {

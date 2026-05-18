@@ -236,6 +236,42 @@ To choose a branch predictor:
 ./simulator ../tests/nested_loop.asm --predictor two-bit
 ```
 
+## Browser Visualizer
+
+The browser visualizer can still load `trace.json` manually, or it can run the local simulator through a small Flask backend.
+
+Build the simulator first:
+
+```bash
+mkdir -p build
+cd build
+cmake ..
+make
+cd ..
+```
+
+Install Flask:
+
+```bash
+python3 -m pip install Flask
+```
+
+Run the local backend from the repository root:
+
+```bash
+python3 server/app.py
+```
+
+Open the visualizer at:
+
+```text
+http://127.0.0.1:5000
+```
+
+Paste assembly into the text area or load an `.asm` file, then click **Run Simulation**. The backend writes the code to a temporary file, runs `./build/simulator`, reads the generated `trace.json`, and returns it to the visualizer.
+
+This server is intended for local development only. It binds to `127.0.0.1`, runs the simulator without a shell, and applies a short execution timeout.
+
 ## Example Program
 
 ```asm
