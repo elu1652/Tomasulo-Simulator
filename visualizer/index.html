@@ -10,12 +10,19 @@
   <header class="top-bar">
     <div>
       <h1>Tomasulo Simulator Visualizer</h1>
-      <p>Cycle-by-cycle view of ROB, active instructions, LSQ, CDB, and events.</p>
+      <p>Cycle-by-cycle datapath view of the Tomasulo-style simulator.</p>
     </div>
 
-    <div class="trace-loader">
-      <label for="traceFile">Load trace.json</label>
-      <input type="file" id="traceFile" accept=".json" />
+    <div class="file-loaders">
+      <div class="trace-loader">
+        <label for="traceFile">Load trace.json</label>
+        <input type="file" id="traceFile" accept=".json" />
+      </div>
+
+      <div class="trace-loader">
+        <label for="programFile">Optional: load .asm</label>
+        <input type="file" id="programFile" accept=".asm,.txt" />
+      </div>
     </div>
   </header>
 
@@ -35,6 +42,95 @@
         <strong id="cycleText">Cycle -</strong>
         <span id="pcText">PC: -</span>
       </div>
+    </section>
+
+    <section class="main-layout">
+      <aside class="program-panel panel">
+        <h2>Program / PC</h2>
+        <div class="program-help">
+          Load the `.asm` file to highlight the current PC.
+        </div>
+        <div id="programListing" class="program-listing"></div>
+      </aside>
+
+      <section class="datapath-panel panel">
+        <div class="datapath-header">
+          <h2>Architectural Datapath</h2>
+          <p>Highlighted components changed during the selected cycle.</p>
+        </div>
+
+        <div class="datapath">
+          <div class="component program" id="programBox">
+            <div class="component-title">Program / PC</div>
+            <div class="component-main" id="programBoxMain">PC: -</div>
+            <div class="component-sub" id="programBoxSub">current instruction</div>
+          </div>
+
+          <div class="arrow horizontal arrow-program-issue" id="arrowProgramIssue">→</div>
+
+          <div class="component issue" id="issueBox">
+            <div class="component-title">Issue / Decode</div>
+            <div class="component-main" id="issueBoxMain">none</div>
+            <div class="component-sub" id="issueBoxSub">instruction issue</div>
+          </div>
+
+          <div class="arrow horizontal arrow-issue-rs" id="arrowIssueRS">→</div>
+
+          <div class="component rs" id="rsBox">
+            <div class="component-title">Reservation Stations</div>
+            <div class="component-main" id="rsBoxMain">0 active</div>
+            <div class="component-sub">Qj/Qk + Vj/Vk</div>
+          </div>
+
+          <div class="arrow horizontal arrow-rs-fu" id="arrowRSFU">→</div>
+
+          <div class="component fu" id="fuBox">
+            <div class="component-title">Functional Units</div>
+            <div class="component-main" id="fuBoxMain">INT / MUL / MEM</div>
+            <div class="component-sub" id="fuBoxSub">execution</div>
+          </div>
+
+          <div class="arrow horizontal arrow-fu-cdb" id="arrowFUCDB">→</div>
+
+          <div class="component cdb" id="cdbBox">
+            <div class="component-title">Common Data Bus</div>
+            <div class="component-main" id="cdbBoxMain">none</div>
+            <div class="component-sub">single broadcast/cycle</div>
+          </div>
+
+          <div class="arrow horizontal arrow-cdb-rob" id="arrowCDBROB">→</div>
+
+          <div class="component rob" id="robBox">
+            <div class="component-title">Circular ROB</div>
+            <div class="component-main" id="robBoxMain">0 entries</div>
+            <div class="component-sub" id="robBoxSub">head/tail</div>
+          </div>
+
+          <div class="arrow vertical arrow-rs-lsq" id="arrowRSLSQ">↓</div>
+
+          <div class="component lsq" id="lsqBox">
+            <div class="component-title">Load-Store Queue</div>
+            <div class="component-main" id="lsqBoxMain">0 entries</div>
+            <div class="component-sub">memory ordering</div>
+          </div>
+
+          <div class="arrow horizontal arrow-lsq-mem" id="arrowLSQMemory">→</div>
+
+          <div class="component memory" id="memoryBox">
+            <div class="component-title">Memory</div>
+            <div class="component-main" id="memoryBoxMain">loads/stores</div>
+            <div class="component-sub">commit-visible state</div>
+          </div>
+
+          <div class="arrow vertical arrow-rob-commit" id="arrowROBCommit">↓</div>
+
+          <div class="component commit" id="commitBox">
+            <div class="component-title">Commit</div>
+            <div class="component-main" id="commitBoxMain">none</div>
+            <div class="component-sub">in-order retirement</div>
+          </div>
+        </div>
+      </section>
     </section>
 
     <section class="summary-grid">
@@ -82,9 +178,20 @@
         <div id="robEntries" class="card-list"></div>
       </div>
 
-      <div class="panel">
-        <h2>Active Instructions / RS</h2>
-        <div id="activeInstructions" class="card-list"></div>
+      <div class="panel reservation-panel">
+        <h2>Reservation Stations / Buffers</h2>
+
+        <h3>INT Reservation Stations</h3>
+        <div id="intRSTable"></div>
+
+        <h3>MUL Reservation Stations</h3>
+        <div id="mulRSTable"></div>
+
+        <h3>Load Buffer</h3>
+        <div id="loadBufferTable"></div>
+
+        <h3>Store Buffer</h3>
+        <div id="storeBufferTable"></div>
       </div>
 
       <div class="panel">
