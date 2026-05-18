@@ -619,12 +619,15 @@ h3 {
 }
 
 .reservation-panel,
-.rob-panel {
+.rob-panel,
+.table-scroll {
   overflow-x: auto;
 }
 
 .rs-table,
-.rob-table {
+.rob-table,
+.lsq-table,
+.state-table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
@@ -638,7 +641,11 @@ h3 {
 .rs-table th,
 .rs-table td,
 .rob-table th,
-.rob-table td {
+.rob-table td,
+.lsq-table th,
+.lsq-table td,
+.state-table th,
+.state-table td {
   border-right: 1px solid #d8dee4;
   border-bottom: 1px solid #d8dee4;
   padding: 6px 8px;
@@ -649,17 +656,25 @@ h3 {
 .rs-table th:last-child,
 .rs-table td:last-child,
 .rob-table th:last-child,
-.rob-table td:last-child {
+.rob-table td:last-child,
+.lsq-table th:last-child,
+.lsq-table td:last-child,
+.state-table th:last-child,
+.state-table td:last-child {
   border-right: none;
 }
 
 .rs-table tbody tr:last-child td,
-.rob-table tbody tr:last-child td {
+.rob-table tbody tr:last-child td,
+.lsq-table tbody tr:last-child td,
+.state-table tbody tr:last-child td {
   border-bottom: none;
 }
 
 .rs-table th,
-.rob-table th {
+.rob-table th,
+.lsq-table th,
+.state-table th {
   background: #e2e8f0;
   font-weight: bold;
   color: #334155;
@@ -671,6 +686,97 @@ h3 {
 .rob-table tr.empty-row {
   background: #f8fafc;
   color: #94a3b8;
+}
+
+.lsq-table {
+  min-width: 820px;
+}
+
+.lsq-table tr.load-row {
+  background: #eff6ff;
+}
+
+.lsq-table tr.store-row {
+  background: #fff7ed;
+}
+
+.lsq-table tr.address-not-ready-row {
+  box-shadow: inset 4px 0 0 #f59e0b;
+}
+
+.lsq-table tr.address-ready-row {
+  box-shadow: inset 4px 0 0 #16a34a;
+}
+
+.lsq-table tr.value-ready-row td:nth-child(8) {
+  background: #dcfce7;
+  font-weight: bold;
+}
+
+.lsq-type,
+.ready-pill {
+  display: inline-block;
+  min-width: 54px;
+  text-align: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.lsq-type.load {
+  color: #1d4ed8;
+  background: #dbeafe;
+  border: 1px solid #93c5fd;
+}
+
+.lsq-type.store {
+  color: #c2410c;
+  background: #ffedd5;
+  border: 1px solid #fdba74;
+}
+
+.lsq-type.unknown {
+  color: #64748b;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+}
+
+.ready-pill.ready {
+  color: #166534;
+  background: #dcfce7;
+  border: 1px solid #86efac;
+}
+
+.ready-pill.not-ready {
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+}
+
+.state-table {
+  min-width: 520px;
+  table-layout: fixed;
+}
+
+.state-table th {
+  width: 72px;
+  font-family: Consolas, Monaco, monospace;
+  text-align: right;
+}
+
+.state-table td {
+  width: 72px;
+  font-family: Consolas, Monaco, monospace;
+  text-align: left;
+  background: #ffffff;
+}
+
+.state-table td.changed-cell {
+  background: #fef3c7;
+  color: #92400e;
+  font-weight: bold;
+  box-shadow: inset 0 0 0 2px #f59e0b;
 }
 
 .rs-table tr.occupied-row {

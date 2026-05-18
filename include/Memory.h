@@ -12,5 +12,6 @@ class Memory{
 
         int load(int address) const;
         void store(int address, int value);
+        std::vector<int> snapshot(int count = 32) const;
         void print(int start = 0, int count = 16) const;
 };

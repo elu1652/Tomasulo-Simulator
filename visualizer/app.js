@@ -34,6 +34,8 @@ const robTable =
   document.getElementById("robEntries");
 
 const lsqEntries = document.getElementById("lsqEntries");
+const registerState = document.getElementById("registerState");
+const memoryState = document.getElementById("memoryState");
 const programListing = document.getElementById("programListing");
 
 const intRSTable = document.getElementById("intRSTable");
@@ -326,6 +328,8 @@ function render() {
   renderROB(rob.entries || []);
   renderReservationStations(cycle.activeInstructions || []);
   renderLSQ(cycle.lsq || []);
+  renderRegisterState(cycle.registers);
+  renderMemoryState(cycle.memory);
 }
 
 function renderProgram(cycle) {
@@ -830,31 +834,107 @@ function renderLSQ(entries) {
     return;
   }
 
-  for (const entry of entries) {
-    const card = document.createElement("div");
-    card.className = "card";
+  let html = `
+    <table class="lsq-table">
+      <thead>
+        <tr>
+          <th>Entry</th>
+          <th>Type</th>
+          <th>Instruction</th>
+          <th>ROB</th>
+          <th>Address Ready</th>
+          <th>Address</th>
+          <th>Value Ready</th>
+          <th>Value</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
 
-    const type = entry.isLoad ? "Load" : "Store";
+  entries.forEach((entry, index) => {
+    const isLoad = Boolean(entry.isLoad);
+    const isStore = Boolean(entry.isStore);
+    const type = isLoad ? "Load" : isStore ? "Store" : "Unknown";
+    const rowClasses = [
+      isLoad ? "load-row" : "",
+      isStore ? "store-row" : "",
+      entry.addressReady ? "address-ready-row" : "address-not-ready-row",
+      entry.valueReady ? "value-ready-row" : ""
+    ].filter(Boolean).join(" ");
 
-    card.innerHTML = `
-      <div class="card-title">I${entry.instructionId} | ROB${entry.robTag}</div>
-      <div>${escapeHtml(entry.rawText)}</div>
-      <div class="card-row">
-        <span>Type</span>
-        <span>${type}</span>
-      </div>
-      <div class="card-row">
-        <span>Address</span>
-        <span>${entry.addressReady ? entry.address : "not ready"}</span>
-      </div>
-      <div class="card-row">
-        <span>Value</span>
-        <span>${entry.valueReady ? entry.value : "not ready"}</span>
-      </div>
+    html += `
+      <tr class="${rowClasses}">
+        <td class="rs-tag">LSQ${index}</td>
+        <td><span class="lsq-type ${type.toLowerCase()}">${type}</span></td>
+        <td>${escapeHtml(entry.rawText || "-")}</td>
+        <td class="rs-tag">${formatTag(entry.robTag)}</td>
+        <td>${formatReady(entry.addressReady)}</td>
+        <td>${entry.addressReady ? entry.address : "-"}</td>
+        <td>${formatReady(entry.valueReady)}</td>
+        <td>${entry.valueReady ? entry.value : "-"}</td>
+      </tr>
     `;
+  });
 
-    lsqEntries.appendChild(card);
+  html += `
+      </tbody>
+    </table>
+  `;
+
+  lsqEntries.innerHTML = html;
+}
+
+function renderRegisterState(registers) {
+  renderStateTable(registerState, registers, "R", "Register state not available");
+}
+
+function renderMemoryState(memory) {
+  renderStateTable(memoryState, memory, "Mem", "Memory state not available");
+}
+
+function renderStateTable(container, values, labelPrefix, unavailableText) {
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  if (!Array.isArray(values)) {
+    container.appendChild(emptyMessage(unavailableText));
+    return;
   }
+
+  const previousCycle = currentIndex > 0 ? trace.cycles[currentIndex - 1] : null;
+  const previousValues = labelPrefix === "R"
+    ? previousCycle?.registers
+    : previousCycle?.memory;
+  const displayValues = values.slice(0, 32);
+
+  while (displayValues.length < 32) {
+    displayValues.push(0);
+  }
+
+  const perRow = 4;
+  let html = '<table class="state-table"><tbody>';
+
+  for (let rowStart = 0; rowStart < 32; rowStart += perRow) {
+    html += "<tr>";
+
+    for (let offset = 0; offset < perRow; offset++) {
+      const index = rowStart + offset;
+      const value = displayValues[index];
+      const changed = Array.isArray(previousValues) && previousValues[index] !== value;
+      const label = labelPrefix === "R" ? `R${index}` : `Mem[${index}]`;
+
+      html += `
+        <th>${label}</th>
+        <td class="${changed ? "changed-cell" : ""}">${value}</td>
+      `;
+    }
+
+    html += "</tr>";
+  }
+
+  html += "</tbody></table>";
+  container.innerHTML = html;
 }
 
 function emptyMessage(text) {
@@ -866,6 +946,10 @@ function emptyMessage(text) {
 
 function formatTag(tag) {
   return tag >= 0 ? `ROB${tag}` : "-";
+}
+
+function formatReady(isReady) {
+  return `<span class="ready-pill ${isReady ? "ready" : "not-ready"}">${isReady ? "yes" : "no"}</span>`;
 }
 
 function hasEvent(events, text) {

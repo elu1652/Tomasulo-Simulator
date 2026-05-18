@@ -59,6 +59,9 @@ struct TraceSnapshot {
     std::string cdbBroadcast;
     std::string commitEvent;
 
+    std::vector<int> registers;
+    std::vector<int> memory;
+
     int robHead = 0;
     int robTail = 0;
     int robCount = 0;

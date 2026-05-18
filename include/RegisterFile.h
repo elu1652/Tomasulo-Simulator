@@ -12,5 +12,6 @@ class RegisterFile{
         
         int read(int index) const;
         void write(int index, int value);
+        std::vector<int> snapshot(int count = 32) const;
         void print() const;
 };

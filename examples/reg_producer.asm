@@ -1,3 +1,0 @@
-ADD R1, R3, R5
-MUL R1, R3, R5
-ADD R2, R1, R3

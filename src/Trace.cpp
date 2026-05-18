@@ -33,6 +33,29 @@ static std::string escapeJson(const std::string& input) {
     return output;
 }
 
+static void writeIntArray(std::ofstream& out,
+                          const std::string& name,
+                          const std::vector<int>& values,
+                          bool trailingComma) {
+    out << "      \"" << name << "\": [";
+
+    for (size_t i = 0; i < values.size(); i++) {
+        if (i > 0) {
+            out << ", ";
+        }
+
+        out << values[i];
+    }
+
+    out << "]";
+
+    if (trailingComma) {
+        out << ",";
+    }
+
+    out << "\n";
+}
+
 void TraceRecorder::addSnapshot(const TraceSnapshot& snapshot) {
     snapshots.push_back(snapshot);
 }
@@ -60,6 +83,8 @@ void TraceRecorder::writeJson(const std::string& filename) const {
         out << "      \"issuedInstruction\": \"" << escapeJson(s.issuedInstruction) << "\",\n";
         out << "      \"cdbBroadcast\": \"" << escapeJson(s.cdbBroadcast) << "\",\n";
         out << "      \"commitEvent\": \"" << escapeJson(s.commitEvent) << "\",\n";
+        writeIntArray(out, "registers", s.registers, true);
+        writeIntArray(out, "memory", s.memory, true);
 
         out << "      \"rob\": {\n";
         out << "        \"head\": " << s.robHead << ",\n";

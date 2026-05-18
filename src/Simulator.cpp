@@ -49,6 +49,8 @@ static TraceSnapshot makeTraceSnapshot(
     const std::vector<ActiveInstruction>& activeInstructions,
     const ReorderBuffer& rob,
     const LoadStoreQueue& lsq,
+    const RegisterFile& rf,
+    const Memory& mem,
     const std::string& issuedInstruction,
     const std::string& cdbBroadcast,
     const std::string& commitEvent,
@@ -62,6 +64,8 @@ static TraceSnapshot makeTraceSnapshot(
     snapshot.cdbBroadcast = cdbBroadcast;
     snapshot.commitEvent = commitEvent;
     snapshot.events = events;
+    snapshot.registers = rf.snapshot(32);
+    snapshot.memory = mem.snapshot(32);
 
     snapshot.robHead = rob.head;
     snapshot.robTail = rob.tail;
@@ -825,6 +829,8 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 activeInstructions,
                 circularROB,
                 lsq,
+                rf,
+                mem,
                 issuedInstructionThisCycle,
                 cdbBroadcastThisCycle,
                 commitEventThisCycle,
@@ -845,4 +851,4 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
     traceRecorder.writeJson("../trace.json");
     std::cout << "\nTrace written to ../trace.json\n";
-}   
+}

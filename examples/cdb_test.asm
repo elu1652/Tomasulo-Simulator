@@ -1,4 +1,0 @@
-ADD R1, R3, R5
-ADD R2, R3, R5
-ADD R4, R3, R5
-ADD R6, R3, R5
