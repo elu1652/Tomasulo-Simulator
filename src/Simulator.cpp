@@ -7,6 +7,7 @@
 #include "Flush.h"
 #include "BranchPredictor.h"
 #include "LSQ.h"
+#include "Trace.h"
 
 #include <iostream>
 #include <queue>
@@ -40,6 +41,98 @@ static int getLatency(OpCode opcode){
 // Check if the instruction writes to a register (i.e., has a destination register)
 static bool writesRegister(const Instruction& instr) {
     return instr.rd != -1;
+}
+
+static TraceSnapshot makeTraceSnapshot(
+    int cycle,
+    int pc,
+    const std::vector<ActiveInstruction>& activeInstructions,
+    const ReorderBuffer& rob,
+    const LoadStoreQueue& lsq,
+    const std::string& issuedInstruction,
+    const std::string& cdbBroadcast,
+    const std::string& commitEvent,
+    const std::vector<std::string>& events
+) {
+    TraceSnapshot snapshot;
+
+    snapshot.cycle = cycle;
+    snapshot.pc = pc;
+    snapshot.issuedInstruction = issuedInstruction;
+    snapshot.cdbBroadcast = cdbBroadcast;
+    snapshot.commitEvent = commitEvent;
+    snapshot.events = events;
+
+    snapshot.robHead = rob.head;
+    snapshot.robTail = rob.tail;
+    snapshot.robCount = rob.count;
+
+    for (const ActiveInstruction& active : activeInstructions) {
+        TraceActiveInstruction traceActive;
+
+        traceActive.instructionId = active.instructionIndex;
+        traceActive.robTag = active.robTag;
+        traceActive.rawText = active.instr.rawText;
+        traceActive.executing = active.executing;
+        traceActive.remainingCycles = active.remainingCycles;
+        traceActive.waitingReason = active.waitingReason;
+        traceActive.vj = active.vj;
+        traceActive.vk = active.vk;
+        traceActive.qj = active.qj;
+        traceActive.qk = active.qk;
+
+        snapshot.activeInstructions.push_back(traceActive);
+    }
+
+    for (const ROBEntry& entry : rob.entries) {
+        if (!entry.busy) {
+            continue;
+        }
+
+        TraceROBEntry traceEntry;
+
+        traceEntry.robTag = entry.robTag;
+        traceEntry.instructionId = entry.instructionId;
+        traceEntry.rawText = entry.rawText;
+        traceEntry.busy = entry.busy;
+        traceEntry.ready = entry.ready;
+        traceEntry.writesRegister = entry.writesRegister;
+        traceEntry.destinationRegister = entry.destinationRegister;
+        traceEntry.value = entry.value;
+        traceEntry.writesMemory = entry.writesMemory;
+        traceEntry.memoryAddress = entry.memoryAddress;
+        traceEntry.memoryValue = entry.memoryValue;
+
+        snapshot.robEntries.push_back(traceEntry);
+    }
+
+    for (const LSQEntry& entry : lsq.entries) {
+        if (!entry.busy) {
+            continue;
+        }
+
+        TraceLSQEntry traceEntry;
+
+        traceEntry.instructionId = entry.instructionId;
+        traceEntry.robTag = entry.robTag;
+        traceEntry.rawText = entry.rawText;
+        traceEntry.busy = entry.busy;
+        traceEntry.isLoad = entry.isLoad;
+        traceEntry.isStore = entry.isStore;
+        traceEntry.addressReady = entry.addressReady;
+        traceEntry.address = entry.address;
+        traceEntry.valueReady = entry.valueReady;
+        traceEntry.value = entry.value;
+
+        snapshot.lsqEntries.push_back(traceEntry);
+    }
+
+    return snapshot;
+}
+
+static void addTraceEvent(std::vector<std::string>& traceEvents,
+                          const std::string& event) {
+    traceEvents.push_back(event);
 }
 
 // Compute the result of an instruction after it finishes execution.
@@ -174,6 +267,8 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
     LoadStoreQueue lsq;
 
+    TraceRecorder traceRecorder;
+
     // Functional unit initialization
     FunctionalUnit intFU {FUType::INT, 2, 0};
     FunctionalUnit mulFU {FUType::MUL, 2, 0};
@@ -191,6 +286,10 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
         std::cout << "\n\nCycle " << cycle << "\n";
 
+        std::string issuedInstructionThisCycle;
+        std::string cdbBroadcastThisCycle = "none";
+        std::string commitEventThisCycle;
+        std::vector<std::string> traceEvents;
 
         // ISSUE STAGE
         // Issue at most one instruction per cycle in order.
@@ -208,15 +307,20 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
             int capacity = getRSCapacity(rsType, INT_RS_CAPACITY, MUL_RS_CAPACITY, LOAD_BUFFER_CAPACITY, STORE_BUFFER_CAPACITY);
 
             if (circularROB.full()) {
-                std::cout << "Issue stalled: " 
-                        << instructions[pc].rawText 
-                        << " | ROB full\n";
+                std::string event =
+                    "Issue stalled: " + instructions[pc].rawText + " | ROB full";
+
+                std::cout << event << "\n";
+                traceEvents.push_back(event);
             }
-            else if(currentEntries >= capacity){
-                std::cout << "Issue stalled: " << instrToIssue.rawText
-                  << " | " << rsTypeToString(rsType)
-                  << " RS full\n";
-            }   
+            else if (currentEntries >= capacity) {
+                std::string event =
+                    "Issue stalled: " + instrToIssue.rawText +
+                    " | " + rsTypeToString(rsType) + " RS full";
+
+                std::cout << event << "\n";
+                traceEvents.push_back(event);
+            }
             else{
                 int dynamicId = nextDynamicId++;
 
@@ -267,9 +371,12 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                     newInstr.predictedTarget =
                         newInstr.predictedTaken ? newInstr.instr.branchTarget : pc + 1;
 
-                    std::cout << "  Branch prediction: "
-                            << (newInstr.predictedTaken ? "taken" : "not taken")
-                            << "\n";
+                    std::string event =
+                        "Branch prediction for I" + std::to_string(dynamicId) +
+                        ": " + (newInstr.predictedTaken ? "taken" : "not taken");
+
+                    std::cout << "  " << event << "\n";
+                    traceEvents.push_back(event);
                 }
 
                 // Source operands are read either from the architectural register file,
@@ -321,7 +428,14 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                     regProducer[newInstr.instr.rd] = newInstr.robTag;
                 }
 
-                std::cout << "Issued: " << newInstr.instr.rawText << "\n";                
+                std::cout << "Issued: " << newInstr.instr.rawText << "\n";     
+                issuedInstructionThisCycle = newInstr.instr.rawText;
+                traceEvents.push_back("Issued: I" +
+                                    std::to_string(dynamicId) +
+                                    " " +
+                                    newInstr.instr.rawText);
+                
+                issuedInstructionThisCycle = newInstr.instr.rawText;
 
                 if (newInstr.isBranch && newInstr.predictedTaken) {
                     pc = newInstr.instr.branchTarget;
@@ -363,6 +477,13 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                                 << " address = "
                                 << address
                                 << "\n";
+
+                        traceEvents.push_back(
+                            "LSQ Address: I" +
+                            std::to_string(active.instructionIndex) +
+                            " address = " +
+                            std::to_string(address)
+                        );
                     }
 
                     if (active.qk != -1) {
@@ -414,11 +535,15 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                         active.hasForwardedLoadValue = true;
                         active.forwardedLoadValue = loadCheck.forwardedValue;
 
-                        std::cout << "  LSQ Forward: I"
-                                << active.instructionIndex
-                                << " gets value "
-                                << loadCheck.forwardedValue
-                                << " from older store\n";
+                        std::string event =
+                            "LSQ Forward: I" +
+                            std::to_string(active.instructionIndex) +
+                            " gets value " +
+                            std::to_string(loadCheck.forwardedValue) +
+                            " from older store";
+
+                        std::cout << "  " << event << "\n";
+                        traceEvents.push_back(event);
                     } else {
                         active.hasForwardedLoadValue = false;
                         active.forwardedLoadValue = 0;
@@ -438,6 +563,12 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 fu->busyUnits++;
                 active.executing = true;
                 active.waitingReason = "";
+                traceEvents.push_back(
+                    "Execution started: I" +
+                    std::to_string(active.instructionIndex) +
+                    " " +
+                    active.instr.rawText
+                );
 
                 statusTable[active.instructionIndex].executeStartCycle = cycle;
             }
@@ -464,8 +595,11 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
             cycle
         );
 
-
         if (committedInstructionId != -1) {
+            commitEventThisCycle =
+                "Committed I" + std::to_string(committedInstructionId);
+
+            traceEvents.push_back(commitEventThisCycle);
             lsq.removeCommitted(committedInstructionId);
         }
 
@@ -475,14 +609,19 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
             CDBMessage cdb = cdbQueue.front();
             cdbQueue.pop();
 
-            std::cout << "CDB Broadcast: I" << cdb.producerTag
-                    << " " << cdb.rawText << "\n";
+            cdbBroadcastThisCycle =
+                "I" + std::to_string(cdb.producerTag) + " " + cdb.rawText;
+
+            std::cout << "CDB Broadcast: " << cdbBroadcastThisCycle << "\n";
+
+            traceEvents.push_back("CDB Broadcast: " + cdbBroadcastThisCycle);
 
             broadcastCDB(cdb, activeInstructions, robEntries);
             statusTable[cdb.producerTag].writebackCycle = cycle;
             
         } else {
             std::cout << "CDB Broadcast: none\n";
+            cdbBroadcastThisCycle = "none";
         }
 
         // COMPLETION STAGE
@@ -506,11 +645,27 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 statusTable[index].executeEndCycle = cycle;
 
                 // Print completion message
-                std::cout << "Execution complete: I" << index << " " << activeInstructions[i].instr.rawText << "\n";
+                std::string completeEvent =
+                    "Execution complete: I" +
+                    std::to_string(index) +
+                    " " +
+                    activeInstructions[i].instr.rawText;
+
+                std::cout << completeEvent << "\n";
+                traceEvents.push_back(completeEvent);
 
                 if (result.writesRegister) {
                     std::cout << "  Result queued for CDB: R" << result.destinationRegister
                             << " = " << result.value << "\n";
+
+                    traceEvents.push_back(
+                        "Result queued for CDB: I" +
+                        std::to_string(index) +
+                        " R" +
+                        std::to_string(result.destinationRegister) +
+                        " = " +
+                        std::to_string(result.value)
+                    );
 
                     CDBMessage cdb;
                     cdb.valid = result.writesRegister;
@@ -539,6 +694,18 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                             << result.memoryAddress << "] = "
                             << result.memoryValue << "\n";
 
+                    traceEvents.push_back(
+                        "Store result ready in ROB: I" +
+                        std::to_string(index) +
+                        " Mem[" +
+                        std::to_string(result.memoryAddress) +
+                        "] = " +
+                        std::to_string(result.memoryValue)
+                    );
+
+                    traceEvents.push_back("No CDB broadcast for store I" +
+                                        std::to_string(index));
+
                     std::cout << "  No CDB broadcast\n";
                 }
 
@@ -556,6 +723,13 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                             << (result.branchTaken ? "taken" : "not taken")
                             << "\n";
 
+                    traceEvents.push_back(
+                        "Branch resolved: I" +
+                        std::to_string(index) +
+                        " " +
+                        (result.branchTaken ? "taken" : "not taken")
+                    );
+
                     // Compare the stored prediction made at issue time against the actual branch result.
                     // On a misprediction, redirect the PC and flush all younger wrong-path instructions.
                     bool predictedTaken = activeInstructions[i].predictedTaken;
@@ -568,6 +742,20 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                     statusTable[index].predictorStateAfter = predictorStateAfter;
 
                     if (result.branchTaken != predictedTaken) {
+
+                        traceEvents.push_back("Branch misprediction detected: I" +
+                                            std::to_string(index));
+
+                        traceEvents.push_back(
+                            "Predicted: " +
+                            std::string(predictedTaken ? "taken" : "not taken")
+                        );
+
+                        traceEvents.push_back(
+                            "Actual: " +
+                            std::string(result.branchTaken ? "taken" : "not taken")
+                        );
+
                         std::cout << "  Branch misprediction detected\n";
                         
                         std::cout << "  Predicted: "
@@ -580,8 +768,14 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
                         if (result.branchTaken) {
                             pc = result.branchTarget;
+                            traceEvents.push_back(
+                                "PC redirected to instruction " + std::to_string(pc)
+                            );
                         } else {
                             pc = statusTable[index].staticPc + 1;
+                            traceEvents.push_back(
+                                "PC redirected to instruction " + std::to_string(pc)
+                            );
                         }
 
                         std::cout << "  PC redirected to instruction "
@@ -593,10 +787,20 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                         flushROB(circularROB, index);
                         flushRegProducers(regProducer, circularROB, index);
                         lsq.flushYoungerThan(index);
+
+                        traceEvents.push_back(
+                            "Flushed younger instructions after I" +
+                            std::to_string(index)
+                        );
+
                     } else {
                         std::cout << "  Branch prediction correct\n";
+                        traceEvents.push_back("Branch prediction correct: I" +
+                                                std::to_string(index));     
                     }
                     std::cout << "  ROB entry ready\n";
+                    traceEvents.push_back("ROB entry ready: I" +
+                                            std::to_string(index));
                 }
 
                 if (!result.writesRegister && !result.writesMemory && !result.isBranch) {
@@ -614,6 +818,19 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 i++;
             }
         }
+        traceRecorder.addSnapshot(
+            makeTraceSnapshot(
+                cycle,
+                pc,
+                activeInstructions,
+                circularROB,
+                lsq,
+                issuedInstructionThisCycle,
+                cdbBroadcastThisCycle,
+                commitEventThisCycle,
+                traceEvents
+            )
+        );
         cycle++;
     }
 
@@ -625,4 +842,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
     printInstructionStatusTable(statusTable);
     printBranchPredictionSummary(statusTable);
+
+    traceRecorder.writeJson("../trace.json");
+    std::cout << "\nTrace written to ../trace.json\n";
 }   

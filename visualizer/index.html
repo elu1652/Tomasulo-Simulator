@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tomasulo Simulator Visualizer</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="top-bar">
+    <div>
+      <h1>Tomasulo Simulator Visualizer</h1>
+      <p>Cycle-by-cycle view of ROB, active instructions, LSQ, CDB, and events.</p>
+    </div>
+
+    <div class="trace-loader">
+      <label for="traceFile">Load trace.json</label>
+      <input type="file" id="traceFile" accept=".json" />
+    </div>
+  </header>
+
+  <main>
+    <section class="controls panel">
+      <button id="prevBtn">Previous</button>
+      <button id="nextBtn">Next</button>
+      <button id="playBtn">Play</button>
+      <button id="pauseBtn">Pause</button>
+
+      <label class="slider-label">
+        Cycle:
+        <input type="range" id="cycleSlider" min="0" max="0" value="0" />
+      </label>
+
+      <div class="cycle-info">
+        <strong id="cycleText">Cycle -</strong>
+        <span id="pcText">PC: -</span>
+      </div>
+    </section>
+
+    <section class="summary-grid">
+      <div class="panel">
+        <h2>Issue / CDB / Commit</h2>
+        <div class="summary-row">
+          <span>Issued</span>
+          <strong id="issuedText">-</strong>
+        </div>
+        <div class="summary-row">
+          <span>CDB</span>
+          <strong id="cdbText">-</strong>
+        </div>
+        <div class="summary-row">
+          <span>Commit</span>
+          <strong id="commitText">-</strong>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>ROB State</h2>
+        <div class="summary-row">
+          <span>Head</span>
+          <strong id="robHeadText">-</strong>
+        </div>
+        <div class="summary-row">
+          <span>Tail</span>
+          <strong id="robTailText">-</strong>
+        </div>
+        <div class="summary-row">
+          <span>Count</span>
+          <strong id="robCountText">-</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <h2>Events</h2>
+        <ul id="eventsList" class="events-list"></ul>
+      </div>
+
+      <div class="panel">
+        <h2>ROB Entries</h2>
+        <div id="robEntries" class="card-list"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Active Instructions / RS</h2>
+        <div id="activeInstructions" class="card-list"></div>
+      </div>
+
+      <div class="panel">
+        <h2>LSQ</h2>
+        <div id="lsqEntries" class="card-list"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

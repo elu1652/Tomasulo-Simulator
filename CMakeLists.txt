@@ -20,4 +20,5 @@ add_executable(simulator
     src/Flush.cpp
     src/BranchPredictor.cpp
     src/LSQ.cpp
+    src/Trace.cpp
 )
