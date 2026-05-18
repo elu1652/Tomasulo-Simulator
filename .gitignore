@@ -1,8 +1,12 @@
 build/
+.venv/
+__pycache__/
 *.o
 *.exe
-.codex/
-.agents/
-__pycache__/
 *.pyc
-.venv/
+trace.json
+traces/
+.codex/
+.agent/
+.agents/
+.DS_Store

@@ -17,8 +17,8 @@ Simulator::Simulator(BranchPredictorType predictorType): predictorType(predictor
 
 }
 
-// Clock cycles required to perform operation
-static int getLatency(OpCode opcode){
+// Clock cycles required to perform operation.
+static int getLatency(OpCode opcode) {
     switch (opcode) {
         case OpCode::ADD:
         case OpCode::ADDI:
@@ -39,66 +39,9 @@ static int getLatency(OpCode opcode){
     }
 }
 
-// Check if the instruction writes to a register (i.e., has a destination register)
+// Check if the instruction writes to a register.
 static bool writesRegister(const Instruction& instr) {
     return instr.rd != -1;
-}
-
-static std::string predictorTypeToString(BranchPredictorType type) {
-    switch (type) {
-        case BranchPredictorType::AlwaysNotTaken:
-            return "always-not-taken";
-        case BranchPredictorType::AlwaysTaken:
-            return "always-taken";
-        case BranchPredictorType::OneBit:
-            return "one-bit";
-        case BranchPredictorType::TwoBit:
-            return "two-bit";
-        default:
-            return "unknown";
-    }
-}
-
-static bool isStaticPredictor(BranchPredictorType type) {
-    return type == BranchPredictorType::AlwaysNotTaken ||
-           type == BranchPredictorType::AlwaysTaken;
-}
-
-static int tracePredictorState(const BranchPredictor& predictor,
-                               BranchPredictorType type,
-                               int pc) {
-    if (isStaticPredictor(type)) {
-        return -1;
-    }
-
-    return predictor.getState(pc);
-}
-
-static std::string predictorStateText(BranchPredictorType type, int state) {
-    if (isStaticPredictor(type) || state < 0) {
-        return "N/A";
-    }
-
-    if (type == BranchPredictorType::OneBit) {
-        return state == 0 ? "Not Taken" : "Taken";
-    }
-
-    if (type == BranchPredictorType::TwoBit) {
-        switch (state) {
-            case 0:
-                return "Strongly Not Taken";
-            case 1:
-                return "Weakly Not Taken";
-            case 2:
-                return "Weakly Taken";
-            case 3:
-                return "Strongly Taken";
-            default:
-                return "N/A";
-        }
-    }
-
-    return "N/A";
 }
 
 static TraceSnapshot makeTraceSnapshot(
@@ -121,7 +64,7 @@ static TraceSnapshot makeTraceSnapshot(
 
     snapshot.cycle = cycle;
     snapshot.pc = pc;
-    snapshot.predictorType = predictorTypeToString(predictorType);
+    snapshot.predictorType = branchPredictorTypeToString(predictorType);
     snapshot.issuedInstruction = issuedInstruction;
     snapshot.cdbBroadcast = cdbBroadcast;
     snapshot.commitEvent = commitEvent;
@@ -157,7 +100,7 @@ static TraceSnapshot makeTraceSnapshot(
 
         branch.pc = status.staticPc;
         branch.instruction = status.rawText;
-        branch.predictorType = predictorTypeToString(predictorType);
+        branch.predictorType = branchPredictorTypeToString(predictorType);
         branch.predictedTaken = status.predictedTaken;
         branch.actualTaken = status.actualTaken;
         branch.branchResolved = status.branchResolved;
@@ -169,12 +112,12 @@ static TraceSnapshot makeTraceSnapshot(
         branch.fallthroughPc = status.fallthroughPc;
         branch.stateBefore = status.predictorStateBefore;
         branch.stateAfter = status.predictorStateAfter;
-        branch.stateBeforeText = predictorStateText(
+        branch.stateBeforeText = branchPredictorStateText(
             predictorType,
             status.predictorStateBefore
         );
         branch.stateAfterText = status.branchResolved
-            ? predictorStateText(predictorType, status.predictorStateAfter)
+            ? branchPredictorStateText(predictorType, status.predictorStateAfter)
             : "pending";
 
         snapshot.branchPredictions.push_back(branch);
@@ -241,11 +184,6 @@ static TraceSnapshot makeTraceSnapshot(
     }
 
     return snapshot;
-}
-
-static void addTraceEvent(std::vector<std::string>& traceEvents,
-                          const std::string& event) {
-    traceEvents.push_back(event);
 }
 
 // Compute the result of an instruction after it finishes execution.
@@ -351,12 +289,14 @@ ExecutionResult Simulator::computeResult(const ActiveInstruction& active) {
 
 void Simulator::execute(const std::vector<Instruction>& instructions) {
 
+    // Fixed simulator resource configuration.
     const int INT_RS_CAPACITY = 2;
     const int MUL_RS_CAPACITY = 2;
     const int LOAD_BUFFER_CAPACITY = 2;
     const int STORE_BUFFER_CAPACITY = 2;
     const int ROB_CAPACITY = 4;
 
+    // Cycle setup.
     int cycle = 1;
     int pc = 0;
 
@@ -382,7 +322,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
     TraceRecorder traceRecorder;
 
-    // Functional unit initialization
+    // Functional unit initialization.
     FunctionalUnit intFU {FUType::INT, 2, 0};
     FunctionalUnit mulFU {FUType::MUL, 2, 0};
     FunctionalUnit memFU {FUType::MEM, 2, 0};
@@ -479,7 +419,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                     newInstr.instr.opcode == OpCode::BNE;
 
                 if (newInstr.isBranch) {
-                    newInstr.predictorStateBefore = tracePredictorState(
+                    newInstr.predictorStateBefore = branchPredictorTraceState(
                         branchPredictor,
                         predictorType,
                         pc
@@ -549,14 +489,12 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                     regProducer[newInstr.instr.rd] = newInstr.robTag;
                 }
 
-                std::cout << "Issued: " << newInstr.instr.rawText << "\n";     
+                std::cout << "Issued: " << newInstr.instr.rawText << "\n";
                 issuedInstructionThisCycle = newInstr.instr.rawText;
                 traceEvents.push_back("Issued: I" +
                                     std::to_string(dynamicId) +
                                     " " +
                                     newInstr.instr.rawText);
-                
-                issuedInstructionThisCycle = newInstr.instr.rawText;
 
                 if (newInstr.isBranch && newInstr.predictedTaken) {
                     pc = newInstr.instr.branchTarget;
@@ -566,7 +504,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
             }
         }
 
-        // EXECUTE STAGE
+        // EXECUTION START / PROGRESS STAGE
         // Ready instructions start execution when operands are available and a matching FU is free.
         // Already-executing instructions decrement their remaining latency.
         for (auto& active : activeInstructions) {
@@ -618,6 +556,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                     }
                 }
 
+                // LSQ MEMORY-ORDER CHECKS
                 // Loads and stores both record their computed effective address in the LSQ.
                 // For stores, this may already have happened above as soon as qj became ready.
                 // For loads, the address is recorded before checking older stores.
@@ -696,7 +635,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
             active.remainingCycles--;
         }
 
-        // Print state of system
+        // DEBUG STATE PRINTING
         printFUState(intFU, mulFU, memFU);
         printRSState(activeInstructions, INT_RS_CAPACITY, MUL_RS_CAPACITY, LOAD_BUFFER_CAPACITY, STORE_BUFFER_CAPACITY);
         printRegisterProducer(regProducer);
@@ -704,7 +643,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
         printCDBQueue(cdbQueue);
         printROB(circularROB);
 
-        // COMMIT STAGE
+        // ROB COMMIT STAGE
         // Commit happens before this cycle's CDB broadcast.
         // A result that broadcasts this cycle cannot commit until a later cycle.
         int committedInstructionId = commitROB(
@@ -724,7 +663,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
             lsq.removeCommitted(committedInstructionId);
         }
 
-        // WRITEBACK / CDB BROADCAST STAGE
+        // CDB BROADCAST / WRITEBACK / WAKEUP STAGE
         // Broadcast at most one queued result per cycle.
         if (!cdbQueue.empty()) {
             CDBMessage cdb = cdbQueue.front();
@@ -745,7 +684,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
             cdbBroadcastThisCycle = "none";
         }
 
-        // COMPLETION STAGE
+        // EXECUTION COMPLETION / CDB QUEUEING STAGE
         // Instructions that reach zero remaining cycles finish here.
         // Register-writing instructions enqueue a CDB message;
         // stores and branches mark their ROB entries ready directly.
@@ -831,6 +770,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 }
 
                 if (result.isBranch) {
+                    // BRANCH PREDICTION / RESOLUTION / RECOVERY
                     statusTable[index].isBranch = true;
                     statusTable[index].actualTaken = result.branchTaken;
                     statusTable[index].branchResolved = true;
@@ -858,7 +798,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                     int branchPc = statusTable[index].staticPc;
                     branchPredictor.update(branchPc, result.branchTaken);
 
-                    int predictorStateAfter = tracePredictorState(
+                    int predictorStateAfter = branchPredictorTraceState(
                         branchPredictor,
                         predictorType,
                         branchPc
@@ -943,6 +883,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 i++;
             }
         }
+        // TRACE SNAPSHOT GENERATION
         traceRecorder.addSnapshot(
             makeTraceSnapshot(
                 cycle,

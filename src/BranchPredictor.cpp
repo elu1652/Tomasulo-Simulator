@@ -92,3 +92,86 @@ int BranchPredictor::getState(int pc) const {
             return -1;
     }
 }
+
+std::string branchPredictorTypeToString(BranchPredictorType type) {
+    switch (type) {
+        case BranchPredictorType::AlwaysNotTaken:
+            return "always-not-taken";
+        case BranchPredictorType::AlwaysTaken:
+            return "always-taken";
+        case BranchPredictorType::OneBit:
+            return "one-bit";
+        case BranchPredictorType::TwoBit:
+            return "two-bit";
+        default:
+            return "unknown";
+    }
+}
+
+bool parseBranchPredictorType(const std::string& mode, BranchPredictorType& type) {
+    if (mode == "always-not-taken" || mode == "not-taken") {
+        type = BranchPredictorType::AlwaysNotTaken;
+        return true;
+    }
+
+    if (mode == "always-taken" || mode == "taken") {
+        type = BranchPredictorType::AlwaysTaken;
+        return true;
+    }
+
+    if (mode == "one-bit" || mode == "1bit" || mode == "1-bit") {
+        type = BranchPredictorType::OneBit;
+        return true;
+    }
+
+    if (mode == "two-bit" || mode == "2bit" || mode == "2-bit") {
+        type = BranchPredictorType::TwoBit;
+        return true;
+    }
+
+    return false;
+}
+
+bool branchPredictorIsStatic(BranchPredictorType type) {
+    return type == BranchPredictorType::AlwaysNotTaken ||
+           type == BranchPredictorType::AlwaysTaken;
+}
+
+int branchPredictorTraceState(
+    const BranchPredictor& predictor,
+    BranchPredictorType type,
+    int pc
+) {
+    if (branchPredictorIsStatic(type)) {
+        return -1;
+    }
+
+    return predictor.getState(pc);
+}
+
+std::string branchPredictorStateText(BranchPredictorType type, int state) {
+    if (branchPredictorIsStatic(type) || state < 0) {
+        return "N/A";
+    }
+
+    if (type == BranchPredictorType::OneBit) {
+        return state == 0 ? "Not Taken" : "Taken";
+    }
+
+    if (type == BranchPredictorType::TwoBit) {
+        switch (state) {
+            case 0:
+                return "Strongly Not Taken";
+            case 1:
+                return "Weakly Not Taken";
+            case 2:
+                return "Weakly Taken";
+            case 3:
+                return "Strongly Taken";
+            default:
+                return "N/A";
+        }
+    }
+
+    return "N/A";
+}

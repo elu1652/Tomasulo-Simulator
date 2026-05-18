@@ -1,56 +1,61 @@
 # Tomasulo Simulator
 
-A cycle-based out-of-order CPU simulator written in C++.
+A cycle-based Tomasulo-style out-of-order CPU simulator written in C++, with a browser visualizer and a local Flask backend for running simulations from the web UI.
 
-This project simulates core ideas from Tomasulo-style dynamic scheduling, including reservation stations, register renaming, functional unit contention, common data bus writeback, branch prediction, speculative recovery, and circular reorder buffer commit.
-
-The goal is to show how instructions move through an out-of-order execution engine cycle by cycle.
+The goal is to show how instructions move through an out-of-order execution engine cycle by cycle: issue, reservation station wait, execution, CDB writeback, ROB commit, branch recovery, memory ordering, and trace visualization.
 
 ---
 
 ## Current Features
 
-- Cycle-based Tomasulo-style out-of-order execution simulator
 - In-order issue with out-of-order execution and in-order ROB commit
 - Reservation stations for integer, multiply, load, and store operations
-- Functional unit capacity limits and structural hazard handling
-- Register renaming with physical ROB producer tags and `Vj` / `Vk` / `Qj` / `Qk` operand tracking
-- True circular Reorder Buffer with reusable physical slots
+- Load and store buffers backed by an LSQ
+- Register renaming using physical ROB producer tags
+- `Vj` / `Vk` / `Qj` / `Qk` operand dependency tracking
+- Circular Reorder Buffer with reusable physical slots
 - Separate dynamic instruction IDs (`I#`) and physical ROB tags (`ROB#`)
-- Precise in-order commit from the circular ROB head
+- Single-result Common Data Bus broadcast per cycle
 - Store commit through the ROB
-- Flush support for younger wrong-path instructions in reservation stations, ROB, CDB, and register producer table
-- Common Data Bus with single-result broadcast per cycle
-- Speculative branch execution with misprediction recovery
-- Static, 1-bit, and 2-bit branch predictor modes indexed by static PC
-- Cycle-by-cycle debug output, instruction timing table, and branch prediction summary
-- Automated test runner and GUI test-file generator
-
-
+- Address-aware load/store handling through the LSQ
+- Store-to-load forwarding from ready older stores
+- Wrong-path flush support for reservation stations, ROB, CDB queue, LSQ, and register producer table
+- Branch prediction modes:
+  - `always-not-taken`
+  - `always-taken`
+  - `one-bit`
+  - `two-bit`
+- Branch misprediction recovery with PC redirect and younger-instruction flush
+- Cycle-by-cycle debug output
+- Instruction timing table and branch prediction summary
+- `trace.json` export for visualization
+- Browser visualizer for stepping through trace snapshots
+- Local Flask backend for running assembly from the browser
+- Automated test runner for final architectural state and selected commit counts
 
 ---
 
-## Supported Instructions
+## Supported ISA
 
-The simulator currently supports:
+The parser supports this small custom ISA:
 
 ```asm
-ADD R1, R2, R3
+ADD  R1, R2, R3
 ADDI R1, R1, 5
-SUB R1, R2, R3
-MUL R1, R2, R3
-LD  R1, offset(R2)
-SD  R1, offset(R2)
-BNE R1, R2, loop
-BEQ R1, R2, loop
+SUB  R1, R2, R3
+MUL  R1, R2, R3
+LD   R1, offset(R2)
+SD   R1, offset(R2)
+BEQ  R1, R2, label
+BNE  R1, R2, label
 ```
 
-Example:
+Labels can appear on their own line or before an instruction:
 
 ```asm
-LD R1, 0(R0)
-ADD R2, R1, R3
-MUL R4, R2, R5
+loop:
+ADDI R1, R1, -1
+BNE R1, R0, loop
 ```
 
 ---
@@ -61,75 +66,63 @@ MUL R4, R2, R5
 flowchart TD
     Program["Assembly Program<br/>(.asm file)"]
     Parser["Parser<br/>labels, opcodes, operands"]
-    Instructions["vector&lt;Instruction&gt;<br/>static instruction list"]
+    Instructions["Instruction List"]
 
-    Simulator["Simulator<br/>cycle loop + control logic"]
+    Backend["Flask Backend<br/>POST /run"]
+    Visualizer["Browser Visualizer"]
+    TraceFile["trace.json"]
+    TraceRecorder["Trace Recorder"]
 
-    PC["Program Counter<br/>pc"]
-    BP["BranchPredictor<br/>static / 1-bit / 2-bit"]
+    Simulator["Simulator Cycle Loop"]
+    PC["Program Counter"]
+    BP["Branch Predictor<br/>static / 1-bit / 2-bit"]
 
-    Active["vector&lt;ActiveInstruction&gt;<br/>reservation station entries"]
-    RSCheck["RS Capacity Checks<br/>INT / MUL / LOAD / STORE"]
-
-    RegFile["Register File<br/>architectural state"]
-    RegProducer["regProducer Table<br/>R# -> ROB#"]
-    ROB["Circular ROB<br/>head / tail / count<br/>physical slots ROB0..ROB(N-1)"]
-
+    RS["Reservation Stations<br/>INT / MUL / LOAD / STORE"]
     FU["Functional Units<br/>INT / MUL / MEM"]
-    ExecResult["ExecutionResult<br/>computed result / branch outcome"]
+    CDBQ["CDB Queue"]
+    CDB["Common Data Bus"]
 
-    CDBQ["CDB Queue<br/>pending broadcasts"]
-    CDB["Common Data Bus<br/>one broadcast per cycle"]
+    RegFile["Register File"]
+    RegProducer["Register Producer Table<br/>R# -> ROB#"]
+    ROB["Circular ROB<br/>physical slots ROB0..ROB(N-1)"]
+    LSQ["Load-Store Queue"]
+    Memory["Memory"]
+    Status["Instruction Status Table"]
 
-    Memory["Memory<br/>architectural memory"]
-
-    Status["InstructionStatus Table<br/>timing + flush + branch info"]
-    Debug["DebugPrinter<br/>cycle trace + final tables"]
-
+    Visualizer --> Backend
+    Backend --> Program
     Program --> Parser
     Parser --> Instructions
     Instructions --> Simulator
 
     Simulator --> PC
     PC --> Instructions
-
-    Simulator --> RSCheck
-    RSCheck --> Active
-
-    Simulator --> ROB
-
-    Simulator --> RegProducer
-    Simulator --> RegFile
-
     Simulator --> BP
     BP --> PC
 
-    Active --> FU
-    FU --> ExecResult
-
-    ExecResult --> CDBQ
+    Simulator --> RS
+    RS --> FU
+    FU --> CDBQ
     CDBQ --> CDB
-
     CDB --> ROB
-    CDB --> Active
+    CDB --> RS
 
-    
+    Simulator --> RegProducer
+    Simulator --> RegFile
+    Simulator --> ROB
+    Simulator --> LSQ
+    LSQ --> Memory
     ROB --> RegFile
     ROB --> Memory
 
     Simulator --> Status
-    Active --> Status
-    ROB --> Status
-    BP --> Status
-
-    Status --> Debug
-    RegFile --> Debug
-    Memory --> Debug
-    ROB --> Debug
-    Active --> Debug
+    Simulator --> TraceRecorder
+    TraceRecorder --> TraceFile
+    TraceFile --> Visualizer
+    Backend --> TraceFile
 ```
 
-Instructions issue in program order, wait in reservation stations until operands and functional units are available, execute when ready, write register results through the CDB or non-register results directly into the ROB, and finally commit in order from the circular ROB head.
+Instructions issue in program order, wait in reservation stations until operands and functional units are available, execute when ready, write register results through the CDB or non-register results directly into the ROB, and commit in order from the circular ROB head.
 
 ---
 
@@ -138,20 +131,20 @@ Instructions issue in program order, wait in reservation stations until operands
 The simulator separates dynamic instruction identity from physical ROB storage:
 
 ```text
-I#    = dynamic instruction ID used for debug output and the instruction status table
-ROB#  = physical circular ROB slot used for renaming, operand dependencies, CDB wakeup, and commit storage
+I#    = dynamic instruction ID used for debug output and status tables
+ROB#  = physical circular ROB slot used for renaming, dependencies, CDB wakeup, and commit storage
 ```
 
-For example, dynamic instruction `I17` may occupy physical slot `ROB0`. Later, after that entry commits, `ROB0` may be reused by a newer instruction such as `I21`.
+For example, dynamic instruction `I17` may occupy physical slot `ROB0`. Later, after that entry commits, `ROB0` may be reused by a newer instruction.
 
-The register producer table, `Qj`, and `Qk` all store physical ROB tags:
+The register producer table and reservation station source tags store physical ROB tags:
 
 ```text
 Register Producers:
   R2 <- ROB1
 
 Active Instructions:
-  I24: BNE R2, R0, inner | qj: ROB1
+  I24: BNE R2, R0, loop | qj: ROB1
 ```
 
 The CDB carries both identifiers:
@@ -160,8 +153,6 @@ The CDB carries both identifiers:
 producerTag = dynamic instruction ID, used for printing/status table
 robTag      = physical ROB slot, used for ROB writeback and dependency wakeup
 ```
-
-This keeps debug output readable while allowing physical ROB slots to wrap around and be reused.
 
 ---
 
@@ -177,14 +168,36 @@ Each simulator cycle currently follows this order:
 5. Broadcast one old CDB result
 6. Complete newly finished instructions
 7. Queue new CDB/store/branch results
-8. Advance to next cycle
+8. Record trace snapshot
+9. Advance to next cycle
 ```
 
-This means a register-writing instruction that finishes execution in cycle `N` queues a CDB result at the end of cycle `N`.
+A register-writing instruction that finishes execution in cycle `N` queues a CDB result at the end of cycle `N`, can broadcast in cycle `N + 1`, and can commit no earlier than cycle `N + 2` if it is at the ROB head.
 
-It can broadcast in cycle `N + 1`.
+---
 
-It can commit no earlier than cycle `N + 2`, assuming it is at the head of the ROB.
+## Trace JSON
+
+The simulator writes `trace.json` after each run. The browser visualizer uses this file as its cycle-by-cycle data source.
+
+Each cycle snapshot includes fields such as:
+
+- `cycle`
+- `pc`
+- `predictorType`
+- `issuedInstruction`
+- `cdbBroadcast`
+- `commitEvent`
+- `activeInstructions`
+- `rob.entries`, `rob.head`, `rob.tail`, `rob.count`
+- `lsq`
+- `registers`
+- `memory`
+- `registerProducers`
+- `branchPredictions`
+- `events`
+
+The trace is intentionally additive: newer visualizer panels use newer fields, while older trace files without those fields should still load without crashing.
 
 ---
 
@@ -192,85 +205,129 @@ It can commit no earlier than cycle `N + 2`, assuming it is at the head of the R
 
 Requirements:
 
-* C++17
-* CMake
-* g++
+- C++17 compiler
+- CMake
+- Python 3 for tests and the visualizer backend
+- Flask for the local backend
 
-On Ubuntu:
-
-```bash
-sudo apt update
-sudo apt install build-essential cmake
-```
-
-Build the project:
+Build from the repository root:
 
 ```bash
-mkdir -p build
-cd build
-cmake ..
-make
+cmake -S . -B build
+cmake --build build
 ```
 
 ---
 
-## Run
+## Run the Simulator Directly
 
-From the `build/` directory:
-
-```bash
-./simulator
-```
-
-This runs the default input file configured in `main.cpp`.
-
-To run a specific test file:
+Run the default program configured in `src/main.cpp`:
 
 ```bash
-./simulator ../tests/basic_arithmetic.asm
+./build/simulator
 ```
 
-To choose a branch predictor:
+Run a specific program:
 
 ```bash
-./simulator ../tests/nested_loop.asm --predictor two-bit
+./build/simulator examples/fibonacci_loop.asm
 ```
+
+Choose a branch predictor:
+
+```bash
+./build/simulator examples/fibonacci_loop.asm --predictor two-bit
+```
+
+Accepted predictor names:
+
+```text
+always-not-taken
+always-taken
+one-bit
+two-bit
+```
+
+Accepted aliases:
+
+```text
+not-taken
+taken
+1bit
+1-bit
+2bit
+2-bit
+```
+
+---
 
 ## Browser Visualizer
 
-The browser visualizer can still load `trace.json` manually, or it can run the local simulator through a small Flask backend.
+The browser visualizer can load an existing `trace.json` manually or run the simulator through the local Flask backend.
 
-Build the simulator first:
+Current UI panels include:
+
+- Cycle controls with previous/next, play/pause, and slider
+- Optional `.asm` loader and program listing with PC highlight
+- Branch predictor dropdown before running a simulation
+- Architectural datapath view
+- Events panel
+- ROB table
+- Reservation station and load/store buffer tables
+- LSQ table
+- Register producer table
+- Branch predictor summary and branch prediction table
+- Register state table
+- Memory state table
+
+### Backend Setup
+
+Create and activate a virtual environment:
 
 ```bash
-mkdir -p build
-cd build
-cmake ..
-make
-cd ..
+python3 -m venv .venv
+source .venv/bin/activate
 ```
 
 Install Flask:
 
 ```bash
-python3 -m pip install Flask
+pip install Flask
 ```
 
-Run the local backend from the repository root:
+Build the simulator before starting the backend:
+
+```bash
+cmake -S . -B build
+cmake --build build
+```
+
+Run the backend from the repository root:
 
 ```bash
 python3 server/app.py
 ```
 
-Open the visualizer at:
+Open:
 
 ```text
 http://127.0.0.1:5000
 ```
 
-Paste assembly into the text area or load an `.asm` file, then click **Run Simulation**. The backend writes the code to a temporary file, runs `./build/simulator`, reads the generated `trace.json`, and returns it to the visualizer.
+### Backend Workflow
 
-This server is intended for local development only. It binds to `127.0.0.1`, runs the simulator without a shell, and applies a short execution timeout.
+The backend is intended for local development only. It binds to `127.0.0.1`.
+
+When you click **Run Simulation**:
+
+1. The frontend sends assembly code and the selected predictor mode to `POST /run`.
+2. The backend writes the assembly to a temporary `.asm` file.
+3. The backend runs `build/simulator` without a shell.
+4. The simulator writes `trace.json`.
+5. The backend reads `trace.json` and returns it to the browser.
+6. The visualizer renders the returned trace.
+
+---
 
 ## Example Program
 
@@ -292,7 +349,7 @@ I2: MUL R4, R3, R5 -> R4 = 10
 
 ---
 
-## Example Debug Output
+## Debug Output
 
 The simulator prints detailed cycle-by-cycle state, including:
 
@@ -307,16 +364,6 @@ ROB Commit
 CDB Broadcast
 ```
 
-Example ROB output:
-
-```text
-ROB: 4/4 | head: ROB1 | tail: ROB1
-  ROB1 | I1 | ADDI R3, R0, 0  | ready: yes | R3 = 0
-  ROB2 | I2 | ADDI R4, R0, 10 | ready: no
-  ROB3 | I3 | ADDI R5, R0, 1  | ready: no
-  ROB0 | I4 | ADDI R2, R0, 4  | ready: no
-```
-
 Example producer and wakeup output:
 
 ```text
@@ -324,7 +371,7 @@ Register Producers:
   R2 <- ROB1
 
 Active Instructions:
-  I24: BNE R2, R0, inner | qj: ROB1
+  I24: BNE R2, R0, loop | qj: ROB1
 
 CDB Broadcast: I23 SUB R2, R2, R5
   Broadcast: I23
@@ -332,83 +379,62 @@ CDB Broadcast: I23 SUB R2, R2, R5
   Wakeup: I24 qj resolved by ROB1 / I23 with value 3
 ```
 
-Example issue stall:
-
-```text
-ROB: 4/4 | head: ROB3 | tail: ROB3
-Issue stalled: LD R5, 4(R1) | ROB full
-```
+The final output also includes the architectural register state, memory state, instruction timing table, and branch prediction summary.
 
 ---
 
-## Test Programs
+## Tests
 
-Example test files are stored in:
+Automated tests are stored in `tests/`.
 
-```text
-tests/
-```
+Run all tests:
 
-These tests cover arithmetic, RAW dependencies, repeated writes to the same register, self-dependencies, CDB contention, out-of-order writeback, ROB capacity stalls, load-use dependencies, store commit behavior, branches, nested loops, speculative execution, and wrong-path flush behavior.
-
-Test files can be easily created using the GUI displayed when running:
-```bash
-python3 tests/create_test.py
-```
-The GUI asks for:
-```text
-File name
-Test title
-Description
-Expected registers
-Expected memory
-Expected commit counts
-Assembly code
-```
-
-Testing is automated by running:
 ```bash
 python3 tests/run_tests.py
 ```
 
-Automated testing runs all test files located in `tests/` and verifies expected final register values, memory values, and optional commit-count expectations.
-```text
-[FAIL] add_immediate.asm
-R1: expected 8, got 7
-[PASS] backward_branch.asm
-```
+The test runner builds the simulator, runs every `.asm` file in `tests/`, and validates final architectural state plus selected commit counts.
 
-Expectations are written as:
+Expectations are written in assembly comments:
+
 ```asm
 # EXPECT_REG R1 5
 # EXPECT_MEM 0 99
 # EXPECT_COMMIT_COUNT ADD R2, R1, R3 1
 ```
 
+The tests cover arithmetic, RAW dependencies, WAW-style renaming behavior, self-dependencies, CDB contention, out-of-order writeback, ROB capacity stalls, load-use dependencies, store commit behavior, LSQ memory ordering, store/load interactions, branches, nested loops, speculative execution, and wrong-path flush behavior.
+
+A small GUI helper can generate test files:
+
+```bash
+python3 tests/create_test.py
+```
+
 ---
 
 ## Current Limitations
 
-* The simulator supports a small custom ISA rather than full RISC-V.
-* Load-store ordering is simplified.
-* There is no full load-store queue yet.
-* Memory disambiguation is not implemented.
-* Functional units and reservation station sizes are currently fixed constants in the simulator.
-* Automated tests validate final register/memory state and selected commit-count behavior, but they do not yet validate branch prediction accuracy as a correctness requirement.
+- The ISA is a small custom teaching ISA, not full RISC-V.
+- Simulator capacities are fixed in code unless manually changed.
+- The memory model is simplified.
+- LSQ behavior supports address-aware ordering and forwarding, but it is still a simplified model rather than a production CPU memory subsystem.
+- Automated tests focus on final architectural correctness and selected commit counts more than exhaustive microarchitectural timing validation.
+- The Flask backend is local-development only and should not be exposed publicly.
 
 ---
 
 ## Planned Features
 
-* More branch-speculation test cases
-* Load-store queue
-* Stronger load/store ordering and memory dependency checks
-* CPI and performance experiments
-* More configurable simulator parameters
-* Optional validation of branch prediction statistics in tests
+- More configurable architecture parameters
+- More performance and CPI statistics
+- Additional branch predictor experiments
+- More visual animation and interaction in the browser
+- Stronger automated validation of branch prediction statistics
+- Optional packaging or Docker setup later
 
 ---
 
 ## Project Status
 
-The simulator currently implements Tomasulo-style out-of-order execution with reservation stations, physical ROB-tag-based register renaming, a single-broadcast CDB, a true circular ROB with reusable slots, in-order commit, and branch speculation. It includes static, 1-bit, and 2-bit branch predictor modes, misprediction recovery by flushing younger wrong-path instructions, and branch prediction summary output with predictor state and accuracy reporting.
+The simulator currently implements Tomasulo-style out-of-order execution with reservation stations, physical ROB-tag-based register renaming, a single-broadcast CDB, a true circular ROB with reusable slots, in-order commit, branch speculation and recovery, LSQ-based memory ordering, trace export, and a browser visualizer backed by a local Flask server.

@@ -1,24 +1,9 @@
 #include "Parser.h"
 #include "Simulator.h"
-#include <BranchPredictor.h>
+#include "BranchPredictor.h"
 
 #include <iostream>
 #include <string>
-
-std::string predictorTypeToString(BranchPredictorType type) {
-    switch (type) {
-        case BranchPredictorType::AlwaysNotTaken:
-            return "always-not-taken";
-        case BranchPredictorType::AlwaysTaken:
-            return "always-taken";
-        case BranchPredictorType::OneBit:
-            return "one-bit";
-        case BranchPredictorType::TwoBit:
-            return "two-bit";
-        default:
-            return "unknown";
-    }
-}
 
 int main(int argc, char* argv[]) {
     std::string filename = "../tests/nested_loop.asm";
@@ -35,15 +20,7 @@ int main(int argc, char* argv[]) {
 
             std::string mode = argv[++i];
 
-            if (mode == "always-not-taken" || mode == "not-taken") {
-                predictorType = BranchPredictorType::AlwaysNotTaken;
-            } else if (mode == "always-taken" || mode == "taken") {
-                predictorType = BranchPredictorType::AlwaysTaken;
-            } else if (mode == "one-bit" || mode == "1bit" || mode == "1-bit") {
-                predictorType = BranchPredictorType::OneBit;
-            } else if (mode == "two-bit" || mode == "2bit" || mode == "2-bit") {
-                predictorType = BranchPredictorType::TwoBit;
-            } else {
+            if (!parseBranchPredictorType(mode, predictorType)) {
                 std::cerr << "Unknown predictor type: " << mode << "\n";
                 std::cerr << "Valid options: always-not-taken, always-taken, one-bit, two-bit\n";
                 std::cerr << "Aliases: not-taken, taken, 1bit, 1-bit, 2bit, 2-bit\n";
@@ -57,7 +34,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Running program: " << filename << "\n";
 
     std::cout << "\nBranch predictor: "
-          << predictorTypeToString(predictorType)
+          << branchPredictorTypeToString(predictorType)
           << "\n";
 
     Parser parser;

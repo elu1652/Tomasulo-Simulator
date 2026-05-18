@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import os
 import re
 import subprocess
 from pathlib import Path
@@ -101,6 +100,7 @@ def parse_final_memory(output):
 
     return mem
 
+
 def parse_commit_counts(output):
     commit_counts = {}
 
@@ -111,6 +111,7 @@ def parse_commit_counts(output):
             commit_counts[instr] = commit_counts.get(instr, 0) + 1
 
     return commit_counts
+
 
 def run_test(test_file):
     expected_regs, expected_mem, expected_commit_counts = parse_expectations(test_file)

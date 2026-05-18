@@ -1,8 +1,7 @@
 #include "Trace.h"
 
 #include <fstream>
-
-# include <iostream>
+#include <iostream>
 
 static std::string escapeJson(const std::string& input) {
     std::string output;
@@ -60,6 +59,8 @@ void TraceRecorder::addSnapshot(const TraceSnapshot& snapshot) {
     snapshots.push_back(snapshot);
 }
 
+// Keep trace serialization in one place so new visualizer fields can be added
+// without changing simulator timing or state mutation order.
 void TraceRecorder::writeJson(const std::string& filename) const {
     std::ofstream out(filename);
 

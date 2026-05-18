@@ -3,6 +3,7 @@ let programLines = [];
 let currentIndex = 0;
 let playTimer = null;
 
+// DOM references
 const traceFileInput = document.getElementById("traceFile");
 const programFileInput = document.getElementById("programFile");
 const assemblyInput = document.getElementById("assemblyInput");
@@ -103,6 +104,7 @@ const arrows = [
   arrowROBCommit
 ].filter(Boolean);
 
+// Event wiring
 if (traceFileInput) {
   traceFileInput.addEventListener("change", handleTraceFile);
 }
@@ -158,6 +160,7 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
+// File loading / backend run
 function handleTraceFile(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -275,6 +278,7 @@ function parseProgramLines(text) {
     .filter((line) => !line.endsWith(":"));
 }
 
+// Cycle controls
 function previousCycle() {
   if (!trace) return;
   currentIndex = Math.max(0, currentIndex - 1);
@@ -308,6 +312,7 @@ function pause() {
   }
 }
 
+// Main render function
 function render() {
   if (!trace) return;
 
@@ -342,6 +347,7 @@ function render() {
   renderMemoryState(cycle.memory);
 }
 
+// Program / PC rendering
 function renderProgram(cycle) {
   if (!programListing) return;
 
@@ -395,6 +401,7 @@ function findIssuedProgramIndex(issuedInstruction) {
   return -1;
 }
 
+// Datapath rendering
 function renderDatapath(cycle, events) {
   clearHighlights();
 
@@ -527,6 +534,7 @@ function markCommit(...elements) {
   }
 }
 
+// Event rendering
 function renderEvents(events) {
   if (!eventsList) return;
 
@@ -548,6 +556,7 @@ function renderEvents(events) {
   }
 }
 
+// ROB rendering
 function renderROB(entries) {
   if (!robTable) {
     console.error("Missing ROB container. Expected id='robTable' or id='robEntries'.");
@@ -712,6 +721,7 @@ function getROBMarkerClass(slot) {
   return className;
 }
 
+// Reservation station rendering
 function renderReservationStations(activeEntries) {
   if (!intRSTable || !mulRSTable || !loadBufferTable || !storeBufferTable) {
     return;
@@ -834,6 +844,7 @@ function isMemoryInstruction(rawText) {
   return op === "LD" || op === "SD" || op === "LOAD" || op === "STORE";
 }
 
+// LSQ rendering
 function renderLSQ(entries) {
   if (!lsqEntries) return;
 
@@ -894,6 +905,7 @@ function renderLSQ(entries) {
   lsqEntries.innerHTML = html;
 }
 
+// Register producer rendering
 function renderRegisterProducers(producers) {
   if (!registerProducers) return;
 
@@ -951,6 +963,7 @@ function getProducerRegister(producer) {
   return producer.register ?? producer.registerNumber ?? -1;
 }
 
+// Branch predictor rendering
 function renderBranchPredictions(cycle) {
   if (!branchPredictorSummary || !branchPredictorTable) return;
 
@@ -1071,6 +1084,7 @@ function formatNullableNumber(value) {
   return typeof value === "number" && value >= 0 ? value : "-";
 }
 
+// Register and memory rendering
 function renderRegisterState(registers) {
   renderStateTable(registerState, registers, "R", "Register state not available");
 }
@@ -1124,6 +1138,7 @@ function renderStateTable(container, values, labelPrefix, unavailableText) {
   container.innerHTML = html;
 }
 
+// Helper functions
 function emptyMessage(text) {
   const div = document.createElement("div");
   div.className = "empty";

@@ -1,3 +1,4 @@
+/* Base layout */
 * {
   box-sizing: border-box;
 }
@@ -46,6 +47,7 @@ main {
   padding: 24px;
 }
 
+/* Panels and controls */
 .panel {
   background: white;
   border: 1px solid #d8dee4;
@@ -162,6 +164,7 @@ button:disabled {
   font-weight: bold;
 }
 
+/* Cycle controls and program listing */
 .slider-label {
   display: flex;
   align-items: center;
@@ -237,6 +240,7 @@ button:disabled {
   outline-offset: -2px;
 }
 
+/* Datapath */
 .datapath-panel {
   min-height: 420px;
 }
@@ -508,6 +512,7 @@ button:disabled {
   grid-row: 1;
 }
 
+/* Summary and grid panels */
 .summary-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -544,6 +549,7 @@ h3 {
   color: #334155;
 }
 
+/* Event colors */
 .events-list {
   padding-left: 20px;
   margin: 0;
@@ -643,6 +649,7 @@ h3 {
   font-style: italic;
 }
 
+/* Tables */
 .reservation-panel,
 .rob-panel,
 .register-producer-panel,
@@ -944,6 +951,7 @@ h3 {
   font-family: Consolas, Monaco, monospace;
 }
 
+/* Responsive rules */
 @media (max-width: 1200px) {
   .main-layout {
     grid-template-columns: 1fr;

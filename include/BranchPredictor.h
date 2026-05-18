@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 #include <unordered_map>
 
 enum class BranchPredictorType {
@@ -33,3 +34,13 @@ public:
     void update(int pc, bool taken);
     int getState(int pc) const;
 };
+
+std::string branchPredictorTypeToString(BranchPredictorType type);
+bool parseBranchPredictorType(const std::string& mode, BranchPredictorType& type);
+bool branchPredictorIsStatic(BranchPredictorType type);
+int branchPredictorTraceState(
+    const BranchPredictor& predictor,
+    BranchPredictorType type,
+    int pc
+);
+std::string branchPredictorStateText(BranchPredictorType type, int state);

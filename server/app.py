@@ -22,11 +22,13 @@ app = Flask(__name__, static_folder=None)
 run_lock = threading.Lock()
 
 
+# Serve the static visualizer frontend from the repository.
 @app.get("/")
 def index():
     return send_from_directory(VISUALIZER_DIR, "index.html")
 
 
+# Keep asset serving local to visualizer/; the app still binds only to 127.0.0.1.
 @app.get("/<path:filename>")
 def visualizer_file(filename):
     return send_from_directory(VISUALIZER_DIR, filename)
@@ -34,6 +36,7 @@ def visualizer_file(filename):
 
 @app.post("/run")
 def run_simulation():
+    # Receive assembly code and optional branch predictor mode from the UI.
     assembly_code = get_assembly_code()
     predictor = get_predictor()
 
@@ -54,6 +57,7 @@ def run_simulation():
             "expectedPath": str(SIMULATOR_PATH),
         }), 500
 
+    # Write the submitted assembly to a temporary file for the C++ parser.
     with tempfile.NamedTemporaryFile(
         mode="w",
         suffix=".asm",
@@ -66,6 +70,7 @@ def run_simulation():
 
     try:
         with run_lock:
+            # Run the local simulator without a shell, preserving the local-only backend model.
             command = [str(SIMULATOR_PATH), str(asm_path)]
             if predictor:
                 command.extend(["--predictor", predictor])
@@ -81,6 +86,7 @@ def run_simulation():
             )
 
             if result.returncode != 0:
+                # Return stdout/stderr so the browser can show useful simulator failures.
                 return jsonify({
                     "error": "Simulator failed.",
                     "stdout": result.stdout,
@@ -94,6 +100,7 @@ def run_simulation():
                     "stderr": result.stderr,
                 }), 500
 
+            # Read the generated trace and return it directly to the visualizer.
             with TRACE_PATH.open("r", encoding="utf-8") as trace_file:
                 trace = json.load(trace_file)
 
