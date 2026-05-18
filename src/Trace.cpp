@@ -80,6 +80,7 @@ void TraceRecorder::writeJson(const std::string& filename) const {
         out << "    {\n";
         out << "      \"cycle\": " << s.cycle << ",\n";
         out << "      \"pc\": " << s.pc << ",\n";
+        out << "      \"predictorType\": \"" << escapeJson(s.predictorType) << "\",\n";
         out << "      \"issuedInstruction\": \"" << escapeJson(s.issuedInstruction) << "\",\n";
         out << "      \"cdbBroadcast\": \"" << escapeJson(s.cdbBroadcast) << "\",\n";
         out << "      \"commitEvent\": \"" << escapeJson(s.commitEvent) << "\",\n";
@@ -184,6 +185,37 @@ void TraceRecorder::writeJson(const std::string& filename) const {
             out << "        }";
 
             if (j + 1 < s.registerProducers.size()) {
+                out << ",";
+            }
+
+            out << "\n";
+        }
+
+        out << "      ],\n";
+
+        out << "      \"branchPredictions\": [\n";
+
+        for (size_t j = 0; j < s.branchPredictions.size(); j++) {
+            const TraceBranchPredictionEntry& b = s.branchPredictions[j];
+
+            out << "        {\n";
+            out << "          \"pc\": " << b.pc << ",\n";
+            out << "          \"instruction\": \"" << escapeJson(b.instruction) << "\",\n";
+            out << "          \"predictorType\": \"" << escapeJson(b.predictorType) << "\",\n";
+            out << "          \"predictedTaken\": " << (b.predictedTaken ? "true" : "false") << ",\n";
+            out << "          \"actualTaken\": " << (b.actualTaken ? "true" : "false") << ",\n";
+            out << "          \"branchResolved\": " << (b.branchResolved ? "true" : "false") << ",\n";
+            out << "          \"resolvedThisCycle\": " << (b.resolvedThisCycle ? "true" : "false") << ",\n";
+            out << "          \"predictionCorrect\": " << (b.predictionCorrect ? "true" : "false") << ",\n";
+            out << "          \"targetPc\": " << b.targetPc << ",\n";
+            out << "          \"fallthroughPc\": " << b.fallthroughPc << ",\n";
+            out << "          \"stateBefore\": " << b.stateBefore << ",\n";
+            out << "          \"stateAfter\": " << b.stateAfter << ",\n";
+            out << "          \"stateBeforeText\": \"" << escapeJson(b.stateBeforeText) << "\",\n";
+            out << "          \"stateAfterText\": \"" << escapeJson(b.stateAfterText) << "\"\n";
+            out << "        }";
+
+            if (j + 1 < s.branchPredictions.size()) {
                 out << ",";
             }
 

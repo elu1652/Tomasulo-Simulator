@@ -56,9 +56,27 @@ struct TraceRegisterProducer {
     int robTag = -1;
 };
 
+struct TraceBranchPredictionEntry {
+    int pc = -1;
+    std::string instruction;
+    std::string predictorType;
+    bool predictedTaken = false;
+    bool actualTaken = false;
+    bool branchResolved = false;
+    bool resolvedThisCycle = false;
+    bool predictionCorrect = false;
+    int targetPc = -1;
+    int fallthroughPc = -1;
+    int stateBefore = -1;
+    int stateAfter = -1;
+    std::string stateBeforeText;
+    std::string stateAfterText;
+};
+
 struct TraceSnapshot {
     int cycle = 0;
     int pc = 0;
+    std::string predictorType;
 
     std::string issuedInstruction;
     std::string cdbBroadcast;
@@ -75,6 +93,7 @@ struct TraceSnapshot {
     std::vector<TraceROBEntry> robEntries;
     std::vector<TraceLSQEntry> lsqEntries;
     std::vector<TraceRegisterProducer> registerProducers;
+    std::vector<TraceBranchPredictionEntry> branchPredictions;
 
     std::vector<std::string> events;
 };

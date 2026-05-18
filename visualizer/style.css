@@ -101,6 +101,31 @@ button:disabled {
   font-size: 13px;
 }
 
+.runner-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.predictor-control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.predictor-control select {
+  min-width: 180px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #ffffff;
+  color: #1f2933;
+}
+
 #assemblyInput {
   width: 100%;
   min-height: 150px;
@@ -621,6 +646,7 @@ h3 {
 .reservation-panel,
 .rob-panel,
 .register-producer-panel,
+.branch-predictor-panel,
 .table-scroll {
   overflow-x: auto;
 }
@@ -629,6 +655,7 @@ h3 {
 .rob-table,
 .lsq-table,
 .producer-table,
+.branch-table,
 .state-table {
   width: 100%;
   border-collapse: separate;
@@ -648,6 +675,8 @@ h3 {
 .lsq-table td,
 .producer-table th,
 .producer-table td,
+.branch-table th,
+.branch-table td,
 .state-table th,
 .state-table td {
   border-right: 1px solid #d8dee4;
@@ -665,6 +694,8 @@ h3 {
 .lsq-table td:last-child,
 .producer-table th:last-child,
 .producer-table td:last-child,
+.branch-table th:last-child,
+.branch-table td:last-child,
 .state-table th:last-child,
 .state-table td:last-child {
   border-right: none;
@@ -674,6 +705,7 @@ h3 {
 .rob-table tbody tr:last-child td,
 .lsq-table tbody tr:last-child td,
 .producer-table tbody tr:last-child td,
+.branch-table tbody tr:last-child td,
 .state-table tbody tr:last-child td {
   border-bottom: none;
 }
@@ -682,6 +714,7 @@ h3 {
 .rob-table th,
 .lsq-table th,
 .producer-table th,
+.branch-table th,
 .state-table th {
   background: #e2e8f0;
   font-weight: bold;
@@ -730,6 +763,26 @@ h3 {
   color: #92400e;
   font-weight: bold;
   box-shadow: inset 4px 0 0 #f59e0b;
+}
+
+.branch-summary {
+  margin-bottom: 12px;
+}
+
+.branch-table {
+  min-width: 980px;
+}
+
+.branch-table tr.branch-correct-row {
+  background: #dcfce7;
+}
+
+.branch-table tr.branch-miss-row {
+  background: #fee2e2;
+}
+
+.branch-table tr.branch-pending-row {
+  background: #fef3c7;
 }
 
 .lsq-type,

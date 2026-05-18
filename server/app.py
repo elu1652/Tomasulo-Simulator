@@ -35,9 +35,15 @@ def visualizer_file(filename):
 @app.post("/run")
 def run_simulation():
     assembly_code = get_assembly_code()
+    predictor = get_predictor()
 
     if not assembly_code.strip():
         return jsonify({"error": "Assembly code is empty."}), 400
+
+    if predictor is False:
+        return jsonify({
+            "error": "Invalid predictor. Valid options: always-not-taken, always-taken, one-bit, two-bit.",
+        }), 400
 
     if len(assembly_code.encode("utf-8")) > MAX_ASSEMBLY_BYTES:
         return jsonify({"error": "Assembly code is too large."}), 413
@@ -60,8 +66,12 @@ def run_simulation():
 
     try:
         with run_lock:
+            command = [str(SIMULATOR_PATH), str(asm_path)]
+            if predictor:
+                command.extend(["--predictor", predictor])
+
             result = subprocess.run(
-                [str(SIMULATOR_PATH), str(asm_path)],
+                command,
                 cwd=BUILD_DIR,
                 capture_output=True,
                 text=True,
@@ -99,12 +109,38 @@ def run_simulation():
 def get_assembly_code() -> str:
     if request.is_json:
         payload = request.get_json(silent=True) or {}
-        return str(payload.get("assembly", ""))
+        return str(payload.get("code", payload.get("assembly", "")))
 
     if "assembly" in request.form:
         return request.form["assembly"]
 
     return request.get_data(as_text=True) or ""
+
+
+def get_predictor() -> str | bool | None:
+    if not request.is_json:
+        return None
+
+    payload = request.get_json(silent=True) or {}
+    predictor = str(payload.get("predictor", "")).strip()
+
+    if not predictor:
+        return None
+
+    aliases = {
+        "always-not-taken": "always-not-taken",
+        "not-taken": "always-not-taken",
+        "always-taken": "always-taken",
+        "taken": "always-taken",
+        "one-bit": "one-bit",
+        "1bit": "one-bit",
+        "1-bit": "one-bit",
+        "two-bit": "two-bit",
+        "2bit": "two-bit",
+        "2-bit": "two-bit",
+    }
+
+    return aliases.get(predictor, False)
 
 
 if __name__ == "__main__":

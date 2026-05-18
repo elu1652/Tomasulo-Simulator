@@ -9,6 +9,7 @@
 #include "LSQ.h"
 #include "Trace.h"
 
+#include <filesystem>
 #include <iostream>
 #include <queue>
 
@@ -43,13 +44,72 @@ static bool writesRegister(const Instruction& instr) {
     return instr.rd != -1;
 }
 
+static std::string predictorTypeToString(BranchPredictorType type) {
+    switch (type) {
+        case BranchPredictorType::AlwaysNotTaken:
+            return "always-not-taken";
+        case BranchPredictorType::AlwaysTaken:
+            return "always-taken";
+        case BranchPredictorType::OneBit:
+            return "one-bit";
+        case BranchPredictorType::TwoBit:
+            return "two-bit";
+        default:
+            return "unknown";
+    }
+}
+
+static bool isStaticPredictor(BranchPredictorType type) {
+    return type == BranchPredictorType::AlwaysNotTaken ||
+           type == BranchPredictorType::AlwaysTaken;
+}
+
+static int tracePredictorState(const BranchPredictor& predictor,
+                               BranchPredictorType type,
+                               int pc) {
+    if (isStaticPredictor(type)) {
+        return -1;
+    }
+
+    return predictor.getState(pc);
+}
+
+static std::string predictorStateText(BranchPredictorType type, int state) {
+    if (isStaticPredictor(type) || state < 0) {
+        return "N/A";
+    }
+
+    if (type == BranchPredictorType::OneBit) {
+        return state == 0 ? "Not Taken" : "Taken";
+    }
+
+    if (type == BranchPredictorType::TwoBit) {
+        switch (state) {
+            case 0:
+                return "Strongly Not Taken";
+            case 1:
+                return "Weakly Not Taken";
+            case 2:
+                return "Weakly Taken";
+            case 3:
+                return "Strongly Taken";
+            default:
+                return "N/A";
+        }
+    }
+
+    return "N/A";
+}
+
 static TraceSnapshot makeTraceSnapshot(
     int cycle,
     int pc,
+    BranchPredictorType predictorType,
     const std::vector<ActiveInstruction>& activeInstructions,
     const ReorderBuffer& rob,
     const LoadStoreQueue& lsq,
     const std::vector<int>& regProducer,
+    const std::vector<InstructionStatus>& statusTable,
     const RegisterFile& rf,
     const Memory& mem,
     const std::string& issuedInstruction,
@@ -61,6 +121,7 @@ static TraceSnapshot makeTraceSnapshot(
 
     snapshot.cycle = cycle;
     snapshot.pc = pc;
+    snapshot.predictorType = predictorTypeToString(predictorType);
     snapshot.issuedInstruction = issuedInstruction;
     snapshot.cdbBroadcast = cdbBroadcast;
     snapshot.commitEvent = commitEvent;
@@ -83,6 +144,40 @@ static TraceSnapshot makeTraceSnapshot(
         producer.robTag = regProducer[reg];
 
         snapshot.registerProducers.push_back(producer);
+    }
+
+    for (int i = 0; i < static_cast<int>(statusTable.size()); i++) {
+        const InstructionStatus& status = statusTable[i];
+
+        if (!status.isBranch) {
+            continue;
+        }
+
+        TraceBranchPredictionEntry branch;
+
+        branch.pc = status.staticPc;
+        branch.instruction = status.rawText;
+        branch.predictorType = predictorTypeToString(predictorType);
+        branch.predictedTaken = status.predictedTaken;
+        branch.actualTaken = status.actualTaken;
+        branch.branchResolved = status.branchResolved;
+        branch.resolvedThisCycle = status.branchResolved &&
+                                   status.writebackCycle == cycle;
+        branch.predictionCorrect = status.branchResolved &&
+                                   status.predictedTaken == status.actualTaken;
+        branch.targetPc = status.targetPc;
+        branch.fallthroughPc = status.fallthroughPc;
+        branch.stateBefore = status.predictorStateBefore;
+        branch.stateAfter = status.predictorStateAfter;
+        branch.stateBeforeText = predictorStateText(
+            predictorType,
+            status.predictorStateBefore
+        );
+        branch.stateAfterText = status.branchResolved
+            ? predictorStateText(predictorType, status.predictorStateAfter)
+            : "pending";
+
+        snapshot.branchPredictions.push_back(branch);
     }
 
     for (const ActiveInstruction& active : activeInstructions) {
@@ -384,7 +479,11 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                     newInstr.instr.opcode == OpCode::BNE;
 
                 if (newInstr.isBranch) {
-                    newInstr.predictorStateBefore = branchPredictor.getState(pc);
+                    newInstr.predictorStateBefore = tracePredictorState(
+                        branchPredictor,
+                        predictorType,
+                        pc
+                    );
                     newInstr.predictedTaken = branchPredictor.predict(pc);
                     newInstr.predictedTarget =
                         newInstr.predictedTaken ? newInstr.instr.branchTarget : pc + 1;
@@ -439,6 +538,10 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 status.isBranch = newInstr.isBranch;
                 status.predictedTaken = newInstr.predictedTaken;
                 status.predictorStateBefore = newInstr.predictorStateBefore;
+                if (newInstr.isBranch) {
+                    status.targetPc = newInstr.instr.branchTarget;
+                    status.fallthroughPc = pc + 1;
+                }
                 statusTable.push_back(status);
 
                 // Register-writing instructions become the newest producer for their destination register.
@@ -755,7 +858,11 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                     int branchPc = statusTable[index].staticPc;
                     branchPredictor.update(branchPc, result.branchTaken);
 
-                    int predictorStateAfter = branchPredictor.getState(branchPc);
+                    int predictorStateAfter = tracePredictorState(
+                        branchPredictor,
+                        predictorType,
+                        branchPc
+                    );
                     activeInstructions[i].predictorStateAfter = predictorStateAfter;
                     statusTable[index].predictorStateAfter = predictorStateAfter;
 
@@ -840,10 +947,12 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
             makeTraceSnapshot(
                 cycle,
                 pc,
+                predictorType,
                 activeInstructions,
                 circularROB,
                 lsq,
                 regProducer,
+                statusTable,
                 rf,
                 mem,
                 issuedInstructionThisCycle,
@@ -864,6 +973,12 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
     printInstructionStatusTable(statusTable);
     printBranchPredictionSummary(statusTable);
 
-    traceRecorder.writeJson("../trace.json");
-    std::cout << "\nTrace written to ../trace.json\n";
+    std::string traceFilename = "trace.json";
+
+    if (std::filesystem::current_path().filename() == "build") {
+        traceFilename = "../trace.json";
+    }
+
+    traceRecorder.writeJson(traceFilename);
+    std::cout << "\nTrace written to " << traceFilename << "\n";
 }

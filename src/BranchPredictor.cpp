@@ -40,6 +40,7 @@ bool BranchPredictor::predict(int pc) const {
 void BranchPredictor::update(int pc, bool taken) {
     switch (type) {
         case BranchPredictorType::AlwaysNotTaken:
+        case BranchPredictorType::AlwaysTaken:
             // Static predictor does not learn.
             return;
 
@@ -68,7 +69,8 @@ void BranchPredictor::update(int pc, bool taken) {
 int BranchPredictor::getState(int pc) const {
     switch (type) {
         case BranchPredictorType::AlwaysNotTaken:
-            return 0;
+        case BranchPredictorType::AlwaysTaken:
+            return -1;
 
         case BranchPredictorType::OneBit: {
             auto it = oneBitTable.find(pc);

@@ -19,6 +19,9 @@ struct InstructionStatus {
     bool actualTaken = false;
     bool branchResolved = false;
 
+    int targetPc = -1;
+    int fallthroughPc = -1;
+
     int predictorStateBefore = -1;
     int predictorStateAfter = -1;
 };

@@ -6,6 +6,7 @@ let playTimer = null;
 const traceFileInput = document.getElementById("traceFile");
 const programFileInput = document.getElementById("programFile");
 const assemblyInput = document.getElementById("assemblyInput");
+const predictorSelect = document.getElementById("predictorSelect");
 const runSimulationBtn = document.getElementById("runSimulationBtn");
 const runStatus = document.getElementById("runStatus");
 
@@ -35,6 +36,8 @@ const robTable =
 
 const lsqEntries = document.getElementById("lsqEntries");
 const registerProducers = document.getElementById("registerProducers");
+const branchPredictorSummary = document.getElementById("branchPredictorSummary");
+const branchPredictorTable = document.getElementById("branchPredictorTable");
 const registerState = document.getElementById("registerState");
 const memoryState = document.getElementById("memoryState");
 const programListing = document.getElementById("programListing");
@@ -215,7 +218,11 @@ async function runSimulationFromInput() {
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ assembly: assemblyCode })
+      body: JSON.stringify({
+        code: assemblyCode,
+        assembly: assemblyCode,
+        predictor: predictorSelect ? predictorSelect.value : undefined
+      })
     });
 
     const payload = await response.json();
@@ -328,6 +335,7 @@ function render() {
   renderEvents(events);
   renderROB(rob.entries || []);
   renderRegisterProducers(cycle.registerProducers || []);
+  renderBranchPredictions(cycle);
   renderReservationStations(cycle.activeInstructions || []);
   renderLSQ(cycle.lsq || []);
   renderRegisterState(cycle.registers);
@@ -941,6 +949,126 @@ function renderRegisterProducers(producers) {
 
 function getProducerRegister(producer) {
   return producer.register ?? producer.registerNumber ?? -1;
+}
+
+function renderBranchPredictions(cycle) {
+  if (!branchPredictorSummary || !branchPredictorTable) return;
+
+  branchPredictorSummary.innerHTML = "";
+  branchPredictorTable.innerHTML = "";
+
+  if (!Object.prototype.hasOwnProperty.call(cycle, "branchPredictions")) {
+    branchPredictorSummary.appendChild(emptyMessage("Branch prediction data not available."));
+    return;
+  }
+
+  const predictions = Array.isArray(cycle.branchPredictions)
+    ? cycle.branchPredictions
+    : [];
+
+  renderBranchSummary(predictions, cycle.predictorType);
+
+  if (predictions.length === 0) {
+    branchPredictorTable.appendChild(emptyMessage("No branch predictions issued yet."));
+    return;
+  }
+
+  let html = `
+    <table class="branch-table">
+      <thead>
+        <tr>
+          <th>PC</th>
+          <th>Instruction</th>
+          <th>Predictor</th>
+          <th>State Before</th>
+          <th>Prediction</th>
+          <th>Actual</th>
+          <th>Correct?</th>
+          <th>State After</th>
+          <th>Target PC</th>
+          <th>Fallthrough PC</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  for (const prediction of predictions) {
+    const resolved = Boolean(prediction.branchResolved);
+    const correct = resolved && Boolean(prediction.predictionCorrect);
+    const rowClass = resolved
+      ? correct ? "branch-correct-row" : "branch-miss-row"
+      : "branch-pending-row";
+
+    html += `
+      <tr class="${rowClass}">
+        <td class="rs-tag">${formatNullableNumber(prediction.pc)}</td>
+        <td>${escapeHtml(prediction.instruction || "-")}</td>
+        <td>${escapeHtml(prediction.predictorType || cycle.predictorType || "-")}</td>
+        <td>${escapeHtml(formatStateText(prediction.stateBeforeText, prediction.stateBefore))}</td>
+        <td>${formatDirection(prediction.predictedTaken)}</td>
+        <td>${resolved ? formatDirection(prediction.actualTaken) : "pending"}</td>
+        <td>${resolved ? (correct ? "yes" : "no") : "pending"}</td>
+        <td>${escapeHtml(resolved ? formatStateText(prediction.stateAfterText, prediction.stateAfter) : "pending")}</td>
+        <td class="rs-tag">${formatNullableNumber(prediction.targetPc)}</td>
+        <td class="rs-tag">${formatNullableNumber(prediction.fallthroughPc)}</td>
+      </tr>
+    `;
+  }
+
+  html += `
+      </tbody>
+    </table>
+  `;
+
+  branchPredictorTable.innerHTML = html;
+}
+
+function renderBranchSummary(predictions, predictorType) {
+  const resolved = predictions.filter((prediction) => prediction.branchResolved);
+  const correct = resolved.filter((prediction) => prediction.predictionCorrect).length;
+  const misses = resolved.length - correct;
+  const accuracy = resolved.length > 0
+    ? `${((100 * correct) / resolved.length).toFixed(1)}%`
+    : "-";
+
+  branchPredictorSummary.innerHTML = `
+    <div class="summary-row">
+      <span>Predictor</span>
+      <strong>${escapeHtml(predictorType || "-")}</strong>
+    </div>
+    <div class="summary-row">
+      <span>Resolved</span>
+      <strong>${resolved.length}</strong>
+    </div>
+    <div class="summary-row">
+      <span>Correct</span>
+      <strong>${correct}</strong>
+    </div>
+    <div class="summary-row">
+      <span>Mispredictions</span>
+      <strong>${misses}</strong>
+    </div>
+    <div class="summary-row">
+      <span>Accuracy</span>
+      <strong>${accuracy}</strong>
+    </div>
+  `;
+}
+
+function formatDirection(taken) {
+  return taken ? "taken" : "not taken";
+}
+
+function formatStateText(text, state) {
+  if (text) {
+    return state >= 0 ? `${state} ${text}` : text;
+  }
+
+  return state >= 0 ? String(state) : "N/A";
+}
+
+function formatNullableNumber(value) {
+  return typeof value === "number" && value >= 0 ? value : "-";
 }
 
 function renderRegisterState(registers) {

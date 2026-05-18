@@ -33,7 +33,18 @@
           <h2>Run Simulation</h2>
           <p>Paste assembly or load an .asm file, then run the local simulator backend.</p>
         </div>
-        <button id="runSimulationBtn">Run Simulation</button>
+        <div class="runner-actions">
+          <label class="predictor-control" for="predictorSelect">
+            Predictor
+            <select id="predictorSelect">
+              <option value="always-not-taken">Always Not Taken</option>
+              <option value="always-taken">Always Taken</option>
+              <option value="one-bit">1-bit Predictor</option>
+              <option value="two-bit" selected>2-bit Predictor</option>
+            </select>
+          </label>
+          <button id="runSimulationBtn">Run Simulation</button>
+        </div>
       </div>
       <textarea
         id="assemblyInput"
@@ -197,6 +208,12 @@
       <div class="panel register-producer-panel">
         <h2>Register Producers</h2>
         <div id="registerProducers" class="table-scroll"></div>
+      </div>
+
+      <div class="panel branch-predictor-panel">
+        <h2>Branch Predictor</h2>
+        <div id="branchPredictorSummary" class="branch-summary"></div>
+        <div id="branchPredictorTable" class="table-scroll"></div>
       </div>
 
       <div class="panel reservation-panel">
