@@ -364,7 +364,7 @@ function renderProgram(cycle) {
     return;
   }
 
-  const issuedIndex = findIssuedProgramIndex(cycle.issuedInstruction);
+  const issuedIndex = getIssuedProgramIndex(cycle);
 
   for (let i = 0; i < programLines.length; i++) {
     const line = document.createElement("div");
@@ -399,6 +399,16 @@ function findIssuedProgramIndex(issuedInstruction) {
   }
 
   return -1;
+}
+
+function getIssuedProgramIndex(cycle) {
+  if (!cycle.issuedInstruction) return -1;
+
+  if (typeof cycle.pc === "number") {
+    return cycle.pc - 1;
+  }
+
+  return findIssuedProgramIndex(cycle.issuedInstruction);
 }
 
 // Datapath rendering
