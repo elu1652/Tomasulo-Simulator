@@ -49,6 +49,7 @@ static TraceSnapshot makeTraceSnapshot(
     const std::vector<ActiveInstruction>& activeInstructions,
     const ReorderBuffer& rob,
     const LoadStoreQueue& lsq,
+    const std::vector<int>& regProducer,
     const RegisterFile& rf,
     const Memory& mem,
     const std::string& issuedInstruction,
@@ -70,6 +71,19 @@ static TraceSnapshot makeTraceSnapshot(
     snapshot.robHead = rob.head;
     snapshot.robTail = rob.tail;
     snapshot.robCount = rob.count;
+
+    for (int reg = 0; reg < static_cast<int>(regProducer.size()); reg++) {
+        if (regProducer[reg] == -1) {
+            continue;
+        }
+
+        TraceRegisterProducer producer;
+
+        producer.registerNumber = reg;
+        producer.robTag = regProducer[reg];
+
+        snapshot.registerProducers.push_back(producer);
+    }
 
     for (const ActiveInstruction& active : activeInstructions) {
         TraceActiveInstruction traceActive;
@@ -829,6 +843,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 activeInstructions,
                 circularROB,
                 lsq,
+                regProducer,
                 rf,
                 mem,
                 issuedInstructionThisCycle,

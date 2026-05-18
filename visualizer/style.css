@@ -620,6 +620,7 @@ h3 {
 
 .reservation-panel,
 .rob-panel,
+.register-producer-panel,
 .table-scroll {
   overflow-x: auto;
 }
@@ -627,6 +628,7 @@ h3 {
 .rs-table,
 .rob-table,
 .lsq-table,
+.producer-table,
 .state-table {
   width: 100%;
   border-collapse: separate;
@@ -644,6 +646,8 @@ h3 {
 .rob-table td,
 .lsq-table th,
 .lsq-table td,
+.producer-table th,
+.producer-table td,
 .state-table th,
 .state-table td {
   border-right: 1px solid #d8dee4;
@@ -659,6 +663,8 @@ h3 {
 .rob-table td:last-child,
 .lsq-table th:last-child,
 .lsq-table td:last-child,
+.producer-table th:last-child,
+.producer-table td:last-child,
 .state-table th:last-child,
 .state-table td:last-child {
   border-right: none;
@@ -667,6 +673,7 @@ h3 {
 .rs-table tbody tr:last-child td,
 .rob-table tbody tr:last-child td,
 .lsq-table tbody tr:last-child td,
+.producer-table tbody tr:last-child td,
 .state-table tbody tr:last-child td {
   border-bottom: none;
 }
@@ -674,6 +681,7 @@ h3 {
 .rs-table th,
 .rob-table th,
 .lsq-table th,
+.producer-table th,
 .state-table th {
   background: #e2e8f0;
   font-weight: bold;
@@ -711,6 +719,17 @@ h3 {
 .lsq-table tr.value-ready-row td:nth-child(8) {
   background: #dcfce7;
   font-weight: bold;
+}
+
+.producer-table {
+  max-width: 360px;
+}
+
+.producer-table tr.changed-row {
+  background: #fef3c7;
+  color: #92400e;
+  font-weight: bold;
+  box-shadow: inset 4px 0 0 #f59e0b;
 }
 
 .lsq-type,

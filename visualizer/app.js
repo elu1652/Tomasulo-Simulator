@@ -34,6 +34,7 @@ const robTable =
   document.getElementById("robEntries");
 
 const lsqEntries = document.getElementById("lsqEntries");
+const registerProducers = document.getElementById("registerProducers");
 const registerState = document.getElementById("registerState");
 const memoryState = document.getElementById("memoryState");
 const programListing = document.getElementById("programListing");
@@ -326,6 +327,7 @@ function render() {
   renderDatapath(cycle, events);
   renderEvents(events);
   renderROB(rob.entries || []);
+  renderRegisterProducers(cycle.registerProducers || []);
   renderReservationStations(cycle.activeInstructions || []);
   renderLSQ(cycle.lsq || []);
   renderRegisterState(cycle.registers);
@@ -882,6 +884,63 @@ function renderLSQ(entries) {
   `;
 
   lsqEntries.innerHTML = html;
+}
+
+function renderRegisterProducers(producers) {
+  if (!registerProducers) return;
+
+  registerProducers.innerHTML = "";
+
+  if (!Array.isArray(producers) || producers.length === 0) {
+    registerProducers.appendChild(emptyMessage("No active register producers."));
+    return;
+  }
+
+  const previousCycle = currentIndex > 0 ? trace.cycles[currentIndex - 1] : null;
+  const previousProducers = new Map(
+    (previousCycle?.registerProducers || [])
+      .map((producer) => [getProducerRegister(producer), producer.robTag])
+  );
+
+  const sortedProducers = [...producers].sort(
+    (left, right) => getProducerRegister(left) - getProducerRegister(right)
+  );
+
+  let html = `
+    <table class="producer-table">
+      <thead>
+        <tr>
+          <th>Register</th>
+          <th>Producer ROB</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  for (const producer of sortedProducers) {
+    const registerNumber = getProducerRegister(producer);
+    const changed = previousCycle
+      ? previousProducers.get(registerNumber) !== producer.robTag
+      : false;
+
+    html += `
+      <tr class="${changed ? "changed-row" : ""}">
+        <td class="rs-tag">R${registerNumber}</td>
+        <td class="rs-tag">${formatTag(producer.robTag)}</td>
+      </tr>
+    `;
+  }
+
+  html += `
+      </tbody>
+    </table>
+  `;
+
+  registerProducers.innerHTML = html;
+}
+
+function getProducerRegister(producer) {
+  return producer.register ?? producer.registerNumber ?? -1;
 }
 
 function renderRegisterState(registers) {

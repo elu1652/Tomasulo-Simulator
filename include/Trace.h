@@ -51,6 +51,11 @@ struct TraceLSQEntry {
     int value = 0;
 };
 
+struct TraceRegisterProducer {
+    int registerNumber = -1;
+    int robTag = -1;
+};
+
 struct TraceSnapshot {
     int cycle = 0;
     int pc = 0;
@@ -69,6 +74,7 @@ struct TraceSnapshot {
     std::vector<TraceActiveInstruction> activeInstructions;
     std::vector<TraceROBEntry> robEntries;
     std::vector<TraceLSQEntry> lsqEntries;
+    std::vector<TraceRegisterProducer> registerProducers;
 
     std::vector<std::string> events;
 };

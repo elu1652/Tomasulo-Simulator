@@ -173,6 +173,25 @@ void TraceRecorder::writeJson(const std::string& filename) const {
 
         out << "      ],\n";
 
+        out << "      \"registerProducers\": [\n";
+
+        for (size_t j = 0; j < s.registerProducers.size(); j++) {
+            const TraceRegisterProducer& p = s.registerProducers[j];
+
+            out << "        {\n";
+            out << "          \"register\": " << p.registerNumber << ",\n";
+            out << "          \"robTag\": " << p.robTag << "\n";
+            out << "        }";
+
+            if (j + 1 < s.registerProducers.size()) {
+                out << ",";
+            }
+
+            out << "\n";
+        }
+
+        out << "      ],\n";
+
         out << "      \"events\": [\n";
 
         for (size_t j = 0; j < s.events.size(); j++) {
