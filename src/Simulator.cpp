@@ -44,6 +44,21 @@ static bool writesRegister(const Instruction& instr) {
     return instr.rd != -1;
 }
 
+static void markFlushedInstructionStatuses(
+    std::vector<InstructionStatus>& statusTable,
+    int branchIndex,
+    int cycle
+) {
+    for (int i = branchIndex + 1; i < static_cast<int>(statusTable.size()); i++) {
+        if (statusTable[i].commitCycle != -1) {
+            continue;
+        }
+
+        statusTable[i].flushed = true;
+        statusTable[i].flushCycle = cycle;
+    }
+}
+
 static TraceSnapshot makeTraceSnapshot(
     int cycle,
     int pc,
@@ -847,6 +862,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                                 << pc
                                 << "\n";
 
+                        markFlushedInstructionStatuses(statusTable, index, cycle);
                         flushActiveInstructions(activeInstructions, index, intFU, mulFU, memFU, statusTable);
                         flushCDBQueue(cdbQueue, index);
                         flushROB(circularROB, index);
@@ -913,6 +929,8 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
     printInstructionStatusTable(statusTable);
     printBranchPredictionSummary(statusTable);
+
+    traceRecorder.setInstructionStatus(statusTable);
 
     std::string traceFilename = "trace.json";
 

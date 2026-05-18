@@ -59,6 +59,31 @@ void TraceRecorder::addSnapshot(const TraceSnapshot& snapshot) {
     snapshots.push_back(snapshot);
 }
 
+void TraceRecorder::setInstructionStatus(
+    const std::vector<InstructionStatus>& statusTable
+) {
+    instructionStatus.clear();
+    instructionStatus.reserve(statusTable.size());
+
+    for (int i = 0; i < static_cast<int>(statusTable.size()); i++) {
+        const InstructionStatus& status = statusTable[i];
+        TraceInstructionStatusEntry entry;
+
+        entry.instructionId = i;
+        entry.pc = status.staticPc;
+        entry.rawText = status.rawText;
+        entry.issueCycle = status.issueCycle;
+        entry.execStartCycle = status.executeStartCycle;
+        entry.execEndCycle = status.executeEndCycle;
+        entry.writebackCycle = status.writebackCycle;
+        entry.commitCycle = status.commitCycle;
+        entry.flushed = status.flushed;
+        entry.flushCycle = status.flushCycle;
+
+        instructionStatus.push_back(entry);
+    }
+}
+
 // Keep trace serialization in one place so new visualizer fields can be added
 // without changing simulator timing or state mutation order.
 void TraceRecorder::writeJson(const std::string& filename) const {
@@ -73,6 +98,32 @@ void TraceRecorder::writeJson(const std::string& filename) const {
 
 
     out << "{\n";
+    out << "  \"instructionStatus\": [\n";
+
+    for (size_t i = 0; i < instructionStatus.size(); i++) {
+        const TraceInstructionStatusEntry& status = instructionStatus[i];
+
+        out << "    {\n";
+        out << "      \"instructionId\": " << status.instructionId << ",\n";
+        out << "      \"pc\": " << status.pc << ",\n";
+        out << "      \"rawText\": \"" << escapeJson(status.rawText) << "\",\n";
+        out << "      \"issueCycle\": " << status.issueCycle << ",\n";
+        out << "      \"execStartCycle\": " << status.execStartCycle << ",\n";
+        out << "      \"execEndCycle\": " << status.execEndCycle << ",\n";
+        out << "      \"writebackCycle\": " << status.writebackCycle << ",\n";
+        out << "      \"commitCycle\": " << status.commitCycle << ",\n";
+        out << "      \"flushed\": " << (status.flushed ? "true" : "false") << ",\n";
+        out << "      \"flushCycle\": " << status.flushCycle << "\n";
+        out << "    }";
+
+        if (i + 1 < instructionStatus.size()) {
+            out << ",";
+        }
+
+        out << "\n";
+    }
+
+    out << "  ],\n";
     out << "  \"cycles\": [\n";
 
     for (size_t i = 0; i < snapshots.size(); i++) {

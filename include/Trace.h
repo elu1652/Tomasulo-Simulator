@@ -1,5 +1,7 @@
 #pragma once
 
+#include "InstructionStatus.h"
+
 #include <string>
 #include <vector>
 
@@ -73,6 +75,19 @@ struct TraceBranchPredictionEntry {
     std::string stateAfterText;
 };
 
+struct TraceInstructionStatusEntry {
+    int instructionId = -1;
+    int pc = -1;
+    std::string rawText;
+    int issueCycle = -1;
+    int execStartCycle = -1;
+    int execEndCycle = -1;
+    int writebackCycle = -1;
+    int commitCycle = -1;
+    bool flushed = false;
+    int flushCycle = -1;
+};
+
 struct TraceSnapshot {
     int cycle = 0;
     int pc = 0;
@@ -100,7 +115,9 @@ struct TraceSnapshot {
 
 struct TraceRecorder {
     std::vector<TraceSnapshot> snapshots;
+    std::vector<TraceInstructionStatusEntry> instructionStatus;
 
     void addSnapshot(const TraceSnapshot& snapshot);
+    void setInstructionStatus(const std::vector<InstructionStatus>& statusTable);
     void writeJson(const std::string& filename) const;
 };

@@ -13,6 +13,7 @@ struct InstructionStatus {
     int commitCycle = -1;
 
     bool flushed = false;
+    int flushCycle = -1;
 
     bool isBranch = false;
     bool predictedTaken = false;

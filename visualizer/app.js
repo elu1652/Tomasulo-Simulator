@@ -41,6 +41,7 @@ const branchPredictorSummary = document.getElementById("branchPredictorSummary")
 const branchPredictorTable = document.getElementById("branchPredictorTable");
 const registerState = document.getElementById("registerState");
 const memoryState = document.getElementById("memoryState");
+const instructionStatusTable = document.getElementById("instructionStatusTable");
 const programListing = document.getElementById("programListing");
 
 const intRSTable = document.getElementById("intRSTable");
@@ -345,6 +346,7 @@ function render() {
   renderLSQ(cycle.lsq || []);
   renderRegisterState(cycle.registers);
   renderMemoryState(cycle.memory);
+  renderInstructionStatus(cycle);
 }
 
 // Program / PC rendering
@@ -1146,6 +1148,148 @@ function renderStateTable(container, values, labelPrefix, unavailableText) {
 
   html += "</tbody></table>";
   container.innerHTML = html;
+}
+
+// Instruction status timeline rendering
+function renderInstructionStatus(cycle) {
+  if (!instructionStatusTable) return;
+
+  instructionStatusTable.innerHTML = "";
+
+  if (!Array.isArray(trace.instructionStatus)) {
+    instructionStatusTable.appendChild(
+      emptyMessage("Instruction status data not available.")
+    );
+    return;
+  }
+
+  const currentCycle = typeof cycle.cycle === "number"
+    ? cycle.cycle
+    : currentIndex + 1;
+
+  const visibleEntries = trace.instructionStatus.filter((entry) => {
+    const issueCycle = getStatusCycle(entry, "issueCycle");
+    return issueCycle >= 0 && issueCycle <= currentCycle;
+  });
+
+  if (visibleEntries.length === 0) {
+    instructionStatusTable.appendChild(emptyMessage("No instructions issued yet."));
+    return;
+  }
+
+  let html = `
+    <table class="status-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>PC</th>
+          <th>Instruction</th>
+          <th>Issue</th>
+          <th>ExecStart</th>
+          <th>ExecEnd</th>
+          <th>WB</th>
+          <th>Commit</th>
+          <th>Flush</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  for (const entry of visibleEntries) {
+    const committed = isStageVisible(getStatusCycle(entry, "commitCycle"), currentCycle);
+    const flushed = isFlushVisible(entry, currentCycle);
+    const currentRow = hasCurrentInstructionStatusEvent(entry, currentCycle);
+    const rowClasses = [
+      committed ? "status-committed-row" : "",
+      flushed ? "status-flushed-row" : "",
+      currentRow ? "status-current-row" : ""
+    ].filter(Boolean).join(" ");
+
+    html += `
+      <tr class="${rowClasses}">
+        <td class="rs-tag">I${entry.instructionId}</td>
+        <td class="rs-tag">${formatNullableNumber(entry.pc)}</td>
+        <td>${escapeHtml(entry.rawText || "-")}</td>
+        ${renderStatusCycleCell(entry, "issueCycle", currentCycle, "issue-stage-cell")}
+        ${renderStatusCycleCell(entry, "execStartCycle", currentCycle, "exec-stage-cell")}
+        ${renderStatusCycleCell(entry, "execEndCycle", currentCycle, "exec-stage-cell")}
+        ${renderStatusCycleCell(entry, "writebackCycle", currentCycle, "wb-stage-cell")}
+        ${renderStatusCycleCell(entry, "commitCycle", currentCycle, "commit-stage-cell")}
+        ${renderFlushStatusCell(entry, currentCycle)}
+      </tr>
+    `;
+  }
+
+  html += `
+      </tbody>
+    </table>
+  `;
+
+  instructionStatusTable.innerHTML = html;
+}
+
+function renderStatusCycleCell(entry, fieldName, currentCycle, stageClass) {
+  const cycle = getStatusCycle(entry, fieldName);
+
+  if (cycle < 0) {
+    return '<td class="status-missing-cell">-</td>';
+  }
+
+  if (cycle > currentCycle) {
+    return `<td class="status-pending-cell ${stageClass}"></td>`;
+  }
+
+  const currentClass = cycle === currentCycle ? "current-stage-cell" : "";
+  return `<td class="${stageClass} ${currentClass}">${cycle}</td>`;
+}
+
+function renderFlushStatusCell(entry, currentCycle) {
+  if (!entry.flushed) {
+    const commitCycle = getStatusCycle(entry, "commitCycle");
+    const content = commitCycle >= 0 && commitCycle <= currentCycle ? "no" : "";
+    const cellClass = content ? "status-no-flush-cell" : "status-pending-cell";
+    return `<td class="${cellClass}">${content}</td>`;
+  }
+
+  const flushCycle = getStatusCycle(entry, "flushCycle");
+
+  if (flushCycle >= 0 && flushCycle > currentCycle) {
+    return '<td class="flush-stage-cell status-pending-cell"></td>';
+  }
+
+  const currentClass = flushCycle === currentCycle ? "current-stage-cell" : "";
+  return `<td class="flush-stage-cell ${currentClass}">yes</td>`;
+}
+
+function getStatusCycle(entry, fieldName) {
+  const value = entry[fieldName];
+  return typeof value === "number" ? value : -1;
+}
+
+function isStageVisible(cycle, currentCycle) {
+  return cycle >= 0 && cycle <= currentCycle;
+}
+
+function isFlushVisible(entry, currentCycle) {
+  if (!entry.flushed) return false;
+
+  const flushCycle = getStatusCycle(entry, "flushCycle");
+  return flushCycle < 0 || flushCycle <= currentCycle;
+}
+
+function hasCurrentInstructionStatusEvent(entry, currentCycle) {
+  const timingFields = [
+    "issueCycle",
+    "execStartCycle",
+    "execEndCycle",
+    "writebackCycle",
+    "commitCycle",
+    "flushCycle"
+  ];
+
+  return timingFields.some((fieldName) => {
+    return getStatusCycle(entry, fieldName) === currentCycle;
+  });
 }
 
 // Helper functions
