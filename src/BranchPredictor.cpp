@@ -32,6 +32,17 @@ bool BranchPredictor::predict(int pc) const {
             return it->second >= 2;
         }
 
+        case BranchPredictorType::GShare: {
+            int index = getGShareIndex(pc);
+            auto it = gshareTable.find(index);
+
+            if (it == gshareTable.end()) {
+                return false; // weakly not taken
+            }
+
+            return it->second >= 2;
+        }
+
         default:
             return false;
     }
@@ -63,6 +74,27 @@ void BranchPredictor::update(int pc, bool taken) {
 
             return;
         }
+
+        case BranchPredictorType::GShare: {
+            int index = getGShareIndex(pc);
+
+            if (gshareTable.find(index) == gshareTable.end()) {
+                gshareTable[index] = 1; // weakly not taken
+            }
+
+            int& state = gshareTable[index];
+
+            if (taken && state < 3) {
+                state++;
+            } else if (!taken && state > 0) {
+                state--;
+            }
+
+            int mask = (1 << historyBits) - 1;
+            globalHistory = ((globalHistory << 1) | (taken ? 1 : 0)) & mask;
+
+            return;
+        }
     }
 }
 
@@ -88,9 +120,47 @@ int BranchPredictor::getState(int pc) const {
             return it->second;
         }
 
+        case BranchPredictorType::GShare: {
+            int index = getGShareIndex(pc);
+            auto it = gshareTable.find(index);
+
+            if (it == gshareTable.end()) {
+                return 1; // weakly not taken default
+            }
+
+            return it->second;
+        }
+
         default:
             return -1;
     }
+}
+
+int BranchPredictor::getGShareIndex(int pc) const {
+    int mask = (1 << historyBits) - 1;
+    return (pc ^ globalHistory) & mask;
+}
+
+int BranchPredictor::getGlobalHistory() const {
+    return globalHistory;
+}
+
+int BranchPredictor::getHistoryBits() const {
+    return historyBits;
+}
+
+int BranchPredictor::getGShareIndexForTrace(int pc) const {
+    return getGShareIndex(pc);
+}
+
+int BranchPredictor::getGShareCounterByIndex(int index) const {
+    auto it = gshareTable.find(index);
+
+    if (it == gshareTable.end()) {
+        return 1; // weakly not taken default
+    }
+
+    return it->second;
 }
 
 std::string branchPredictorTypeToString(BranchPredictorType type) {
@@ -103,6 +173,8 @@ std::string branchPredictorTypeToString(BranchPredictorType type) {
             return "one-bit";
         case BranchPredictorType::TwoBit:
             return "two-bit";
+        case BranchPredictorType::GShare:
+            return "gshare";
         default:
             return "unknown";
     }
@@ -126,6 +198,11 @@ bool parseBranchPredictorType(const std::string& mode, BranchPredictorType& type
 
     if (mode == "two-bit" || mode == "2bit" || mode == "2-bit") {
         type = BranchPredictorType::TwoBit;
+        return true;
+    }
+
+    if (mode == "gshare" || mode == "g-share") {
+        type = BranchPredictorType::GShare;
         return true;
     }
 
@@ -158,7 +235,7 @@ std::string branchPredictorStateText(BranchPredictorType type, int state) {
         return state == 0 ? "Not Taken" : "Taken";
     }
 
-    if (type == BranchPredictorType::TwoBit) {
+    if (type == BranchPredictorType::TwoBit || type == BranchPredictorType::GShare) {
         switch (state) {
             case 0:
                 return "Strongly Not Taken";

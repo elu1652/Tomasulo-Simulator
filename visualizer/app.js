@@ -1185,9 +1185,9 @@ function renderInstructionStatus(cycle) {
           <th>PC</th>
           <th>Instruction</th>
           <th>Issue</th>
-          <th>ExecStart</th>
-          <th>ExecEnd</th>
-          <th>WB</th>
+          <th>Exec Start</th>
+          <th>Exec End</th>
+          <th>Write CDB</th>
           <th>Commit</th>
           <th>Flush</th>
         </tr>

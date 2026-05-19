@@ -17,6 +17,16 @@ Simulator::Simulator(BranchPredictorType predictorType): predictorType(predictor
 
 }
 
+std::string formatBinary(int value, int bits) {
+    std::string result;
+
+    for (int i = bits - 1; i >= 0; --i) {
+        result += ((value >> i) & 1) ? '1' : '0';
+    }
+
+    return result;
+}
+
 // Clock cycles required to perform operation.
 static int getLatency(OpCode opcode) {
     switch (opcode) {
@@ -443,6 +453,27 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                     newInstr.predictedTarget =
                         newInstr.predictedTaken ? newInstr.instr.branchTarget : pc + 1;
 
+
+                    if (predictorType == BranchPredictorType::GShare) {
+                        int ghr = branchPredictor.getGlobalHistory();
+                        int bits = branchPredictor.getHistoryBits();
+                        int index = branchPredictor.getGShareIndexForTrace(pc);
+                        int state = branchPredictor.getState(pc);
+
+                        std::cout << "    GHR before: "
+                                << formatBinary(ghr, bits)
+                                << " (" << ghr << ")\n";
+
+                        std::cout << "    GShare index: "
+                                << pc << " XOR " << ghr
+                                << " = " << index << "\n";
+
+                        std::cout << "    Counter before: "
+                                << state << " ("
+                                << branchPredictorStateText(predictorType, state)
+                                << ")\n";
+                    }
+
                     std::string event =
                         "Branch prediction for I" + std::to_string(dynamicId) +
                         ": " + (newInstr.predictedTaken ? "taken" : "not taken");
@@ -811,7 +842,42 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                     bool predictedTaken = activeInstructions[i].predictedTaken;
                     
                     int branchPc = statusTable[index].staticPc;
+
+                    int ghrBefore = -1;
+                    int counterBefore = -1;
+                    int indexBefore = -1;
+
+                    if (predictorType == BranchPredictorType::GShare) {
+                        ghrBefore = branchPredictor.getGlobalHistory();
+                        counterBefore = branchPredictor.getState(branchPc);
+                        indexBefore = branchPredictor.getGShareIndexForTrace(branchPc);
+                    }
+
                     branchPredictor.update(branchPc, result.branchTaken);
+
+                    if (predictorType == BranchPredictorType::GShare) {
+                        int ghrAfter = branchPredictor.getGlobalHistory();
+                        int counterAfter = branchPredictor.getGShareCounterByIndex(indexBefore);
+                        int bits = branchPredictor.getHistoryBits();
+
+                        std::cout << "  GShare update:\n";
+
+                        std::cout << "    Index used: " << indexBefore << "\n";
+
+                        std::cout << "    Counter: "
+                                << counterBefore << " ("
+                                << branchPredictorStateText(predictorType, counterBefore)
+                                << ") -> "
+                                << counterAfter << " ("
+                                << branchPredictorStateText(predictorType, counterAfter)
+                                << ")\n";
+
+                        std::cout << "    GHR: "
+                                << formatBinary(ghrBefore, bits)
+                                << " -> "
+                                << formatBinary(ghrAfter, bits)
+                                << "\n";
+                    }
 
                     int predictorStateAfter = branchPredictorTraceState(
                         branchPredictor,

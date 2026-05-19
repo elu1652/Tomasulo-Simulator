@@ -7,7 +7,8 @@ enum class BranchPredictorType {
     AlwaysNotTaken,
     AlwaysTaken,
     OneBit,
-    TwoBit
+    TwoBit,
+    GShare
 };
 
 class BranchPredictor {
@@ -25,6 +26,15 @@ private:
     // 3 = strongly taken
     std::unordered_map<int, int> twoBitTable;
 
+    // GShare predictor:
+    // Uses global branch history XORed with the branch PC to index
+    // a table of 2-bit saturating counters.
+    int globalHistory = 0;
+    int historyBits = 4;
+    std::unordered_map<int, int> gshareTable;
+
+    int getGShareIndex(int pc) const;
+
 public:
     explicit BranchPredictor(
         BranchPredictorType type = BranchPredictorType::OneBit
@@ -33,6 +43,11 @@ public:
     bool predict(int pc) const;
     void update(int pc, bool taken);
     int getState(int pc) const;
+
+    int getGlobalHistory() const;
+    int getHistoryBits() const;
+    int getGShareIndexForTrace(int pc) const;
+    int getGShareCounterByIndex(int index) const;
 };
 
 std::string branchPredictorTypeToString(BranchPredictorType type);
