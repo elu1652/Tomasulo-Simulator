@@ -45,7 +45,7 @@ def run_simulation():
 
     if predictor is False:
         return jsonify({
-            "error": "Invalid predictor. Valid options: always-not-taken, always-taken, one-bit, two-bit.",
+            "error": "Invalid predictor. Valid options: always-not-taken, always-taken, one-bit, two-bit, gshare.",
         }), 400
 
     if len(assembly_code.encode("utf-8")) > MAX_ASSEMBLY_BYTES:
@@ -145,6 +145,8 @@ def get_predictor() -> str | bool | None:
         "two-bit": "two-bit",
         "2bit": "two-bit",
         "2-bit": "two-bit",
+        "gshare": "gshare",
+        "g-share": "gshare",
     }
 
     return aliases.get(predictor, False)

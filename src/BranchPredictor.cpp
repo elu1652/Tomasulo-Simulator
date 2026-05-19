@@ -1,8 +1,8 @@
 #include "BranchPredictor.h"
 
-BranchPredictor::BranchPredictor(BranchPredictorType type): type(type) {
+#include <algorithm>
 
-}
+BranchPredictor::BranchPredictor(BranchPredictorType type): type(type) {}
 
 bool BranchPredictor::predict(int pc) const {
     switch (type) {
@@ -76,6 +76,8 @@ void BranchPredictor::update(int pc, bool taken) {
         }
 
         case BranchPredictorType::GShare: {
+            // Select the counter with the old GHR, then shift in the actual
+            // branch outcome.
             int index = getGShareIndex(pc);
 
             if (gshareTable.find(index) == gshareTable.end()) {
@@ -125,7 +127,7 @@ int BranchPredictor::getState(int pc) const {
             auto it = gshareTable.find(index);
 
             if (it == gshareTable.end()) {
-                return 1; // weakly not taken default
+                return 1; // weakly not taken
             }
 
             return it->second;
@@ -157,10 +159,51 @@ int BranchPredictor::getGShareCounterByIndex(int index) const {
     auto it = gshareTable.find(index);
 
     if (it == gshareTable.end()) {
-        return 1; // weakly not taken default
+        return 1; // weakly not taken
     }
 
     return it->second;
+}
+
+std::vector<BranchPredictorTableEntry> BranchPredictor::getTableEntries() const {
+    std::vector<BranchPredictorTableEntry> entries;
+
+    switch (type) {
+        case BranchPredictorType::OneBit:
+            entries.reserve(oneBitTable.size());
+            for (const auto& item : oneBitTable) {
+                entries.push_back({item.first, item.second ? 1 : 0});
+            }
+            break;
+
+        case BranchPredictorType::TwoBit:
+            entries.reserve(twoBitTable.size());
+            for (const auto& item : twoBitTable) {
+                entries.push_back({item.first, item.second});
+            }
+            break;
+
+        case BranchPredictorType::GShare:
+            entries.reserve(gshareTable.size());
+            for (const auto& item : gshareTable) {
+                entries.push_back({item.first, item.second});
+            }
+            break;
+
+        default:
+            break;
+    }
+
+    std::sort(
+        entries.begin(),
+        entries.end(),
+        [](const BranchPredictorTableEntry& a,
+           const BranchPredictorTableEntry& b) {
+            return a.index < b.index;
+        }
+    );
+
+    return entries;
 }
 
 std::string branchPredictorTypeToString(BranchPredictorType type) {

@@ -664,6 +664,7 @@ h3 {
 .lsq-table,
 .producer-table,
 .branch-table,
+.predictor-state-table,
 .status-table,
 .state-table {
   width: 100%;
@@ -686,6 +687,8 @@ h3 {
 .producer-table td,
 .branch-table th,
 .branch-table td,
+.predictor-state-table th,
+.predictor-state-table td,
 .status-table th,
 .status-table td,
 .state-table th,
@@ -707,6 +710,8 @@ h3 {
 .producer-table td:last-child,
 .branch-table th:last-child,
 .branch-table td:last-child,
+.predictor-state-table th:last-child,
+.predictor-state-table td:last-child,
 .status-table th:last-child,
 .status-table td:last-child,
 .state-table th:last-child,
@@ -719,6 +724,7 @@ h3 {
 .lsq-table tbody tr:last-child td,
 .producer-table tbody tr:last-child td,
 .branch-table tbody tr:last-child td,
+.predictor-state-table tbody tr:last-child td,
 .status-table tbody tr:last-child td,
 .state-table tbody tr:last-child td {
   border-bottom: none;
@@ -729,6 +735,7 @@ h3 {
 .lsq-table th,
 .producer-table th,
 .branch-table th,
+.predictor-state-table th,
 .status-table th,
 .state-table th {
   background: #e2e8f0;
@@ -780,12 +787,71 @@ h3 {
   box-shadow: inset 4px 0 0 #f59e0b;
 }
 
-.branch-summary {
+.branch-summary,
+.predictor-overview,
+#predictorStateTable {
   margin-bottom: 12px;
 }
 
-.branch-table {
+.predictor-overview-card {
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+  padding: 10px 12px;
+  box-shadow: inset 4px 0 0 #2563eb;
+}
+
+.predictor-overview-title {
+  font-weight: bold;
+  color: #1e3a8a;
+  margin-bottom: 8px;
+}
+
+.predictor-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.predictor-overview-grid span,
+.gshare-history span {
+  display: block;
+  font-size: 11px;
+  color: #64748b;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.predictor-overview-grid strong,
+.gshare-history strong {
+  display: block;
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.gshare-history {
+  border: 1px solid #d8dee4;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+}
+
+.branch-table,
+.predictor-state-table {
   min-width: 980px;
+}
+
+.gshare-branch-table {
+  min-width: 1120px;
+}
+
+.predictor-state-table tr.known-predictor-entry {
+  background: #f8fafc;
+}
+
+.predictor-state-table tr.known-predictor-entry td:first-child {
+  box-shadow: inset 4px 0 0 #64748b;
 }
 
 .branch-table tr.branch-correct-row {

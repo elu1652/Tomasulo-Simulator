@@ -59,6 +59,7 @@ struct TraceRegisterProducer {
 };
 
 struct TraceBranchPredictionEntry {
+    int instructionId = -1;
     int pc = -1;
     std::string instruction;
     std::string predictorType;
@@ -73,6 +74,28 @@ struct TraceBranchPredictionEntry {
     int stateAfter = -1;
     std::string stateBeforeText;
     std::string stateAfterText;
+
+    int globalHistoryBefore = -1;
+    int globalHistoryAfter = -1;
+    int gshareIndex = -1;
+    int counterBefore = -1;
+    int counterAfter = -1;
+};
+
+struct TracePredictorStateEntry {
+    int index = -1;
+    int state = -1;
+    std::string stateBits;
+    std::string stateText;
+    std::string prediction;
+};
+
+struct TracePredictorState {
+    std::string predictorType;
+    int globalHistory = -1;
+    int globalHistoryBits = -1;
+    std::string globalHistoryText;
+    std::vector<TracePredictorStateEntry> entries;
 };
 
 struct TraceInstructionStatusEntry {
@@ -109,6 +132,7 @@ struct TraceSnapshot {
     std::vector<TraceLSQEntry> lsqEntries;
     std::vector<TraceRegisterProducer> registerProducers;
     std::vector<TraceBranchPredictionEntry> branchPredictions;
+    TracePredictorState predictorState;
 
     std::vector<std::string> events;
 };

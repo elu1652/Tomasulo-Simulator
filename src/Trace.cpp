@@ -245,12 +245,55 @@ void TraceRecorder::writeJson(const std::string& filename) const {
 
         out << "      ],\n";
 
+        out << "      \"predictorState\": {\n";
+        out << "        \"predictorType\": \""
+            << escapeJson(s.predictorState.predictorType)
+            << "\",\n";
+        out << "        \"globalHistory\": "
+            << s.predictorState.globalHistory
+            << ",\n";
+        out << "        \"globalHistoryBits\": "
+            << s.predictorState.globalHistoryBits
+            << ",\n";
+        out << "        \"globalHistoryText\": \""
+            << escapeJson(s.predictorState.globalHistoryText)
+            << "\",\n";
+        out << "        \"entries\": [\n";
+
+        for (size_t j = 0; j < s.predictorState.entries.size(); j++) {
+            const TracePredictorStateEntry& e = s.predictorState.entries[j];
+
+            out << "          {\n";
+            out << "            \"index\": " << e.index << ",\n";
+            out << "            \"state\": " << e.state << ",\n";
+            out << "            \"stateBits\": \""
+                << escapeJson(e.stateBits)
+                << "\",\n";
+            out << "            \"stateText\": \""
+                << escapeJson(e.stateText)
+                << "\",\n";
+            out << "            \"prediction\": \""
+                << escapeJson(e.prediction)
+                << "\"\n";
+            out << "          }";
+
+            if (j + 1 < s.predictorState.entries.size()) {
+                out << ",";
+            }
+
+            out << "\n";
+        }
+
+        out << "        ]\n";
+        out << "      },\n";
+
         out << "      \"branchPredictions\": [\n";
 
         for (size_t j = 0; j < s.branchPredictions.size(); j++) {
             const TraceBranchPredictionEntry& b = s.branchPredictions[j];
 
             out << "        {\n";
+            out << "          \"instructionId\": " << b.instructionId << ",\n";
             out << "          \"pc\": " << b.pc << ",\n";
             out << "          \"instruction\": \"" << escapeJson(b.instruction) << "\",\n";
             out << "          \"predictorType\": \"" << escapeJson(b.predictorType) << "\",\n";
@@ -264,7 +307,12 @@ void TraceRecorder::writeJson(const std::string& filename) const {
             out << "          \"stateBefore\": " << b.stateBefore << ",\n";
             out << "          \"stateAfter\": " << b.stateAfter << ",\n";
             out << "          \"stateBeforeText\": \"" << escapeJson(b.stateBeforeText) << "\",\n";
-            out << "          \"stateAfterText\": \"" << escapeJson(b.stateAfterText) << "\"\n";
+            out << "          \"stateAfterText\": \"" << escapeJson(b.stateAfterText) << "\",\n";
+            out << "          \"globalHistoryBefore\": " << b.globalHistoryBefore << ",\n";
+            out << "          \"globalHistoryAfter\": " << b.globalHistoryAfter << ",\n";
+            out << "          \"gshareIndex\": " << b.gshareIndex << ",\n";
+            out << "          \"counterBefore\": " << b.counterBefore << ",\n";
+            out << "          \"counterAfter\": " << b.counterAfter << "\n";
             out << "        }";
 
             if (j + 1 < s.branchPredictions.size()) {

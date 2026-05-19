@@ -3,6 +3,39 @@ let programLines = [];
 let currentIndex = 0;
 let playTimer = null;
 
+const PREDICTOR_DETAILS = {
+  "always-not-taken": {
+    name: "Always Not Taken",
+    type: "Static",
+    indexing: "none",
+    state: "no table"
+  },
+  "always-taken": {
+    name: "Always Taken",
+    type: "Static",
+    indexing: "none",
+    state: "no table"
+  },
+  "one-bit": {
+    name: "1-bit",
+    type: "Local Dynamic",
+    indexing: "branch PC",
+    state: "1-bit outcome, 0 = NT, 1 = T"
+  },
+  "two-bit": {
+    name: "2-bit",
+    type: "Local Dynamic",
+    indexing: "branch PC",
+    state: "2-bit saturating counter, 00/01 = NT, 10/11 = T"
+  },
+  gshare: {
+    name: "GShare",
+    type: "Global Dynamic",
+    indexing: "PC XOR GHR",
+    state: "2-bit saturating counter, 00/01 = NT, 10/11 = T"
+  }
+};
+
 // DOM references
 const traceFileInput = document.getElementById("traceFile");
 const programFileInput = document.getElementById("programFile");
@@ -37,6 +70,8 @@ const robTable =
 
 const lsqEntries = document.getElementById("lsqEntries");
 const registerProducers = document.getElementById("registerProducers");
+const branchPredictorOverview = document.getElementById("branchPredictorOverview");
+const predictorStateTable = document.getElementById("predictorStateTable");
 const branchPredictorSummary = document.getElementById("branchPredictorSummary");
 const branchPredictorTable = document.getElementById("branchPredictorTable");
 const registerState = document.getElementById("registerState");
@@ -117,6 +152,21 @@ if (programFileInput) {
 if (runSimulationBtn) {
   runSimulationBtn.addEventListener("click", runSimulationFromInput);
 }
+
+if (predictorSelect) {
+  predictorSelect.addEventListener("change", () => {
+    if (trace) {
+      render();
+      return;
+    }
+
+    renderPredictorOverview(predictorSelect.value);
+    renderPredictorState(null, predictorSelect.value);
+  });
+}
+
+renderPredictorOverview(predictorSelect ? predictorSelect.value : "two-bit");
+renderPredictorState(null, predictorSelect ? predictorSelect.value : "two-bit");
 
 if (prevBtn) {
   prevBtn.addEventListener("click", previousCycle);
@@ -977,6 +1027,11 @@ function getProducerRegister(producer) {
 
 // Branch predictor rendering
 function renderBranchPredictions(cycle) {
+  const selectedPredictor = getSelectedPredictorType(cycle);
+
+  renderPredictorOverview(selectedPredictor);
+  renderPredictorState(cycle.predictorState, selectedPredictor);
+
   if (!branchPredictorSummary || !branchPredictorTable) return;
 
   branchPredictorSummary.innerHTML = "";
@@ -991,27 +1046,147 @@ function renderBranchPredictions(cycle) {
     ? cycle.branchPredictions
     : [];
 
-  renderBranchSummary(predictions, cycle.predictorType);
+  renderBranchSummary(predictions, selectedPredictor);
 
   if (predictions.length === 0) {
     branchPredictorTable.appendChild(emptyMessage("No branch predictions issued yet."));
     return;
   }
 
+  if (normalizePredictorType(selectedPredictor) === "gshare") {
+    renderGShareBranchSummaryTable(predictions);
+    return;
+  }
+
+  renderDefaultBranchSummaryTable(predictions, selectedPredictor);
+}
+
+function renderPredictorOverview(predictorType) {
+  if (!branchPredictorOverview) return;
+
+  const normalizedType = normalizePredictorType(predictorType);
+  const details = PREDICTOR_DETAILS[normalizedType] || {
+    name: predictorType || "-",
+    type: "-",
+    indexing: "-",
+    state: "-"
+  };
+
+  branchPredictorOverview.innerHTML = `
+    <div class="predictor-overview-card">
+      <div class="predictor-overview-title">${escapeHtml(details.name)}</div>
+      <div class="predictor-overview-grid">
+        <div>
+          <span>Type</span>
+          <strong>${escapeHtml(details.type)}</strong>
+        </div>
+        <div>
+          <span>Indexing</span>
+          <strong>${escapeHtml(details.indexing)}</strong>
+        </div>
+        <div>
+          <span>State</span>
+          <strong>${escapeHtml(details.state)}</strong>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderPredictorState(predictorState, selectedPredictor) {
+  if (!predictorStateTable) return;
+
+  predictorStateTable.innerHTML = "";
+
+  const predictorType = normalizePredictorType(
+    predictorState?.predictorType || selectedPredictor
+  );
+  const entries = Array.isArray(predictorState?.entries)
+    ? predictorState.entries
+    : getFallbackPredictorStateEntries(predictorType);
+
+  let ghrHtml = "";
+
+  if (predictorType === "gshare") {
+    const ghr = typeof predictorState?.globalHistory === "number"
+      ? predictorState.globalHistory
+      : -1;
+    const bits = typeof predictorState?.globalHistoryBits === "number" &&
+      predictorState.globalHistoryBits > 0
+      ? predictorState.globalHistoryBits
+      : undefined;
+    const ghrText = ghr >= 0 ? `${formatBinary(ghr, bits)} (${ghr})` : "-";
+
+    ghrHtml = `
+      <div class="gshare-history">
+        <span>Global History Register</span>
+        <strong>${escapeHtml(ghrText)}</strong>
+      </div>
+    `;
+  }
+
+  if (entries.length === 0) {
+    predictorStateTable.innerHTML = `
+      ${ghrHtml}
+      <div class="empty">No initialized predictor table entries yet.</div>
+    `;
+    return;
+  }
+
+  let html = `
+    ${ghrHtml}
+    <table class="predictor-state-table">
+      <thead>
+        <tr>
+          <th>Index</th>
+          <th>Predictor State</th>
+          <th>Meaning</th>
+          <th>Prediction</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  for (const entry of entries) {
+    const state = typeof entry.state === "number" ? entry.state : -1;
+    const stateBits = entry.stateBits ||
+      formatPredictorStateBits(predictorType, state);
+    const meaning = entry.stateText ||
+      predictorStateMeaning(predictorType, state);
+    const prediction = entry.prediction ||
+      predictorStatePrediction(predictorType, state);
+
+    html += `
+      <tr class="known-predictor-entry">
+        <td class="rs-tag">${entry.index >= 0 ? entry.index : "-"}</td>
+        <td class="rs-tag">${escapeHtml(stateBits || "-")}</td>
+        <td>${escapeHtml(meaning || "-")}</td>
+        <td>${escapeHtml(prediction || "-")}</td>
+      </tr>
+    `;
+  }
+
+  html += `
+      </tbody>
+    </table>
+  `;
+
+  predictorStateTable.innerHTML = html;
+}
+
+function renderDefaultBranchSummaryTable(predictions, predictorType) {
   let html = `
     <table class="branch-table">
       <thead>
         <tr>
+          <th>ID</th>
           <th>PC</th>
           <th>Instruction</th>
-          <th>Predictor</th>
           <th>State Before</th>
-          <th>Prediction</th>
+          <th>Predicted</th>
           <th>Actual</th>
-          <th>Correct?</th>
           <th>State After</th>
-          <th>Target PC</th>
-          <th>Fallthrough PC</th>
+          <th>Result</th>
         </tr>
       </thead>
       <tbody>
@@ -1020,22 +1195,69 @@ function renderBranchPredictions(cycle) {
   for (const prediction of predictions) {
     const resolved = Boolean(prediction.branchResolved);
     const correct = resolved && Boolean(prediction.predictionCorrect);
-    const rowClass = resolved
-      ? correct ? "branch-correct-row" : "branch-miss-row"
-      : "branch-pending-row";
+    const rowClass = getBranchRowClass(resolved, correct);
 
     html += `
       <tr class="${rowClass}">
+        <td class="rs-tag">${formatInstructionId(prediction)}</td>
         <td class="rs-tag">${formatNullableNumber(prediction.pc)}</td>
         <td>${escapeHtml(prediction.instruction || "-")}</td>
-        <td>${escapeHtml(prediction.predictorType || cycle.predictorType || "-")}</td>
-        <td>${escapeHtml(formatStateText(prediction.stateBeforeText, prediction.stateBefore))}</td>
+        <td>${escapeHtml(formatBranchState(predictorType, prediction.stateBeforeText, prediction.stateBefore))}</td>
         <td>${formatDirection(prediction.predictedTaken)}</td>
         <td>${resolved ? formatDirection(prediction.actualTaken) : "pending"}</td>
-        <td>${resolved ? (correct ? "yes" : "no") : "pending"}</td>
-        <td>${escapeHtml(resolved ? formatStateText(prediction.stateAfterText, prediction.stateAfter) : "pending")}</td>
-        <td class="rs-tag">${formatNullableNumber(prediction.targetPc)}</td>
-        <td class="rs-tag">${formatNullableNumber(prediction.fallthroughPc)}</td>
+        <td>${escapeHtml(resolved ? formatBranchState(predictorType, prediction.stateAfterText, prediction.stateAfter) : "pending")}</td>
+        <td>${resolved ? (correct ? "Hit" : "Miss") : "pending"}</td>
+      </tr>
+    `;
+  }
+
+  html += `
+      </tbody>
+    </table>
+  `;
+
+  branchPredictorTable.innerHTML = html;
+}
+
+function renderGShareBranchSummaryTable(predictions) {
+  let html = `
+    <table class="branch-table gshare-branch-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>PC</th>
+          <th>Instruction</th>
+          <th>GHR Before</th>
+          <th>Index</th>
+          <th>Counter Before</th>
+          <th>Prediction</th>
+          <th>Actual</th>
+          <th>Counter After</th>
+          <th>GHR After</th>
+          <th>Result</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  for (const prediction of predictions) {
+    const resolved = Boolean(prediction.branchResolved);
+    const correct = resolved && Boolean(prediction.predictionCorrect);
+    const rowClass = getBranchRowClass(resolved, correct);
+
+    html += `
+      <tr class="${rowClass}">
+        <td class="rs-tag">${formatInstructionId(prediction)}</td>
+        <td class="rs-tag">${formatNullableNumber(prediction.pc)}</td>
+        <td>${escapeHtml(prediction.instruction || "-")}</td>
+        <td>${escapeHtml(formatTraceGhr(prediction.globalHistoryBefore))}</td>
+        <td class="rs-tag">${formatNullableNumber(prediction.gshareIndex)}</td>
+        <td>${escapeHtml(formatCounterSummary(prediction.counterBefore))}</td>
+        <td>${formatDirection(prediction.predictedTaken)}</td>
+        <td>${resolved ? formatDirection(prediction.actualTaken) : "pending"}</td>
+        <td>${escapeHtml(resolved ? formatCounterSummary(prediction.counterAfter) : "pending")}</td>
+        <td>${escapeHtml(resolved ? formatTraceGhr(prediction.globalHistoryAfter) : "-")}</td>
+        <td>${resolved ? (correct ? "Hit" : "Miss") : "pending"}</td>
       </tr>
     `;
   }
@@ -1082,6 +1304,176 @@ function renderBranchSummary(predictions, predictorType) {
 
 function formatDirection(taken) {
   return taken ? "taken" : "not taken";
+}
+
+function getSelectedPredictorType(cycle) {
+  if (cycle?.predictorType) {
+    return cycle.predictorType;
+  }
+
+  if (predictorSelect?.value) {
+    return predictorSelect.value;
+  }
+
+  return "two-bit";
+}
+
+function normalizePredictorType(type) {
+  const value = String(type || "").trim().toLowerCase();
+
+  if (value === "not-taken") return "always-not-taken";
+  if (value === "taken") return "always-taken";
+  if (value === "1bit" || value === "1-bit") return "one-bit";
+  if (value === "2bit" || value === "2-bit") return "two-bit";
+  if (value === "g-share") return "gshare";
+
+  return value;
+}
+
+function getFallbackPredictorStateEntries(predictorType) {
+  if (predictorType === "always-not-taken") {
+    return [{
+      index: -1,
+      state: -1,
+      stateBits: "static",
+      stateText: "Always Not Taken",
+      prediction: "NT"
+    }];
+  }
+
+  if (predictorType === "always-taken") {
+    return [{
+      index: -1,
+      state: -1,
+      stateBits: "static",
+      stateText: "Always Taken",
+      prediction: "T"
+    }];
+  }
+
+  return [];
+}
+
+function formatOneBitState(state) {
+  if (typeof state !== "number" || state < 0 || state > 1) {
+    return "";
+  }
+
+  return state === 1 ? "1" : "0";
+}
+
+function formatTwoBitState(state) {
+  if (typeof state !== "number" || state < 0 || state > 3) {
+    return "";
+  }
+
+  return formatBinary(state, 2);
+}
+
+function predictorStateMeaning(type, state) {
+  const predictorType = normalizePredictorType(type);
+
+  if (predictorType === "always-not-taken") return "Always Not Taken";
+  if (predictorType === "always-taken") return "Always Taken";
+
+  if (typeof state !== "number" || state < 0) {
+    return "N/A";
+  }
+
+  if (predictorType === "one-bit") {
+    return state === 1 ? "Taken" : "Not Taken";
+  }
+
+  const meanings = [
+    "Strongly Not Taken",
+    "Weakly Not Taken",
+    "Weakly Taken",
+    "Strongly Taken"
+  ];
+
+  return meanings[state] || "N/A";
+}
+
+function predictorStatePrediction(type, state) {
+  const predictorType = normalizePredictorType(type);
+
+  if (predictorType === "always-not-taken") return "NT";
+  if (predictorType === "always-taken") return "T";
+
+  if (typeof state !== "number" || state < 0) {
+    return "-";
+  }
+
+  if (predictorType === "one-bit") {
+    return state === 1 ? "T" : "NT";
+  }
+
+  return state >= 2 ? "T" : "NT";
+}
+
+function formatBinary(value, bits) {
+  if (typeof value !== "number" || value < 0) {
+    return "";
+  }
+
+  const width = bits || Math.max(1, value.toString(2).length);
+  return value.toString(2).padStart(width, "0");
+}
+
+function formatPredictorStateBits(type, state) {
+  const predictorType = normalizePredictorType(type);
+
+  if (predictorType === "always-not-taken" || predictorType === "always-taken") {
+    return "static";
+  }
+
+  if (predictorType === "one-bit") {
+    return formatOneBitState(state);
+  }
+
+  return formatTwoBitState(state);
+}
+
+function formatBranchState(type, text, state) {
+  const predictorType = normalizePredictorType(type);
+  const bits = formatPredictorStateBits(predictorType, state);
+  const meaning = text && text !== "N/A"
+    ? text
+    : predictorStateMeaning(predictorType, state);
+
+  if (!bits) {
+    return meaning || "N/A";
+  }
+
+  return `${bits} ${meaning}`;
+}
+
+function formatCounterSummary(state) {
+  if (typeof state !== "number" || state < 0) {
+    return "N/A";
+  }
+
+  return `${formatTwoBitState(state)} ${predictorStateMeaning("gshare", state)}`;
+}
+
+function formatTraceGhr(value) {
+  if (typeof value !== "number" || value < 0) {
+    return "-";
+  }
+
+  return `${formatBinary(value, 4)} (${value})`;
+}
+
+function formatInstructionId(prediction) {
+  return typeof prediction.instructionId === "number" &&
+    prediction.instructionId >= 0
+    ? `I${prediction.instructionId}`
+    : "-";
+}
+
+function getBranchRowClass(resolved, correct) {
+  if (!resolved) return "branch-pending-row";
+  return correct ? "branch-correct-row" : "branch-miss-row";
 }
 
 function formatStateText(text, state) {

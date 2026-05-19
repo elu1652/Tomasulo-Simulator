@@ -25,4 +25,10 @@ struct InstructionStatus {
 
     int predictorStateBefore = -1;
     int predictorStateAfter = -1;
+
+    int gshareGlobalHistoryBefore = -1;
+    int gshareGlobalHistoryAfter = -1;
+    int gshareIndex = -1;
+    int gshareCounterBefore = -1;
+    int gshareCounterAfter = -1;
 };
