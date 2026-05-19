@@ -14,12 +14,7 @@
     </div>
 
     <div class="file-loaders">
-      <div class="trace-loader">
-        <label for="traceFile">Load trace.json</label>
-        <input type="file" id="traceFile" accept=".json" />
-      </div>
-
-      <div class="trace-loader">
+      <div class="program-loader">
         <label for="programFile">Optional: load .asm</label>
         <input type="file" id="programFile" accept=".asm,.txt" />
       </div>
@@ -27,14 +22,19 @@
   </header>
 
   <main>
+    <section class="mode-tabs" aria-label="Visualizer mode">
+      <button id="cycleModeTab" class="mode-tab active" type="button">Cycle Simulation</button>
+      <button id="analysisModeTab" class="mode-tab" type="button">Prediction Analysis</button>
+    </section>
+
     <section class="runner-panel panel">
       <div class="runner-header">
         <div>
-          <h2>Run Simulation</h2>
-          <p>Paste assembly or load an .asm file, then run the local simulator backend.</p>
+          <h2 id="runnerTitle">Run Simulation</h2>
+          <p id="runnerDescription">Paste assembly or load an .asm file, then run the local simulator backend.</p>
         </div>
         <div class="runner-actions">
-          <label class="predictor-control" for="predictorSelect">
+          <label class="predictor-control cycle-mode-only" for="predictorSelect">
             Predictor
             <select id="predictorSelect">
               <option value="always-not-taken">Always Not Taken</option>
@@ -44,7 +44,8 @@
               <option value="gshare">GShare</option>
             </select>
           </label>
-          <button id="runSimulationBtn">Run Simulation</button>
+          <button id="runSimulationBtn" class="cycle-mode-only">Run Simulation</button>
+          <button id="runAnalysisBtn" class="analysis-mode-only">Run Prediction Analysis</button>
         </div>
       </div>
       <textarea
@@ -52,10 +53,13 @@
         spellcheck="false"
         placeholder="ADDI R1, R0, 3&#10;ADD R2, R1, R1&#10;SD R2, 0(R0)"
       ></textarea>
+      <div class="analysis-note analysis-mode-only">
+        Runs the same assembly against all branch predictors and compares accuracy.
+      </div>
       <div id="runStatus" class="run-status" role="status">Backend endpoint: POST /run</div>
     </section>
 
-    <section class="controls panel">
+    <section class="controls panel cycle-mode-section">
       <button id="prevBtn">Previous</button>
       <button id="nextBtn">Next</button>
       <button id="playBtn">Play</button>
@@ -72,7 +76,14 @@
       </div>
     </section>
 
-    <section class="main-layout">
+    <section id="predictionAnalysisPanel" class="prediction-analysis-panel panel analysis-mode-section">
+      <h2>Prediction Analysis</h2>
+      <div id="analysisOverview" class="analysis-overview"></div>
+      <div id="analysisDetailTabs" class="analysis-detail-tabs"></div>
+      <div id="analysisDetails" class="analysis-details"></div>
+    </section>
+
+    <section class="main-layout cycle-mode-section">
       <aside class="program-panel panel">
         <h2>Program / PC</h2>
         <div class="program-help">
@@ -161,7 +172,7 @@
       </section>
     </section>
 
-    <section class="summary-grid">
+    <section class="summary-grid cycle-mode-section">
       <div class="panel">
         <h2>Issue / CDB / Commit</h2>
         <div class="summary-row">
@@ -195,7 +206,7 @@
       </div>
     </section>
 
-    <section class="grid">
+    <section class="grid cycle-mode-section">
       <div class="panel">
         <h2>Events</h2>
         <ul id="eventsList" class="events-list"></ul>

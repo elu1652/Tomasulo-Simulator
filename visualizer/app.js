@@ -2,6 +2,9 @@ let trace = null;
 let programLines = [];
 let currentIndex = 0;
 let playTimer = null;
+let activeMode = "cycle";
+let analysisResults = null;
+let selectedAnalysisPredictor = null;
 
 const PREDICTOR_DETAILS = {
   "always-not-taken": {
@@ -37,12 +40,19 @@ const PREDICTOR_DETAILS = {
 };
 
 // DOM references
-const traceFileInput = document.getElementById("traceFile");
 const programFileInput = document.getElementById("programFile");
 const assemblyInput = document.getElementById("assemblyInput");
 const predictorSelect = document.getElementById("predictorSelect");
 const runSimulationBtn = document.getElementById("runSimulationBtn");
+const runAnalysisBtn = document.getElementById("runAnalysisBtn");
 const runStatus = document.getElementById("runStatus");
+const cycleModeTab = document.getElementById("cycleModeTab");
+const analysisModeTab = document.getElementById("analysisModeTab");
+const runnerTitle = document.getElementById("runnerTitle");
+const runnerDescription = document.getElementById("runnerDescription");
+const analysisOverview = document.getElementById("analysisOverview");
+const analysisDetailTabs = document.getElementById("analysisDetailTabs");
+const analysisDetails = document.getElementById("analysisDetails");
 
 const prevBtn = document.getElementById("prevBtn");
 const nextBtn = document.getElementById("nextBtn");
@@ -140,17 +150,24 @@ const arrows = [
   arrowROBCommit
 ].filter(Boolean);
 
-// Event wiring
-if (traceFileInput) {
-  traceFileInput.addEventListener("change", handleTraceFile);
-}
-
 if (programFileInput) {
   programFileInput.addEventListener("change", handleProgramFile);
 }
 
 if (runSimulationBtn) {
   runSimulationBtn.addEventListener("click", runSimulationFromInput);
+}
+
+if (runAnalysisBtn) {
+  runAnalysisBtn.addEventListener("click", runPredictionAnalysis);
+}
+
+if (cycleModeTab) {
+  cycleModeTab.addEventListener("click", () => setMode("cycle"));
+}
+
+if (analysisModeTab) {
+  analysisModeTab.addEventListener("click", () => setMode("analysis"));
 }
 
 if (predictorSelect) {
@@ -167,6 +184,7 @@ if (predictorSelect) {
 
 renderPredictorOverview(predictorSelect ? predictorSelect.value : "two-bit");
 renderPredictorState(null, predictorSelect ? predictorSelect.value : "two-bit");
+setMode("cycle");
 
 if (prevBtn) {
   prevBtn.addEventListener("click", previousCycle);
@@ -194,6 +212,7 @@ if (cycleSlider) {
 
 document.addEventListener("keydown", (event) => {
   if (isEditableTarget(event.target)) return;
+  if (activeMode !== "cycle") return;
   if (!trace) return;
 
   if (event.key === "ArrowLeft") {
@@ -212,26 +231,6 @@ document.addEventListener("keydown", (event) => {
 });
 
 // File loading / backend run
-function handleTraceFile(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-
-  reader.onload = function (e) {
-    try {
-      const parsedTrace = JSON.parse(e.target.result);
-      loadTrace(parsedTrace);
-      setRunStatus("Loaded trace.json.", "success");
-    } catch (error) {
-      alert("Could not load trace file. Check the browser console for details.");
-      console.error(error);
-    }
-  };
-
-  reader.readAsText(file);
-}
-
 function handleProgramFile(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -262,6 +261,7 @@ async function runSimulationFromInput() {
     return;
   }
 
+  setMode("cycle");
   pause();
   setRunStatus("Running simulator...", "");
   setRunButtonDisabled(true);
@@ -279,7 +279,7 @@ async function runSimulationFromInput() {
       })
     });
 
-    const payload = await response.json();
+    const payload = await parseJsonResponse(response);
 
     if (!response.ok) {
       throw new Error(payload.error || "Simulation failed.");
@@ -292,6 +292,63 @@ async function runSimulationFromInput() {
     setRunStatus(error.message, "error");
   } finally {
     setRunButtonDisabled(false);
+  }
+}
+
+async function runPredictionAnalysis() {
+  if (!assemblyInput) return;
+
+  const assemblyCode = assemblyInput.value;
+
+  if (!assemblyCode.trim()) {
+    setRunStatus("Paste assembly code or load an .asm file first.", "error");
+    return;
+  }
+
+  setMode("analysis");
+  pause();
+  setRunStatus("Running prediction analysis...", "");
+  setRunButtonDisabled(true);
+
+  if (runAnalysisBtn) {
+    runAnalysisBtn.disabled = true;
+  }
+
+  try {
+    const response = await fetch("/compare-predictors", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        code: assemblyCode,
+        assembly: assemblyCode
+      })
+    });
+
+    const payload = await parseJsonResponse(response);
+
+    if (!response.ok) {
+      throw new Error(payload.error || "Prediction analysis failed.");
+    }
+
+    analysisResults = payload;
+    selectedAnalysisPredictor =
+      payload.bestPredictor ||
+      payload.results?.find((result) => !result.error)?.predictor ||
+      payload.results?.[0]?.predictor ||
+      null;
+    renderAnalysisResults();
+    setRunStatus("Prediction analysis complete.", "success");
+  } catch (error) {
+    console.error(error);
+    setRunStatus(error.message, "error");
+  } finally {
+    setRunButtonDisabled(false);
+
+    if (runAnalysisBtn) {
+      runAnalysisBtn.disabled = false;
+    }
   }
 }
 
@@ -317,6 +374,55 @@ function loadTrace(parsedTrace, nextProgramLines) {
   }
 
   render();
+}
+
+async function parseJsonResponse(response) {
+  const responseText = await response.text();
+
+  try {
+    return JSON.parse(responseText);
+  } catch {
+    throw new Error(
+      `Backend returned non-JSON response (${response.status}). ` +
+      responseText.slice(0, 300)
+    );
+  }
+}
+
+function setMode(mode) {
+  activeMode = mode === "analysis" ? "analysis" : "cycle";
+  document.body.dataset.mode = activeMode;
+
+  if (cycleModeTab) {
+    cycleModeTab.classList.toggle("active", activeMode === "cycle");
+  }
+
+  if (analysisModeTab) {
+    analysisModeTab.classList.toggle("active", activeMode === "analysis");
+  }
+
+  if (runnerTitle) {
+    runnerTitle.textContent = activeMode === "analysis"
+      ? "Run Prediction Analysis"
+      : "Run Simulation";
+  }
+
+  if (runnerDescription) {
+    runnerDescription.textContent = activeMode === "analysis"
+      ? "Compare branch predictor accuracy for the same assembly program."
+      : "Paste assembly or load an .asm file, then run the local simulator backend.";
+  }
+
+  if (runStatus) {
+    runStatus.textContent = activeMode === "analysis"
+      ? "Backend endpoint: POST /compare-predictors"
+      : "Backend endpoint: POST /run";
+    runStatus.classList.remove("success", "error");
+  }
+
+  if (activeMode === "analysis") {
+    renderAnalysisResults();
+  }
 }
 
 function parseProgramLines(text) {
@@ -1098,6 +1204,7 @@ function renderPredictorState(predictorState, selectedPredictor) {
 
   predictorStateTable.innerHTML = "";
 
+  const hasPredictorState = Boolean(predictorState);
   const predictorType = normalizePredictorType(
     predictorState?.predictorType || selectedPredictor
   );
@@ -1126,9 +1233,13 @@ function renderPredictorState(predictorState, selectedPredictor) {
   }
 
   if (entries.length === 0) {
+    const message = hasPredictorState
+      ? "No initialized predictor table entries yet."
+      : "Predictor table state not available in this trace.";
+
     predictorStateTable.innerHTML = `
       ${ghrHtml}
-      <div class="empty">No initialized predictor table entries yet.</div>
+      <div class="empty">${message}</div>
     `;
     return;
   }
@@ -1302,8 +1413,396 @@ function renderBranchSummary(predictions, predictorType) {
   `;
 }
 
+function renderAnalysisResults() {
+  if (!analysisOverview || !analysisDetailTabs || !analysisDetails) return;
+
+  analysisOverview.innerHTML = "";
+  analysisDetailTabs.innerHTML = "";
+  analysisDetails.innerHTML = "";
+
+  const results = Array.isArray(analysisResults?.results)
+    ? analysisResults.results
+    : [];
+
+  if (results.length === 0) {
+    analysisOverview.appendChild(
+      emptyMessage("Run prediction analysis to compare branch predictors.")
+    );
+    return;
+  }
+
+  const bestPredictor = analysisResults.bestPredictor;
+
+  let overviewHtml = `
+    <h3>Accuracy Overview</h3>
+    <table class="accuracy-table">
+      <thead>
+        <tr>
+          <th>Predictor</th>
+          <th>Correct</th>
+          <th>Total</th>
+          <th>Accuracy</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  for (const result of results) {
+    const isBest = result.predictor === bestPredictor && !result.error;
+    const note = result.error
+      ? result.error
+      : getPredictorNote(result.predictor);
+    const accuracy = result.error
+      ? "-"
+      : formatAccuracy(result.correct, result.total);
+    const barWidth = result.error
+      ? 0
+      : Math.max(0, Math.min(100, Number(result.accuracy) || 0));
+
+    overviewHtml += `
+      <tr class="${isBest ? "best-predictor-row" : ""}">
+        <td><strong>${escapeHtml(getPredictorLabel(result.predictor))}</strong></td>
+        <td>${result.error ? "-" : result.correct}</td>
+        <td>${result.error ? "-" : result.total}</td>
+        <td>
+          <div class="accuracy-value">${accuracy}</div>
+          <div class="accuracy-bar"><span style="width: ${barWidth}%"></span></div>
+        </td>
+        <td>${escapeHtml(note)}</td>
+      </tr>
+    `;
+  }
+
+  overviewHtml += `
+      </tbody>
+    </table>
+  `;
+
+  analysisOverview.innerHTML = overviewHtml;
+
+  let tabsHtml = "";
+
+  for (const result of results) {
+    const active = result.predictor === selectedAnalysisPredictor;
+
+    tabsHtml += `
+      <button
+        type="button"
+        class="analysis-detail-tab ${active ? "active" : ""}"
+        data-predictor="${escapeHtml(result.predictor)}"
+      >
+        ${escapeHtml(getShortPredictorLabel(result.predictor))}
+      </button>
+    `;
+  }
+
+  analysisDetailTabs.innerHTML = tabsHtml;
+
+  for (const button of analysisDetailTabs.querySelectorAll("button[data-predictor]")) {
+    button.addEventListener("click", () => {
+      selectedAnalysisPredictor = button.dataset.predictor;
+      renderAnalysisResults();
+    });
+  }
+
+  renderAnalysisDetails(results);
+}
+
+function renderAnalysisDetails(results) {
+  if (!analysisDetails) return;
+
+  const selectedResult = results.find((result) => {
+    return result.predictor === selectedAnalysisPredictor;
+  }) || results[0];
+
+  if (!selectedResult) {
+    analysisDetails.appendChild(emptyMessage("No predictor result selected."));
+    return;
+  }
+
+  const predictorType = normalizePredictorType(selectedResult.predictor);
+
+  if (selectedResult.error) {
+    analysisDetails.innerHTML = `
+      <div class="analysis-error">
+        <strong>${escapeHtml(getPredictorLabel(selectedResult.predictor))}</strong>
+        <span>${escapeHtml(selectedResult.error)}</span>
+      </div>
+    `;
+    return;
+  }
+
+  const branchPredictions = Array.isArray(selectedResult.branchPredictions)
+    ? selectedResult.branchPredictions
+    : [];
+
+  analysisDetails.innerHTML = `
+    <div class="analysis-accuracy-card">
+      <div>
+        <span>Predictor</span>
+        <strong>${escapeHtml(getPredictorLabel(selectedResult.predictor))}</strong>
+      </div>
+      <div>
+        <span>Correct</span>
+        <strong>${selectedResult.correct}</strong>
+      </div>
+      <div>
+        <span>Total</span>
+        <strong>${selectedResult.total}</strong>
+      </div>
+      <div>
+        <span>Accuracy</span>
+        <strong>${formatAccuracy(selectedResult.correct, selectedResult.total)}</strong>
+      </div>
+    </div>
+
+    <h3>Branch Summary</h3>
+    ${buildAnalysisBranchTable(branchPredictions, predictorType)}
+
+    <h3>Predictor State Table</h3>
+    ${buildAnalysisPredictorStateTable(selectedResult.predictorState, predictorType)}
+  `;
+}
+
+function buildAnalysisBranchTable(predictions, predictorType) {
+  if (!Array.isArray(predictions) || predictions.length === 0) {
+    return '<div class="empty">No branch predictions recorded.</div>';
+  }
+
+  if (normalizePredictorType(predictorType) === "gshare") {
+    return buildAnalysisGShareBranchTable(predictions);
+  }
+
+  return buildAnalysisDefaultBranchTable(predictions, predictorType);
+}
+
+function buildAnalysisDefaultBranchTable(predictions, predictorType) {
+  let html = `
+    <div class="table-scroll">
+      <table class="branch-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>PC</th>
+            <th>Instruction</th>
+            <th>State Before</th>
+            <th>Predicted</th>
+            <th>Actual</th>
+            <th>State After</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+
+  for (const prediction of predictions) {
+    const resolved = Boolean(prediction.branchResolved);
+    const correct = resolved && Boolean(prediction.predictionCorrect);
+    const rowClass = getBranchRowClass(resolved, correct);
+
+    html += `
+      <tr class="${rowClass}">
+        <td class="rs-tag">${formatInstructionId(prediction)}</td>
+        <td class="rs-tag">${formatNullableNumber(prediction.pc)}</td>
+        <td>${escapeHtml(prediction.instruction || "-")}</td>
+        <td>${escapeHtml(formatBranchState(predictorType, prediction.stateBeforeText, prediction.stateBefore))}</td>
+        <td>${formatDirection(prediction.predictedTaken)}</td>
+        <td>${resolved ? formatDirection(prediction.actualTaken) : "pending"}</td>
+        <td>${escapeHtml(resolved ? formatBranchState(predictorType, prediction.stateAfterText, prediction.stateAfter) : "pending")}</td>
+        <td>${resolved ? (correct ? "Hit" : "Miss") : "pending"}</td>
+      </tr>
+    `;
+  }
+
+  html += `
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  return html;
+}
+
+function buildAnalysisGShareBranchTable(predictions) {
+  let html = `
+    <div class="table-scroll">
+      <table class="branch-table gshare-branch-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>PC</th>
+            <th>Instruction</th>
+            <th>GHR Before</th>
+            <th>Index</th>
+            <th>Counter Before</th>
+            <th>Prediction</th>
+            <th>Actual</th>
+            <th>Counter After</th>
+            <th>GHR After</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+
+  for (const prediction of predictions) {
+    const resolved = Boolean(prediction.branchResolved);
+    const correct = resolved && Boolean(prediction.predictionCorrect);
+    const rowClass = getBranchRowClass(resolved, correct);
+
+    html += `
+      <tr class="${rowClass}">
+        <td class="rs-tag">${formatInstructionId(prediction)}</td>
+        <td class="rs-tag">${formatNullableNumber(prediction.pc)}</td>
+        <td>${escapeHtml(prediction.instruction || "-")}</td>
+        <td>${escapeHtml(formatTraceGhr(prediction.globalHistoryBefore))}</td>
+        <td class="rs-tag">${formatNullableNumber(prediction.gshareIndex)}</td>
+        <td>${escapeHtml(formatCounterSummary(prediction.counterBefore))}</td>
+        <td>${formatDirection(prediction.predictedTaken)}</td>
+        <td>${resolved ? formatDirection(prediction.actualTaken) : "pending"}</td>
+        <td>${escapeHtml(resolved ? formatCounterSummary(prediction.counterAfter) : "pending")}</td>
+        <td>${escapeHtml(resolved ? formatTraceGhr(prediction.globalHistoryAfter) : "-")}</td>
+        <td>${resolved ? (correct ? "Hit" : "Miss") : "pending"}</td>
+      </tr>
+    `;
+  }
+
+  html += `
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  return html;
+}
+
+function buildAnalysisPredictorStateTable(predictorState, predictorType) {
+  const normalizedType = normalizePredictorType(
+    predictorState?.predictorType || predictorType
+  );
+
+  if (!predictorState) {
+    const fallbackEntries = getFallbackPredictorStateEntries(normalizedType);
+
+    if (fallbackEntries.length === 0) {
+      return '<div class="empty">Predictor table state not available in this trace.</div>';
+    }
+
+    predictorState = {
+      predictorType: normalizedType,
+      entries: fallbackEntries
+    };
+  }
+
+  const entries = Array.isArray(predictorState.entries)
+    ? predictorState.entries
+    : [];
+  let ghrHtml = "";
+
+  if (normalizedType === "gshare") {
+    const ghr = typeof predictorState.globalHistory === "number"
+      ? predictorState.globalHistory
+      : -1;
+    const bits = typeof predictorState.globalHistoryBits === "number" &&
+      predictorState.globalHistoryBits > 0
+      ? predictorState.globalHistoryBits
+      : undefined;
+    const ghrText = predictorState.globalHistoryText ||
+      (ghr >= 0 ? formatBinary(ghr, bits) : "");
+
+    ghrHtml = `
+      <div class="gshare-history">
+        <span>Global History Register</span>
+        <strong>${escapeHtml(ghrText ? `${ghrText} (${ghr})` : "-")}</strong>
+      </div>
+    `;
+  }
+
+  if (entries.length === 0) {
+    return `${ghrHtml}<div class="empty">No initialized predictor table entries yet.</div>`;
+  }
+
+  let html = `
+    ${ghrHtml}
+    <div class="table-scroll">
+      <table class="predictor-state-table">
+        <thead>
+          <tr>
+            <th>Index</th>
+            <th>Predictor State</th>
+            <th>Meaning</th>
+            <th>Prediction</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+
+  for (const entry of entries) {
+    const state = typeof entry.state === "number" ? entry.state : -1;
+    const stateBits = entry.stateBits ||
+      formatPredictorStateBits(normalizedType, state);
+    const meaning = entry.stateText ||
+      predictorStateMeaning(normalizedType, state);
+    const prediction = entry.prediction ||
+      predictorStatePrediction(normalizedType, state);
+
+    html += `
+      <tr class="known-predictor-entry">
+        <td class="rs-tag">${entry.index >= 0 ? entry.index : "-"}</td>
+        <td class="rs-tag">${escapeHtml(stateBits || "-")}</td>
+        <td>${escapeHtml(meaning || "-")}</td>
+        <td>${escapeHtml(prediction || "-")}</td>
+      </tr>
+    `;
+  }
+
+  html += `
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  return html;
+}
+
 function formatDirection(taken) {
   return taken ? "taken" : "not taken";
+}
+
+function formatAccuracy(correct, total) {
+  if (typeof correct !== "number" || typeof total !== "number" || total <= 0) {
+    return "-";
+  }
+
+  return `${((100 * correct) / total).toFixed(2)}%`;
+}
+
+function getPredictorLabel(predictor) {
+  return PREDICTOR_DETAILS[normalizePredictorType(predictor)]?.name ||
+    predictor ||
+    "-";
+}
+
+function getShortPredictorLabel(predictor) {
+  const normalizedType = normalizePredictorType(predictor);
+
+  if (normalizedType === "always-not-taken") return "Always NT";
+  if (normalizedType === "always-taken") return "Always T";
+
+  return getPredictorLabel(normalizedType);
+}
+
+function getPredictorNote(predictor) {
+  const normalizedType = normalizePredictorType(predictor);
+
+  if (normalizedType === "always-not-taken") return "Static";
+  if (normalizedType === "always-taken") return "Static";
+  if (normalizedType === "one-bit") return "Local";
+  if (normalizedType === "two-bit") return "Local saturating";
+  if (normalizedType === "gshare") return "Global history";
+
+  return "-";
 }
 
 function getSelectedPredictorType(cycle) {
