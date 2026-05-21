@@ -23,6 +23,27 @@ static void printReservationUsage(
               << "/" << capacity << "\n";
 }
 
+static void printOneFUState(const FunctionalUnit& fu, const std::string& label) {
+    if (fu.pipelined) {
+        int totalSlots = fu.totalUnits * fu.pipelineDepth;
+
+        std::cout << "  " << label << ": "
+                  << fu.busyUnits << "/" << totalSlots
+                  << " pipeline slots used, "
+                  << fu.totalUnits << " pipeline";
+
+        if (fu.totalUnits != 1) {
+            std::cout << "s";
+        }
+
+        std::cout << "\n";
+    } else {
+        std::cout << "  " << label << ": "
+                  << fu.busyUnits << "/" << fu.totalUnits
+                  << " busy\n";
+    }
+}
+
 void printFUState(
     const FunctionalUnit& intFU,
     const FunctionalUnit& mulFU,
@@ -31,11 +52,12 @@ void printFUState(
     const FunctionalUnit& memFU
 ) {
     std::cout << "FU State:\n";
-    printResourceUsage("INT", intFU.busyUnits, intFU.totalUnits);
-    printResourceUsage("MUL", mulFU.busyUnits, mulFU.totalUnits);
-    printResourceUsage("FP_ADD", fpAddFU.busyUnits, fpAddFU.totalUnits);
-    printResourceUsage("FP_MUL", fpMulFU.busyUnits, fpMulFU.totalUnits);
-    printResourceUsage("MEM", memFU.busyUnits, memFU.totalUnits);
+
+    printOneFUState(intFU, "INT   ");
+    printOneFUState(mulFU, "MUL   ");
+    printOneFUState(fpAddFU, "FP_ADD");
+    printOneFUState(fpMulFU, "FP_MUL");
+    printOneFUState(memFU, "MEM   ");
 }
 
 void printTag(int tag) {
@@ -315,5 +337,29 @@ void printBranchPredictionSummary(const std::vector<InstructionStatus>& statusTa
                 << resolvedBranches << " correct = "
                 << std::fixed << std::setprecision(2)
                 << accuracy << "%\n\n";
+    }
+}
+
+void printFUPipelineState(const FunctionalUnit& fu) {
+    if (!fu.pipelined) {
+        return;
+    }
+
+    std::cout << fuTypeToString(fu.type) << " Pipeline:\n";
+
+    for (int pipeIndex = 0; pipeIndex < static_cast<int>(fu.pipelines.size()); pipeIndex++) {
+        std::cout << "  Pipe " << pipeIndex << ": ";
+
+        const auto& pipeline = fu.pipelines[pipeIndex];
+
+        for (const auto& stage : pipeline) {
+            if (stage.occupied) {
+                std::cout << "[I" << stage.instructionId << "]";
+            } else {
+                std::cout << "[--]";
+            }
+        }
+
+        std::cout << "\n";
     }
 }

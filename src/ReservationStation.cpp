@@ -1,10 +1,10 @@
 #include "ReservationStation.h"
 
-int countRSEntries(const std::vector<ActiveInstruction>& activeInstructions, RSType type) {
+int countRSEntries(const std::vector<ActiveInstruction>& activeInstructions, RSType type){
     int count = 0;
 
     for (const auto& active : activeInstructions) {
-        if (getRSType(active.instr.opcode) == type) {
+        if (!active.executing && getRSType(active.instr.opcode) == type) {
             count++;
         }
     }

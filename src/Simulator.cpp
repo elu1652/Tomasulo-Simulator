@@ -450,7 +450,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
     const int INT_RS_CAPACITY = 2;
     const int MUL_RS_CAPACITY = 2;
     const int FP_ADD_RS_CAPACITY = 2;
-    const int FP_MUL_RS_CAPACITY = 2;
+    const int FP_MUL_RS_CAPACITY = 4;
     const int LOAD_BUFFER_CAPACITY = 2;
     const int STORE_BUFFER_CAPACITY = 2;
     const int ROB_CAPACITY = 4;
@@ -483,9 +483,25 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
     // Functional unit initialization.
     FunctionalUnit intFU {FUType::INT, 2, 0};
+
     FunctionalUnit mulFU {FUType::MUL, 1, 0};
-    FunctionalUnit fpAddFU {FUType::FP_ADD, 1, 0};
-    FunctionalUnit fpMulFU {FUType::FP_MUL, 1, 0};
+
+    FunctionalUnit fpAddFU;
+    fpAddFU.type = FUType::FP_ADD;
+    fpAddFU.totalUnits = 1;
+    fpAddFU.busyUnits = 0;
+    fpAddFU.pipelined = true;
+    fpAddFU.pipelineDepth = 3;
+    initializePipeline(fpAddFU);
+
+    FunctionalUnit fpMulFU;
+    fpMulFU.type = FUType::FP_MUL;
+    fpMulFU.totalUnits = 2;
+    fpMulFU.busyUnits = 0;
+    fpMulFU.pipelined = true;
+    fpMulFU.pipelineDepth = 5;
+    initializePipeline(fpMulFU);
+
     FunctionalUnit memFU {FUType::MEM, 2, 0};
 
     // Branch predictor used for speculative issue.
@@ -499,6 +515,9 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
     while (pc < instructions.size() || !activeInstructions.empty() || !cdbQueue.empty() || !circularROB.empty()) {
 
         std::cout << "\n\nCycle " << cycle << "\n";
+
+        advancePipeline(fpAddFU);
+        advancePipeline(fpMulFU);
 
         std::string issuedInstructionThisCycle;
         std::string cdbBroadcastThisCycle = "none";
@@ -819,8 +838,14 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
                 // Update FU and active instruction status
                 fu->busyUnits++;
+
+                if (fu->pipelined) {
+                    insertIntoPipeline(*fu, active.instructionIndex);
+                }
+
                 active.executing = true;
                 active.waitingReason = "";
+
                 traceEvents.push_back(
                     "Execution started: I" +
                     std::to_string(active.instructionIndex) +
@@ -835,6 +860,8 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
         // DEBUG STATE PRINTING
         printFUState(intFU, mulFU, fpAddFU, fpMulFU, memFU);
+        printFUPipelineState(fpAddFU);
+        printFUPipelineState(fpMulFU);
         printRSState(activeInstructions, INT_RS_CAPACITY, MUL_RS_CAPACITY, FP_ADD_RS_CAPACITY, FP_MUL_RS_CAPACITY, LOAD_BUFFER_CAPACITY, STORE_BUFFER_CAPACITY);
         printRegisterProducer(regProducer);
         printActiveInstructions(activeInstructions);
@@ -896,8 +923,15 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 FunctionalUnit* fu = getFU(type, intFU, mulFU, fpAddFU, fpMulFU, memFU);
 
                 // Free FU
+                // If it is pipelined, also remove the instruction from the pipeline stages.
                 if (fu != nullptr) {
-                    fu->busyUnits--;
+                    if (fu->pipelined) {
+                        removeFromPipeline(*fu, index);
+                    }
+
+                    if (fu->busyUnits > 0) {
+                        fu->busyUnits--;
+                    }
                 }
 
                 statusTable[index].executeEndCycle = cycle;
