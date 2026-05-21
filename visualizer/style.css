@@ -299,10 +299,10 @@ button:disabled {
 .datapath {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(150px, 1fr) 56px minmax(185px, 1.25fr) 56px minmax(185px, 1.25fr) 56px minmax(160px, 1fr);
-  grid-template-rows: 108px 52px 124px 52px 112px;
+  grid-template-columns: minmax(145px, 0.8fr) 44px minmax(245px, 1.35fr) 44px minmax(245px, 1.35fr) 44px minmax(150px, 0.8fr);
+  grid-template-rows: 108px 42px minmax(280px, auto) 42px 116px;
   gap: 0 2px;
-  min-height: 500px;
+  min-height: 700px;
   padding: 18px;
   border-radius: 12px;
   background:
@@ -407,6 +407,11 @@ button:disabled {
   grid-row: 1;
 }
 
+.register-file {
+  grid-column: 7;
+  grid-row: 3;
+}
+
 .lsq {
   grid-column: 3;
   grid-row: 5;
@@ -420,6 +425,80 @@ button:disabled {
 .commit {
   grid-column: 7;
   grid-row: 1;
+}
+
+.resource-grid {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.rs-resource-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.fu-resource-grid {
+  grid-template-columns: 1fr;
+}
+
+.resource-tile {
+  border: 1px solid #cbd5e1;
+  border-left-width: 4px;
+  border-radius: 7px;
+  background: #f8fafc;
+  padding: 8px;
+  transition: 0.18s ease;
+  min-width: 0;
+}
+
+.resource-tile span,
+.resource-tile strong,
+.resource-tile small {
+  display: block;
+}
+
+.resource-tile span {
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.resource-tile strong {
+  margin-top: 3px;
+  font-size: 13px;
+}
+
+.resource-tile small {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.resource-tile.active {
+  border-color: #2563eb;
+  background: #dbeafe;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+
+.int-resource {
+  border-left-color: #2563eb;
+}
+
+.mul-resource {
+  border-left-color: #7c3aed;
+}
+
+.fp-add-resource {
+  border-left-color: #0891b2;
+}
+
+.fp-mul-resource {
+  border-left-color: #0f766e;
+}
+
+.mem-resource {
+  border-left-color: #ca8a04;
 }
 
 .arrow {
@@ -548,7 +627,7 @@ button:disabled {
 /* Summary and grid panels */
 .summary-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
   margin-bottom: 18px;
 }
@@ -559,6 +638,139 @@ button:disabled {
   gap: 12px;
   padding: 8px 0;
   border-bottom: 1px solid #eef2f7;
+}
+
+.fu-state-grid {
+  overflow-x: auto;
+}
+
+.fu-state-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid #d8dee4;
+}
+
+.fu-state-table th,
+.fu-state-table td {
+  border-right: 1px solid #d8dee4;
+  border-bottom: 1px solid #d8dee4;
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.fu-state-table th:last-child,
+.fu-state-table td:last-child {
+  border-right: none;
+}
+
+.fu-state-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.fu-state-table th {
+  background: #f8fafc;
+  color: #475569;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.fu-state-table tr.fu-busy-row {
+  background: #dbeafe;
+  box-shadow: inset 4px 0 0 #2563eb;
+}
+
+.fu-state-table tr.fu-free-row {
+  background: #ffffff;
+}
+
+.fu-type-pill {
+  display: inline-block;
+  min-width: 64px;
+  border-radius: 999px;
+  padding: 3px 8px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+.fu-type-pill.int {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border-color: #93c5fd;
+}
+
+.fu-type-pill.mul {
+  background: #ede9fe;
+  color: #6d28d9;
+  border-color: #c4b5fd;
+}
+
+.fu-type-pill.fp_add {
+  background: #cffafe;
+  color: #0e7490;
+  border-color: #67e8f9;
+}
+
+.fu-type-pill.fp_mul {
+  background: #ccfbf1;
+  color: #0f766e;
+  border-color: #5eead4;
+}
+
+.fu-type-pill.mem {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fde68a;
+}
+
+.fu-instruction-state {
+  color: #64748b;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.instruction-label {
+  display: inline-block;
+  margin-right: 6px;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.int-instruction {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.mul-instruction {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.fp-add-instruction {
+  background: #cffafe;
+  color: #0e7490;
+}
+
+.fp-mul-instruction {
+  background: #ccfbf1;
+  color: #0f766e;
+}
+
+.mem-instruction {
+  background: #fef3c7;
+  color: #92400e;
 }
 
 .summary-row:last-child {

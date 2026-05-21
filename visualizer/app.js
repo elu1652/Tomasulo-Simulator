@@ -91,8 +91,11 @@ const programListing = document.getElementById("programListing");
 
 const intRSTable = document.getElementById("intRSTable");
 const mulRSTable = document.getElementById("mulRSTable");
+const fpAddRSTable = document.getElementById("fpAddRSTable");
+const fpMulRSTable = document.getElementById("fpMulRSTable");
 const loadBufferTable = document.getElementById("loadBufferTable");
 const storeBufferTable = document.getElementById("storeBufferTable");
+const fuStatePanel = document.getElementById("fuStatePanel");
 
 const programBox = document.getElementById("programBox");
 const issueBox = document.getElementById("issueBox");
@@ -103,6 +106,19 @@ const robBox = document.getElementById("robBox");
 const lsqBox = document.getElementById("lsqBox");
 const memoryBox = document.getElementById("memoryBox");
 const commitBox = document.getElementById("commitBox");
+const registerFileBox = document.getElementById("registerFileBox");
+
+const intRsBox = document.getElementById("intRsBox");
+const mulRsBox = document.getElementById("mulRsBox");
+const fpAddRsBox = document.getElementById("fpAddRsBox");
+const fpMulRsBox = document.getElementById("fpMulRsBox");
+const loadBufferBox = document.getElementById("loadBufferBox");
+const storeBufferBox = document.getElementById("storeBufferBox");
+const intFuBox = document.getElementById("intFuBox");
+const mulFuBox = document.getElementById("mulFuBox");
+const fpAddFuBox = document.getElementById("fpAddFuBox");
+const fpMulFuBox = document.getElementById("fpMulFuBox");
+const memFuBox = document.getElementById("memFuBox");
 
 const programBoxMain = document.getElementById("programBoxMain");
 const programBoxSub = document.getElementById("programBoxSub");
@@ -117,6 +133,17 @@ const robBoxSub = document.getElementById("robBoxSub");
 const lsqBoxMain = document.getElementById("lsqBoxMain");
 const memoryBoxMain = document.getElementById("memoryBoxMain");
 const commitBoxMain = document.getElementById("commitBoxMain");
+const intRsBoxMain = document.getElementById("intRsBoxMain");
+const mulRsBoxMain = document.getElementById("mulRsBoxMain");
+const fpAddRsBoxMain = document.getElementById("fpAddRsBoxMain");
+const fpMulRsBoxMain = document.getElementById("fpMulRsBoxMain");
+const loadBufferBoxMain = document.getElementById("loadBufferBoxMain");
+const storeBufferBoxMain = document.getElementById("storeBufferBoxMain");
+const intFuBoxMain = document.getElementById("intFuBoxMain");
+const mulFuBoxMain = document.getElementById("mulFuBoxMain");
+const fpAddFuBoxMain = document.getElementById("fpAddFuBoxMain");
+const fpMulFuBoxMain = document.getElementById("fpMulFuBoxMain");
+const memFuBoxMain = document.getElementById("memFuBoxMain");
 
 const arrowProgramIssue = document.getElementById("arrowProgramIssue");
 const arrowIssueRS = document.getElementById("arrowIssueRS");
@@ -136,7 +163,19 @@ const componentBoxes = [
   robBox,
   lsqBox,
   memoryBox,
-  commitBox
+  commitBox,
+  registerFileBox,
+  intRsBox,
+  mulRsBox,
+  fpAddRsBox,
+  fpMulRsBox,
+  loadBufferBox,
+  storeBufferBox,
+  intFuBox,
+  mulFuBox,
+  fpAddFuBox,
+  fpMulFuBox,
+  memFuBox
 ].filter(Boolean);
 
 const arrows = [
@@ -499,6 +538,7 @@ function render() {
   renderRegisterProducers(cycle.registerProducers || []);
   renderBranchPredictions(cycle);
   renderReservationStations(cycle.activeInstructions || []);
+  renderFUState(cycle);
   renderLSQ(cycle.lsq || []);
   renderRegisterState(cycle.registers);
   renderMemoryState(cycle.memory);
@@ -589,30 +629,53 @@ function renderDatapath(cycle, events) {
     hasEvent(events, "Store result ready") ||
     hasEvent(events, "Load result ready");
 
-  const activeCount = cycle.activeInstructions ? cycle.activeInstructions.length : 0;
+  const activeInstructions = Array.isArray(cycle.activeInstructions)
+    ? cycle.activeInstructions
+    : [];
+  const grouped = groupInstructionsByResource(activeInstructions);
+  const activeCount = activeInstructions.length;
   const rob = cycle.rob || { head: "-", tail: "-", count: 0 };
   const robCount = rob.count;
   const lsqCount = cycle.lsq ? cycle.lsq.length : 0;
+  const issuedResource = getResourceType(cycle.issuedInstruction);
+  const activeResources = new Set(
+    activeInstructions.map((entry) => getResourceType(entry.rawText))
+  );
+  const executingResources = new Set(
+    activeInstructions
+      .filter((entry) => entry.executing)
+      .map((entry) => getResourceType(entry.rawText))
+  );
 
   setText(programBoxMain, `PC: ${cycle.pc}`);
   setText(programBoxSub, getProgramLine(cycle.pc));
 
   setText(issueBoxMain, cycle.issuedInstruction || "none");
-  setText(issueBoxSub, hasStall ? "issue stalled" : "instruction issue");
+  setText(issueBoxSub, hasStall
+    ? "issue stalled"
+    : hasIssued ? formatResourceLabel(issuedResource) : "instruction issue");
 
   setText(rsBoxMain, `${activeCount} active`);
+  setText(intRsBoxMain, `${grouped.INT.length}/2 active`);
+  setText(mulRsBoxMain, `${grouped.MUL.length}/2 active`);
+  setText(fpAddRsBoxMain, `${grouped.FP_ADD.length}/2 active`);
+  setText(fpMulRsBoxMain, `${grouped.FP_MUL.length}/2 active`);
+  setText(loadBufferBoxMain, `${grouped.LOAD.length}/2 active`);
+  setText(storeBufferBoxMain, `${grouped.STORE.length}/2 active`);
 
   setText(
     fuBoxMain,
     hasExecutionStart
       ? getFirstEvent(events, "Execution started")
-      : "INT / MUL / MEM"
+      : "INT / MUL / FP_ADD / FP_MUL / MEM"
   );
 
   setText(
     fuBoxSub,
     hasExecutionComplete ? "completed this cycle" : "execution"
   );
+
+  updateDatapathFUCounts(cycle, grouped);
 
   setText(cdbBoxMain, hasCDB ? cycle.cdbBroadcast : "none");
 
@@ -625,18 +688,29 @@ function renderDatapath(cycle, events) {
 
   if (hasIssued) {
     activate(programBox, arrowProgramIssue, issueBox, arrowIssueRS, rsBox);
+    activateResourcePath(issuedResource, "rs");
   }
 
   if (hasStall) {
     markStall(issueBox, arrowProgramIssue);
   }
 
-  if (hasExecutionStart || hasExecutionComplete) {
+  for (const resource of activeResources) {
+    activateResourcePath(resource, "rs");
+  }
+
+  for (const resource of executingResources) {
+    activateResourcePath(resource, "fu");
+  }
+
+  if (hasExecutionStart || hasExecutionComplete || executingResources.size > 0) {
     activate(rsBox, arrowRSFU, fuBox);
   }
 
   if (hasCDB) {
-    activate(fuBox, arrowFUCDB, cdbBox, arrowCDBROB, robBox);
+    const cdbResource = getResourceType(cycle.cdbBroadcast);
+    activateResourcePath(cdbResource, "fu");
+    activate(fuBox, arrowFUCDB, cdbBox, arrowCDBROB, robBox, registerFileBox);
   }
 
   if (hasCommit) {
@@ -644,7 +718,7 @@ function renderDatapath(cycle, events) {
   }
 
   if (hasBranch) {
-    activate(programBox, issueBox);
+    activate(programBox, issueBox, intRsBox, intFuBox);
   }
 
   if (hasMispredict || hasFlush) {
@@ -652,12 +726,34 @@ function renderDatapath(cycle, events) {
   }
 
   if (hasLSQ) {
-    activate(rsBox, arrowRSLSQ, lsqBox);
+    activate(rsBox, arrowRSLSQ, lsqBox, loadBufferBox, storeBufferBox);
   }
 
   if (hasMemory) {
-    activate(lsqBox, arrowLSQMemory, memoryBox);
+    activate(lsqBox, arrowLSQMemory, memoryBox, memFuBox);
   }
+}
+
+function activateResourcePath(resource, stage) {
+  const rsBoxForResource = getRSBoxForResource(resource);
+  const fuBoxForResource = getFUBoxForResource(resource);
+
+  if (stage === "fu") {
+    activate(fuBoxForResource);
+    return;
+  }
+
+  activate(rsBoxForResource);
+}
+
+function updateDatapathFUCounts(cycle, grouped) {
+  const fuState = getFUState(cycle, grouped);
+
+  setText(intFuBoxMain, `${fuState.INT.busy}/${fuState.INT.total} busy`);
+  setText(mulFuBoxMain, `${fuState.MUL.busy}/${fuState.MUL.total} busy`);
+  setText(fpAddFuBoxMain, `${fuState.FP_ADD.busy}/${fuState.FP_ADD.total} busy`);
+  setText(fpMulFuBoxMain, `${fuState.FP_MUL.busy}/${fuState.FP_MUL.total} busy`);
+  setText(memFuBoxMain, `${fuState.MEM.busy}/${fuState.MEM.total} busy`);
 }
 
 function clearHighlights() {
@@ -891,44 +987,32 @@ function getROBMarkerClass(slot) {
 
 // Reservation station rendering
 function renderReservationStations(activeEntries) {
-  if (!intRSTable || !mulRSTable || !loadBufferTable || !storeBufferTable) {
-    return;
-  }
-
-  const grouped = {
-    INT: [],
-    MUL: [],
-    LOAD: [],
-    STORE: []
-  };
-
-  for (const entry of activeEntries) {
-    const type = inferRSType(entry.rawText);
-    grouped[type].push(entry);
-  }
+  const grouped = groupInstructionsByResource(activeEntries);
 
   renderRSTable(intRSTable, grouped.INT, 2, "INT");
   renderRSTable(mulRSTable, grouped.MUL, 2, "MUL");
+  renderRSTable(fpAddRSTable, grouped.FP_ADD, 2, "FP_ADD");
+  renderRSTable(fpMulRSTable, grouped.FP_MUL, 2, "FP_MUL");
   renderRSTable(loadBufferTable, grouped.LOAD, 2, "LOAD");
   renderRSTable(storeBufferTable, grouped.STORE, 2, "STORE");
 }
 
 function renderRSTable(container, entries, capacity, type) {
+  if (!container) return;
+
   let html = `
     <table class="rs-table">
       <thead>
         <tr>
-          <th>Slot</th>
-          <th>Busy</th>
+          <th>ID</th>
           <th>Instruction</th>
-          <th>Op</th>
           <th>Vj</th>
           <th>Vk</th>
           <th>Qj</th>
           <th>Qk</th>
           <th>ROB</th>
-          <th>Rem</th>
-          <th>State</th>
+          <th>Remaining</th>
+          <th>Status</th>
         </tr>
       </thead>
       <tbody>
@@ -941,16 +1025,14 @@ function renderRSTable(container, entries, capacity, type) {
       html += `
         <tr class="empty-row">
           <td>${type}${i}</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
+          <td>-</td>
           <td><span class="rs-status empty">empty</span></td>
-          <td>-</td>
-          <td>-</td>
-          <td>-</td>
-          <td>-</td>
-          <td>-</td>
-          <td>-</td>
-          <td>-</td>
-          <td>-</td>
-          <td>empty</td>
         </tr>
       `;
       continue;
@@ -958,14 +1040,15 @@ function renderRSTable(container, entries, capacity, type) {
 
     const rowClass = entry.executing ? "occupied-row executing-row" : "occupied-row waiting-row";
     const stateText = entry.executing ? "executing" : "waiting";
-    const op = getOpcode(entry.rawText);
+    const label = getInstructionClassLabel(entry.rawText);
 
     html += `
       <tr class="${rowClass}">
         <td>${type}${i}</td>
-        <td><span class="rs-status busy">busy</span></td>
-        <td>${escapeHtml(entry.rawText)}</td>
-        <td class="rs-op">${escapeHtml(op)}</td>
+        <td>
+          <span class="instruction-label ${label.className}">${escapeHtml(label.text)}</span>
+          ${escapeHtml(entry.rawText)}
+        </td>
         <td>${entry.vj}</td>
         <td>${entry.vk}</td>
         <td class="rs-tag">${formatTag(entry.qj)}</td>
@@ -986,25 +1069,276 @@ function renderRSTable(container, entries, capacity, type) {
 }
 
 function inferRSType(rawText) {
+  return getResourceType(rawText);
+}
+
+function groupInstructionsByResource(activeEntries) {
+  const grouped = {
+    INT: [],
+    MUL: [],
+    FP_ADD: [],
+    FP_MUL: [],
+    LOAD: [],
+    STORE: []
+  };
+
+  for (const entry of activeEntries || []) {
+    const type = getResourceType(entry.rawText);
+
+    if (grouped[type]) {
+      grouped[type].push(entry);
+    }
+  }
+
+  return grouped;
+}
+
+function getResourceType(rawText) {
   const op = getOpcode(rawText);
+
+  if (op === "FADD" || op === "FSUB") {
+    return "FP_ADD";
+  }
+
+  if (op === "FMUL" || op === "FDIV") {
+    return "FP_MUL";
+  }
 
   if (op === "MUL") {
     return "MUL";
   }
 
-  if (op === "LD") {
+  if (op === "LD" || op === "LOAD") {
     return "LOAD";
   }
 
-  if (op === "SD") {
+  if (op === "SD" || op === "STORE") {
     return "STORE";
   }
 
   return "INT";
 }
 
+function getRSBoxForResource(resource) {
+  const boxes = {
+    INT: intRsBox,
+    MUL: mulRsBox,
+    FP_ADD: fpAddRsBox,
+    FP_MUL: fpMulRsBox,
+    LOAD: loadBufferBox,
+    STORE: storeBufferBox
+  };
+
+  return boxes[resource] || intRsBox;
+}
+
+function getFUBoxForResource(resource) {
+  const boxes = {
+    INT: intFuBox,
+    MUL: mulFuBox,
+    FP_ADD: fpAddFuBox,
+    FP_MUL: fpMulFuBox,
+    LOAD: memFuBox,
+    STORE: memFuBox,
+    MEM: memFuBox
+  };
+
+  return boxes[resource] || intFuBox;
+}
+
+function formatResourceLabel(resource) {
+  const labels = {
+    INT: "INT path",
+    MUL: "MUL path",
+    FP_ADD: "FP_ADD path",
+    FP_MUL: "FP_MUL path",
+    LOAD: "load path",
+    STORE: "store path"
+  };
+
+  return labels[resource] || "instruction issue";
+}
+
+function getInstructionClassLabel(rawText) {
+  const resource = getResourceType(rawText);
+  const labels = {
+    INT: { text: "INT", className: "int-instruction" },
+    MUL: { text: "MUL", className: "mul-instruction" },
+    FP_ADD: { text: "FP Add", className: "fp-add-instruction" },
+    FP_MUL: { text: "FP Mul/Div", className: "fp-mul-instruction" },
+    LOAD: { text: "Load", className: "mem-instruction" },
+    STORE: { text: "Store", className: "mem-instruction" }
+  };
+
+  return labels[resource] || labels.INT;
+}
+
+function getFUState(cycle, grouped) {
+  const fallback = {
+    INT: { busy: countExecuting(grouped.INT), total: 2 },
+    MUL: { busy: countExecuting(grouped.MUL), total: 1 },
+    FP_ADD: { busy: countExecuting(grouped.FP_ADD), total: 1 },
+    FP_MUL: { busy: countExecuting(grouped.FP_MUL), total: 1 },
+    MEM: {
+      busy: countExecuting(grouped.LOAD) + countExecuting(grouped.STORE),
+      total: 2
+    }
+  };
+
+  const traceFUState = cycle?.fuState;
+
+  if (!traceFUState || typeof traceFUState !== "object") {
+    return fallback;
+  }
+
+  for (const key of Object.keys(fallback)) {
+    const value = traceFUState[key];
+
+    if (typeof value === "number") {
+      fallback[key].busy = value;
+    } else if (value && typeof value === "object") {
+      fallback[key].busy = value.busy ?? value.active ?? fallback[key].busy;
+      fallback[key].total = value.total ?? value.capacity ?? fallback[key].total;
+    }
+  }
+
+  return fallback;
+}
+
+function countExecuting(entries) {
+  return (entries || []).filter((entry) => entry.executing).length;
+}
+
+function renderFUState(cycle) {
+  if (!fuStatePanel) return;
+
+  const grouped = groupInstructionsByResource(cycle.activeInstructions || []);
+  const fuState = getFUState(cycle, grouped);
+
+  const rows = [
+    {
+      key: "INT",
+      name: "Integer FU",
+      type: "INT",
+      state: fuState.INT,
+      entries: grouped.INT,
+      operations: "ADD, ADDI, SUB, BEQ, BNE"
+    },
+    {
+      key: "MUL",
+      name: "Multiply FU",
+      type: "MUL",
+      state: fuState.MUL,
+      entries: grouped.MUL,
+      operations: "MUL"
+    },
+    {
+      key: "FP_ADD",
+      name: "FP Add FU",
+      type: "FP_ADD",
+      state: fuState.FP_ADD,
+      entries: grouped.FP_ADD,
+      operations: "FADD, FSUB"
+    },
+    {
+      key: "FP_MUL",
+      name: "FP Mul/Div FU",
+      type: "FP_MUL",
+      state: fuState.FP_MUL,
+      entries: grouped.FP_MUL,
+      operations: "FMUL, FDIV"
+    },
+    {
+      key: "MEM",
+      name: "Memory FU",
+      type: "MEM",
+      state: fuState.MEM,
+      entries: [...grouped.LOAD, ...grouped.STORE],
+      operations: "LD, SD"
+    }
+  ];
+
+  let html = `
+    <table class="fu-state-table">
+      <thead>
+        <tr>
+          <th>Functional Unit</th>
+          <th>Type</th>
+          <th>Busy</th>
+          <th>Status</th>
+          <th>Current Instruction</th>
+          <th>Operations</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  for (const row of rows) {
+    const busy = Number(row.state.busy) || 0;
+    const total = Number(row.state.total) || 0;
+    const activeClass = busy > 0 ? "fu-busy-row" : "fu-free-row";
+    const executing = row.entries.filter((entry) => entry.executing);
+    const visibleEntries = executing.length > 0 ? executing : row.entries;
+    const currentInstruction = visibleEntries.length > 0
+      ? visibleEntries.map(formatFUInstruction).join("<br>")
+      : "-";
+
+    html += `
+      <tr class="${activeClass}">
+        <td><strong>${escapeHtml(row.name)}</strong></td>
+        <td><span class="fu-type-pill ${escapeHtml(row.key.toLowerCase())}">${escapeHtml(row.type)}</span></td>
+        <td>${busy}/${total} busy</td>
+        <td>${busy > 0 ? "busy" : "free"}</td>
+        <td>${currentInstruction}</td>
+        <td>${escapeHtml(row.operations)}</td>
+      </tr>
+    `;
+  }
+
+  html += `
+      </tbody>
+    </table>
+  `;
+
+  fuStatePanel.innerHTML = html;
+}
+
+function formatFUInstruction(entry) {
+  const label = getInstructionClassLabel(entry.rawText);
+  const state = entry.executing ? "executing" : "waiting";
+  const remaining = typeof entry.remainingCycles === "number"
+    ? `, ${entry.remainingCycles} rem`
+    : "";
+
+  return `
+    <span class="instruction-label ${label.className}">${escapeHtml(label.text)}</span>
+    ${escapeHtml(entry.rawText || "-")}
+    <span class="fu-instruction-state">(${state}${remaining})</span>
+  `;
+}
+
 function getOpcode(rawText) {
-  return String(rawText).trim().split(/\s+/)[0].toUpperCase();
+  const tokens = String(rawText)
+    .toUpperCase()
+    .match(/[A-Z]+/g) || [];
+  const knownOpcodes = new Set([
+    "FADD",
+    "FSUB",
+    "FMUL",
+    "FDIV",
+    "ADDI",
+    "ADD",
+    "SUB",
+    "MUL",
+    "BEQ",
+    "BNE",
+    "LD",
+    "LOAD",
+    "SD",
+    "STORE"
+  ]);
+
+  return tokens.find((token) => knownOpcodes.has(token)) || "";
 }
 
 function isMemoryInstruction(rawText) {

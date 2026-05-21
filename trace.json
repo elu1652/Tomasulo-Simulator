@@ -89,7 +89,7 @@
     {
       "cycle": 1,
       "pc": 1,
-      "predictorType": "two-bit",
+      "predictorType": "always-taken",
       "issuedInstruction": "ADDI R1, R0, 10",
       "cdbBroadcast": "none",
       "commitEvent": "",
@@ -138,11 +138,18 @@
         }
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
       },
       "branchPredictions": [
@@ -154,7 +161,7 @@
     {
       "cycle": 2,
       "pc": 2,
-      "predictorType": "two-bit",
+      "predictorType": "always-taken",
       "issuedInstruction": "ADDI R2, R0, 20",
       "cdbBroadcast": "none",
       "commitEvent": "",
@@ -220,11 +227,18 @@
         }
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
       },
       "branchPredictions": [
@@ -239,7 +253,7 @@
     {
       "cycle": 3,
       "pc": 3,
-      "predictorType": "two-bit",
+      "predictorType": "always-taken",
       "issuedInstruction": "FADD R3, R1, R2",
       "cdbBroadcast": "I0 ADDI R1, R0, 10",
       "commitEvent": "",
@@ -322,11 +336,18 @@
         }
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
       },
       "branchPredictions": [
@@ -342,7 +363,7 @@
     {
       "cycle": 4,
       "pc": 4,
-      "predictorType": "two-bit",
+      "predictorType": "always-taken",
       "issuedInstruction": "FMUL R4, R1, R2",
       "cdbBroadcast": "I1 ADDI R2, R0, 20",
       "commitEvent": "Committed I0",
@@ -437,11 +458,18 @@
         }
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
       },
       "branchPredictions": [
@@ -455,7 +483,7 @@
     {
       "cycle": 5,
       "pc": 5,
-      "predictorType": "two-bit",
+      "predictorType": "always-taken",
       "issuedInstruction": "FSUB R5, R2, R1",
       "cdbBroadcast": "none",
       "commitEvent": "Committed I1",
@@ -562,11 +590,18 @@
         }
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
       },
       "branchPredictions": [
@@ -581,7 +616,7 @@
     {
       "cycle": 6,
       "pc": 6,
-      "predictorType": "two-bit",
+      "predictorType": "always-taken",
       "issuedInstruction": "FDIV R6, R2, R1",
       "cdbBroadcast": "none",
       "commitEvent": "",
@@ -717,11 +752,18 @@
         }
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
       },
       "branchPredictions": [
@@ -733,7 +775,7 @@
     {
       "cycle": 7,
       "pc": 6,
-      "predictorType": "two-bit",
+      "predictorType": "always-taken",
       "issuedInstruction": "",
       "cdbBroadcast": "none",
       "commitEvent": "",
@@ -857,11 +899,18 @@
         }
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
       },
       "branchPredictions": [
@@ -875,7 +924,7 @@
     {
       "cycle": 8,
       "pc": 6,
-      "predictorType": "two-bit",
+      "predictorType": "always-taken",
       "issuedInstruction": "",
       "cdbBroadcast": "I2 FADD R3, R1, R2",
       "commitEvent": "",
@@ -999,11 +1048,18 @@
         }
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
       },
       "branchPredictions": [
@@ -1017,7 +1073,7 @@
     {
       "cycle": 9,
       "pc": 6,
-      "predictorType": "two-bit",
+      "predictorType": "always-taken",
       "issuedInstruction": "",
       "cdbBroadcast": "none",
       "commitEvent": "Committed I2",
@@ -1112,11 +1168,18 @@
         }
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
       },
       "branchPredictions": [
@@ -1131,7 +1194,7 @@
     {
       "cycle": 10,
       "pc": 7,
-      "predictorType": "two-bit",
+      "predictorType": "always-taken",
       "issuedInstruction": "ADD R7, R3, R4",
       "cdbBroadcast": "I3 FMUL R4, R1, R2",
       "commitEvent": "",
@@ -1243,11 +1306,18 @@
         }
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
       },
       "branchPredictions": [
@@ -1263,7 +1333,7 @@
     {
       "cycle": 11,
       "pc": 7,
-      "predictorType": "two-bit",
+      "predictorType": "always-taken",
       "issuedInstruction": "",
       "cdbBroadcast": "I4 FSUB R5, R2, R1",
       "commitEvent": "Committed I3",
@@ -1346,11 +1416,18 @@
         }
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
       },
       "branchPredictions": [
@@ -1366,7 +1443,7 @@
     {
       "cycle": 12,
       "pc": 7,
-      "predictorType": "two-bit",
+      "predictorType": "always-taken",
       "issuedInstruction": "",
       "cdbBroadcast": "I6 ADD R7, R3, R4",
       "commitEvent": "Committed I4",
@@ -1432,11 +1509,18 @@
         }
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
       },
       "branchPredictions": [
@@ -1449,7 +1533,7 @@
     {
       "cycle": 13,
       "pc": 7,
-      "predictorType": "two-bit",
+      "predictorType": "always-taken",
       "issuedInstruction": "",
       "cdbBroadcast": "none",
       "commitEvent": "",
@@ -1515,11 +1599,18 @@
         }
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
       },
       "branchPredictions": [
@@ -1530,7 +1621,7 @@
     {
       "cycle": 14,
       "pc": 7,
-      "predictorType": "two-bit",
+      "predictorType": "always-taken",
       "issuedInstruction": "",
       "cdbBroadcast": "none",
       "commitEvent": "",
@@ -1596,11 +1687,18 @@
         }
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
       },
       "branchPredictions": [
@@ -1611,7 +1709,7 @@
     {
       "cycle": 15,
       "pc": 7,
-      "predictorType": "two-bit",
+      "predictorType": "always-taken",
       "issuedInstruction": "",
       "cdbBroadcast": "none",
       "commitEvent": "",
@@ -1677,11 +1775,18 @@
         }
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
       },
       "branchPredictions": [
@@ -1692,7 +1797,7 @@
     {
       "cycle": 16,
       "pc": 7,
-      "predictorType": "two-bit",
+      "predictorType": "always-taken",
       "issuedInstruction": "",
       "cdbBroadcast": "none",
       "commitEvent": "",
@@ -1758,11 +1863,18 @@
         }
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
       },
       "branchPredictions": [
@@ -1773,7 +1885,7 @@
     {
       "cycle": 17,
       "pc": 7,
-      "predictorType": "two-bit",
+      "predictorType": "always-taken",
       "issuedInstruction": "",
       "cdbBroadcast": "none",
       "commitEvent": "",
@@ -1839,11 +1951,18 @@
         }
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
       },
       "branchPredictions": [
@@ -1854,7 +1973,7 @@
     {
       "cycle": 18,
       "pc": 7,
-      "predictorType": "two-bit",
+      "predictorType": "always-taken",
       "issuedInstruction": "",
       "cdbBroadcast": "none",
       "commitEvent": "",
@@ -1920,11 +2039,18 @@
         }
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
       },
       "branchPredictions": [
@@ -1935,7 +2061,7 @@
     {
       "cycle": 19,
       "pc": 7,
-      "predictorType": "two-bit",
+      "predictorType": "always-taken",
       "issuedInstruction": "",
       "cdbBroadcast": "none",
       "commitEvent": "",
@@ -1989,11 +2115,18 @@
         }
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
       },
       "branchPredictions": [
@@ -2006,7 +2139,7 @@
     {
       "cycle": 20,
       "pc": 7,
-      "predictorType": "two-bit",
+      "predictorType": "always-taken",
       "issuedInstruction": "",
       "cdbBroadcast": "I5 FDIV R6, R2, R1",
       "commitEvent": "",
@@ -2060,11 +2193,18 @@
         }
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
       },
       "branchPredictions": [
@@ -2076,7 +2216,7 @@
     {
       "cycle": 21,
       "pc": 7,
-      "predictorType": "two-bit",
+      "predictorType": "always-taken",
       "issuedInstruction": "",
       "cdbBroadcast": "none",
       "commitEvent": "Committed I5",
@@ -2113,11 +2253,18 @@
         }
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
       },
       "branchPredictions": [
@@ -2129,7 +2276,7 @@
     {
       "cycle": 22,
       "pc": 7,
-      "predictorType": "two-bit",
+      "predictorType": "always-taken",
       "issuedInstruction": "",
       "cdbBroadcast": "none",
       "commitEvent": "Committed I6",
@@ -2149,11 +2296,18 @@
       "registerProducers": [
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
       },
       "branchPredictions": [

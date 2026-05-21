@@ -116,17 +116,70 @@
           <div class="arrow vertical arrow-issue-rs" id="arrowIssueRS" aria-label="Issue to Reservation Stations"></div>
 
           <div class="component rs" id="rsBox">
-            <div class="component-title">Reservation Stations</div>
+            <div class="component-title">Reservation Stations / Buffers</div>
             <div class="component-main" id="rsBoxMain">0 active</div>
-            <div class="component-sub">Qj/Qk + Vj/Vk</div>
+            <div class="resource-grid rs-resource-grid">
+              <div class="resource-tile int-resource" id="intRsBox">
+                <span>Integer RS</span>
+                <strong id="intRsBoxMain">0/2 active</strong>
+                <small>ADD / SUB / branches</small>
+              </div>
+              <div class="resource-tile mul-resource" id="mulRsBox">
+                <span>Multiply RS</span>
+                <strong id="mulRsBoxMain">0/2 active</strong>
+                <small>MUL</small>
+              </div>
+              <div class="resource-tile fp-add-resource" id="fpAddRsBox">
+                <span>FP Add RS</span>
+                <strong id="fpAddRsBoxMain">0/2 active</strong>
+                <small>FADD / FSUB</small>
+              </div>
+              <div class="resource-tile fp-mul-resource" id="fpMulRsBox">
+                <span>FP Mul/Div RS</span>
+                <strong id="fpMulRsBoxMain">0/2 active</strong>
+                <small>FMUL / FDIV</small>
+              </div>
+              <div class="resource-tile mem-resource" id="loadBufferBox">
+                <span>Load Buffer</span>
+                <strong id="loadBufferBoxMain">0/2 active</strong>
+                <small>LD</small>
+              </div>
+              <div class="resource-tile mem-resource" id="storeBufferBox">
+                <span>Store Buffer</span>
+                <strong id="storeBufferBoxMain">0/2 active</strong>
+                <small>SD</small>
+              </div>
+            </div>
           </div>
 
           <div class="arrow horizontal arrow-rs-fu" id="arrowRSFU" aria-label="Reservation Stations to Functional Units"></div>
 
           <div class="component fu" id="fuBox">
             <div class="component-title">Functional Units</div>
-            <div class="component-main" id="fuBoxMain">INT / MUL / MEM</div>
+            <div class="component-main" id="fuBoxMain">INT / MUL / FP / MEM</div>
             <div class="component-sub" id="fuBoxSub">execution</div>
+            <div class="resource-grid fu-resource-grid">
+              <div class="resource-tile int-resource" id="intFuBox">
+                <span>Integer FU</span>
+                <strong id="intFuBoxMain">0/2 busy</strong>
+              </div>
+              <div class="resource-tile mul-resource" id="mulFuBox">
+                <span>Multiply FU</span>
+                <strong id="mulFuBoxMain">0/1 busy</strong>
+              </div>
+              <div class="resource-tile fp-add-resource" id="fpAddFuBox">
+                <span>FP Add FU</span>
+                <strong id="fpAddFuBoxMain">0/1 busy</strong>
+              </div>
+              <div class="resource-tile fp-mul-resource" id="fpMulFuBox">
+                <span>FP Mul/Div FU</span>
+                <strong id="fpMulFuBoxMain">0/1 busy</strong>
+              </div>
+              <div class="resource-tile mem-resource" id="memFuBox">
+                <span>Memory FU</span>
+                <strong id="memFuBoxMain">0/2 busy</strong>
+              </div>
+            </div>
           </div>
 
           <div class="arrow vertical arrow-fu-cdb" id="arrowFUCDB" aria-label="Functional Units to CDB"></div>
@@ -143,6 +196,12 @@
             <div class="component-title">Circular ROB</div>
             <div class="component-main" id="robBoxMain">0 entries</div>
             <div class="component-sub" id="robBoxSub">head/tail</div>
+          </div>
+
+          <div class="component register-file" id="registerFileBox">
+            <div class="component-title">Register File</div>
+            <div class="component-main">R0-R31</div>
+            <div class="component-sub">architectural values</div>
           </div>
 
           <div class="arrow vertical arrow-rs-lsq" id="arrowRSLSQ" aria-label="Reservation Stations to LSQ"></div>
@@ -204,6 +263,11 @@
           <strong id="robCountText">-</strong>
         </div>
       </div>
+
+      <div class="panel fu-state-panel">
+        <h2>Functional Units</h2>
+        <div id="fuStatePanel" class="fu-state-grid"></div>
+      </div>
     </section>
 
     <section class="grid cycle-mode-section">
@@ -238,6 +302,12 @@
 
         <h3>MUL Reservation Stations</h3>
         <div id="mulRSTable"></div>
+
+        <h3>FP_ADD Reservation Stations</h3>
+        <div id="fpAddRSTable"></div>
+
+        <h3>FP_MUL Reservation Stations</h3>
+        <div id="fpMulRSTable"></div>
 
         <h3>Load Buffer</h3>
         <div id="loadBufferTable"></div>
