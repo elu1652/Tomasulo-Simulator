@@ -10,3 +10,4 @@ traces/
 .agent/
 .agents/
 .DS_Store
+trace.json  

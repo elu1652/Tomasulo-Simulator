@@ -1,6 +1,6 @@
 #include "FunctionalUnit.h"
 
-// Determine which functional unit is used based on OpCode
+// Map each opcode class onto the structural execution resource it uses.
 FUType getFUType(OpCode opcode) {
     switch (opcode) {
         case OpCode::ADD:
@@ -30,7 +30,7 @@ FUType getFUType(OpCode opcode) {
     }
 }
 
-// Return proper Functional Unit
+// Return the concrete functional unit instance for a resource type.
 FunctionalUnit* getFU(
     FUType type,
     FunctionalUnit& intFU,
@@ -49,7 +49,6 @@ FunctionalUnit* getFU(
     }
 }
 
-// Check if functional unit is available
 bool fuAvailable(FunctionalUnit* fu) {
     return fu != nullptr && fu->busyUnits < fu->totalUnits;
 }

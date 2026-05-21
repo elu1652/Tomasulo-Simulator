@@ -1,6 +1,28 @@
 #include "DebugPrinter.h"
 #include <iomanip>
 
+static void printResourceUsage(
+    const std::string& label,
+    int busy,
+    int total
+) {
+    std::ios::fmtflags flags = std::cout.flags();
+    std::cout << "  " << std::left << std::setw(8) << (label + ":")
+              << busy << "/" << total << " busy\n";
+    std::cout.flags(flags);
+}
+
+static void printReservationUsage(
+    const std::string& label,
+    const std::vector<ActiveInstruction>& activeInstructions,
+    RSType type,
+    int capacity
+) {
+    std::cout << "  " << label << ": "
+              << countRSEntries(activeInstructions, type)
+              << "/" << capacity << "\n";
+}
+
 void printFUState(
     const FunctionalUnit& intFU,
     const FunctionalUnit& mulFU,
@@ -9,11 +31,11 @@ void printFUState(
     const FunctionalUnit& memFU
 ) {
     std::cout << "FU State:\n";
-    std::cout << "  INT:    " << intFU.busyUnits << "/" << intFU.totalUnits << " busy\n";
-    std::cout << "  MUL:    " << mulFU.busyUnits << "/" << mulFU.totalUnits << " busy\n";
-    std::cout << "  FP_ADD: " << fpAddFU.busyUnits << "/" << fpAddFU.totalUnits << " busy\n";
-    std::cout << "  FP_MUL: " << fpMulFU.busyUnits << "/" << fpMulFU.totalUnits << " busy\n";
-    std::cout << "  MEM:    " << memFU.busyUnits << "/" << memFU.totalUnits << " busy\n";
+    printResourceUsage("INT", intFU.busyUnits, intFU.totalUnits);
+    printResourceUsage("MUL", mulFU.busyUnits, mulFU.totalUnits);
+    printResourceUsage("FP_ADD", fpAddFU.busyUnits, fpAddFU.totalUnits);
+    printResourceUsage("FP_MUL", fpMulFU.busyUnits, fpMulFU.totalUnits);
+    printResourceUsage("MEM", memFU.busyUnits, memFU.totalUnits);
 }
 
 void printTag(int tag) {
@@ -103,30 +125,12 @@ void printRSState(
     int storeCapacity
 ) {
     std::cout << "RS State:\n";
-
-    std::cout << "  INT RS: "
-              << countRSEntries(activeInstructions, RSType::INT)
-              << "/" << intCapacity << "\n";
-
-    std::cout << "  MUL RS: "
-              << countRSEntries(activeInstructions, RSType::MUL)
-              << "/" << mulCapacity << "\n";
-
-    std::cout << "  FP_ADD RS: "
-              << countRSEntries(activeInstructions, RSType::FP_ADD)
-              << "/" << fpAddCapacity << "\n";
-
-    std::cout << "  FP_MUL RS: "
-              << countRSEntries(activeInstructions, RSType::FP_MUL)
-              << "/" << fpMulCapacity << "\n";
-
-    std::cout << "  Load Buffer: "
-              << countRSEntries(activeInstructions, RSType::LOAD)
-              << "/" << loadCapacity << "\n";
-
-    std::cout << "  Store Buffer: "
-              << countRSEntries(activeInstructions, RSType::STORE)
-              << "/" << storeCapacity << "\n";
+    printReservationUsage("INT RS", activeInstructions, RSType::INT, intCapacity);
+    printReservationUsage("MUL RS", activeInstructions, RSType::MUL, mulCapacity);
+    printReservationUsage("FP_ADD RS", activeInstructions, RSType::FP_ADD, fpAddCapacity);
+    printReservationUsage("FP_MUL RS", activeInstructions, RSType::FP_MUL, fpMulCapacity);
+    printReservationUsage("Load Buffer", activeInstructions, RSType::LOAD, loadCapacity);
+    printReservationUsage("Store Buffer", activeInstructions, RSType::STORE, storeCapacity);
 }
 
 void printCDBQueue(std::queue<CDBMessage> cdbQueue) {

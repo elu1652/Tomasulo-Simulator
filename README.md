@@ -9,7 +9,8 @@ The goal is to show how instructions move through an out-of-order execution engi
 ## Current Features
 
 - In-order issue with out-of-order execution and in-order ROB commit
-- Reservation stations for integer, multiply, load, and store operations
+- Reservation stations for integer, multiply, FP-style, load, and store operations
+- FP-style operations (`FADD`, `FSUB`, `FMUL`, `FDIV`) routed through separate FP resources
 - Load and store buffers backed by an LSQ
 - Register renaming using physical ROB producer tags
 - `Vj` / `Vk` / `Qj` / `Qk` operand dependency tracking
@@ -25,6 +26,7 @@ The goal is to show how instructions move through an out-of-order execution engi
   - `always-taken`
   - `one-bit`
   - `two-bit`
+  - `gshare`
 - Branch misprediction recovery with PC redirect and younger-instruction flush
 - Cycle-by-cycle debug output
 - Instruction timing table and branch prediction summary
@@ -44,6 +46,10 @@ ADD  R1, R2, R3
 ADDI R1, R1, 5
 SUB  R1, R2, R3
 MUL  R1, R2, R3
+FADD R1, R2, R3
+FSUB R1, R2, R3
+FMUL R1, R2, R3
+FDIV R1, R2, R3
 LD   R1, offset(R2)
 SD   R1, offset(R2)
 BEQ  R1, R2, label
@@ -75,10 +81,10 @@ flowchart TD
 
     Simulator["Simulator Cycle Loop"]
     PC["Program Counter"]
-    BP["Branch Predictor<br/>static / 1-bit / 2-bit"]
+    BP["Branch Predictor<br/>static / 1-bit / 2-bit / gshare"]
 
-    RS["Reservation Stations<br/>INT / MUL / LOAD / STORE"]
-    FU["Functional Units<br/>INT / MUL / MEM"]
+    RS["Reservation Stations<br/>INT / MUL / FP_ADD / FP_MUL / LOAD / STORE"]
+    FU["Functional Units<br/>INT / MUL / FP_ADD / FP_MUL / MEM"]
     CDBQ["CDB Queue"]
     CDB["Common Data Bus"]
 
@@ -123,6 +129,19 @@ flowchart TD
 ```
 
 Instructions issue in program order, wait in reservation stations until operands and functional units are available, execute when ready, write register results through the CDB or non-register results directly into the ROB, and commit in order from the circular ROB head.
+
+### Floating-Point Style Functional Units
+
+The simulator supports `FADD`, `FSUB`, `FMUL`, and `FDIV`. These instructions currently use the same integer register/value model as the rest of the teaching ISA, but they are routed through separate FP reservation stations and functional units to model latency differences, structural hazards, and out-of-order scheduling behavior.
+
+| Instruction | Reservation Station | Functional Unit | Latency |
+|---|---|---|---|
+| `FADD` | FP_ADD RS | FP_ADD FU | 3 |
+| `FSUB` | FP_ADD RS | FP_ADD FU | 3 |
+| `FMUL` | FP_MUL RS | FP_MUL FU | 5 |
+| `FDIV` | FP_MUL RS | FP_MUL FU | 10 |
+
+Normal `MUL` still uses the regular MUL reservation station and MUL functional unit. `FADD`/`FSUB` are separate from `FMUL`/`FDIV`, so FP_ADD and FP_MUL can be busy at the same time. In-order commit still applies: a younger completed instruction can wait in the ROB if an older long-latency FP instruction is ahead of it.
 
 ---
 
@@ -246,6 +265,7 @@ always-not-taken
 always-taken
 one-bit
 two-bit
+gshare
 ```
 
 Accepted aliases:
@@ -257,13 +277,20 @@ taken
 1-bit
 2bit
 2-bit
+g-share
+```
+
+Example FP resource run:
+
+```bash
+./build/simulator tests/fp_independent_units.asm
 ```
 
 ---
 
 ## Browser Visualizer
 
-The browser visualizer can load an existing `trace.json` manually or run the simulator through the local Flask backend.
+The browser visualizer runs assembly through the local Flask backend and renders the returned trace.
 
 Current UI panels include:
 
@@ -271,6 +298,7 @@ Current UI panels include:
 - Optional `.asm` loader and program listing with PC highlight
 - Branch predictor dropdown before running a simulation
 - Architectural datapath view
+- Functional unit state panel for INT, MUL, FP_ADD, FP_MUL, and MEM
 - Events panel
 - ROB table
 - Reservation station and load/store buffer tables
@@ -403,7 +431,13 @@ Expectations are written in assembly comments:
 # EXPECT_COMMIT_COUNT ADD R2, R1, R3 1
 ```
 
-The tests cover arithmetic, RAW dependencies, WAW-style renaming behavior, self-dependencies, CDB contention, out-of-order writeback, ROB capacity stalls, load-use dependencies, store commit behavior, LSQ memory ordering, store/load interactions, branches, nested loops, speculative execution, and wrong-path flush behavior.
+The tests cover arithmetic, FP-style functional units, RAW dependencies, WAW-style renaming behavior, self-dependencies, CDB contention, out-of-order writeback, ROB capacity stalls, load-use dependencies, store commit behavior, LSQ memory ordering, store/load interactions, branches, nested loops, speculative execution, and wrong-path flush behavior.
+
+FP-focused examples:
+
+- `tests/fp_basic.asm`: checks basic `FADD`/`FSUB`/`FMUL`/`FDIV` arithmetic.
+- `tests/fp_independent_units.asm`: shows FP_ADD and FP_MUL can execute independently.
+- `tests/fp_structural_hazard.asm`: shows repeated FP operations waiting on busy FP units.
 
 A small GUI helper can generate test files:
 

@@ -133,6 +133,8 @@ static int getLatency(OpCode opcode) {
         case OpCode::MUL:
             return 3;
 
+        // FP-style instructions currently use integer register values, but
+        // keep separate latencies/resources to model FP structural hazards.
         case OpCode::FADD:
         case OpCode::FSUB:
             return 3;
@@ -155,6 +157,19 @@ static int getLatency(OpCode opcode) {
 // Check if the instruction writes to a register.
 static bool writesRegister(const Instruction& instr) {
     return instr.rd != -1;
+}
+
+static ExecutionResult makeRegisterResult(int destinationRegister, int value) {
+    ExecutionResult result;
+    result.writesRegister = true;
+    result.destinationRegister = destinationRegister;
+    result.value = value;
+
+    result.writesMemory = false;
+    result.memoryAddress = -1;
+    result.memoryValue = 0;
+
+    return result;
 }
 
 static void markFlushedInstructionStatuses(
@@ -344,74 +359,43 @@ ExecutionResult Simulator::computeResult(const ActiveInstruction& active) {
 
     switch (instr.opcode) {
         case OpCode::ADD: {
-            int value = active.vj + active.vk;
-
-            result.writesRegister = true;
-            result.destinationRegister = instr.rd;
-            result.value = value;
+            result = makeRegisterResult(instr.rd, active.vj + active.vk);
             break;
         }
 
         case OpCode::ADDI: {
-            int value = active.vj + instr.immediate;
-
-            result.writesRegister = true;
-            result.destinationRegister = instr.rd;
-            result.value = value;
+            result = makeRegisterResult(instr.rd, active.vj + instr.immediate);
             break;
         }
 
         case OpCode::SUB: {
-            int value = active.vj - active.vk;
-
-            result.writesRegister = true;
-            result.destinationRegister = instr.rd;
-            result.value = value;
+            result = makeRegisterResult(instr.rd, active.vj - active.vk);
             break;
         }
 
         case OpCode::MUL: {
-            int value = active.vj * active.vk;
-
-            result.writesRegister = true;
-            result.destinationRegister = instr.rd;
-            result.value = value;
+            result = makeRegisterResult(instr.rd, active.vj * active.vk);
             break;
         }
 
         case OpCode::FADD: {
-            int value = active.vj + active.vk;
-
-            result.writesRegister = true;
-            result.destinationRegister = instr.rd;
-            result.value = value;
+            result = makeRegisterResult(instr.rd, active.vj + active.vk);
             break;
         }
 
         case OpCode::FSUB: {
-            int value = active.vj - active.vk;
-
-            result.writesRegister = true;
-            result.destinationRegister = instr.rd;
-            result.value = value;
+            result = makeRegisterResult(instr.rd, active.vj - active.vk);
             break;
         }
 
         case OpCode::FMUL: {
-            int value = active.vj * active.vk;
-
-            result.writesRegister = true;
-            result.destinationRegister = instr.rd;
-            result.value = value;
+            result = makeRegisterResult(instr.rd, active.vj * active.vk);
             break;
         }
 
         case OpCode::FDIV: {
             int value = active.vk == 0 ? 0 : active.vj / active.vk;
-
-            result.writesRegister = true;
-            result.destinationRegister = instr.rd;
-            result.value = value;
+            result = makeRegisterResult(instr.rd, value);
             break;
         }
 
@@ -424,9 +408,7 @@ ExecutionResult Simulator::computeResult(const ActiveInstruction& active) {
                 value = mem.load(address);
             }
 
-            result.writesRegister = true;
-            result.destinationRegister = instr.rd;
-            result.value = value;
+            result = makeRegisterResult(instr.rd, value);
             break;
         }
 

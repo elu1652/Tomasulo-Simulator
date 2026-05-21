@@ -1,0 +1,40 @@
+# fp_structural_hazard.asm
+#
+# Test: FP_ADD and FP_MUL structural hazards
+#
+# Two FADDs should contend for FP_ADD FU.
+# Two FMULs should contend for FP_MUL FU.
+#
+# Expected:
+# R1 = 2
+# R2 = 3
+# R3 = 4
+# R4 = 5
+# R10 = 5
+# R11 = 7
+# R12 = 6
+# R13 = 20
+#
+# EXPECT_REG R1 2
+# EXPECT_REG R2 3
+# EXPECT_REG R3 4
+# EXPECT_REG R4 5
+# EXPECT_REG R10 5
+# EXPECT_REG R11 7
+# EXPECT_REG R12 6
+# EXPECT_REG R13 20
+# EXPECT_COMMIT_COUNT FADD R10, R1, R2 1
+# EXPECT_COMMIT_COUNT FADD R11, R2, R3 1
+# EXPECT_COMMIT_COUNT FMUL R12, R1, R2 1
+# EXPECT_COMMIT_COUNT FMUL R13, R3, R4 1
+
+ADDI R1, R0, 2
+ADDI R2, R0, 3
+ADDI R3, R0, 4
+ADDI R4, R0, 5
+
+FADD R10, R1, R2
+FADD R11, R2, R3
+
+FMUL R12, R1, R2
+FMUL R13, R3, R4

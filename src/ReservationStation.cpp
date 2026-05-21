@@ -1,9 +1,6 @@
 #include "ReservationStation.h"
 
-/*************************************** 
-* Reservation Station                  * 
-***************************************/
-int countRSEntries(const std::vector<ActiveInstruction>& activeInstructions, RSType type){
+int countRSEntries(const std::vector<ActiveInstruction>& activeInstructions, RSType type) {
     int count = 0;
 
     for (const auto& active : activeInstructions) {
