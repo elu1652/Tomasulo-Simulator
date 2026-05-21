@@ -12,10 +12,11 @@ void flushActiveInstructions(
     int branchIndex,
     FunctionalUnit& intFU,
     FunctionalUnit& mulFU,
+    FunctionalUnit& fpAddFU,
+    FunctionalUnit& fpMulFU,
     FunctionalUnit& memFU,
     std::vector<InstructionStatus>& statusTable
 );
-
 void flushRegProducers(
     std::vector<int>& regProducer,
     const ReorderBuffer& rob,

@@ -36,6 +36,10 @@ static OpCode parseOpCode(const std::string& token) {
     if (token == "SD")  return OpCode::SD;
     if (token == "BEQ") return OpCode::BEQ;
     if (token == "BNE") return OpCode::BNE;
+    if (token == "FADD") return OpCode::FADD;
+    if (token == "FSUB") return OpCode::FSUB;
+    if (token == "FMUL") return OpCode::FMUL;
+    if (token == "FDIV") return OpCode::FDIV;
 
     return OpCode::INVALID;
 }
@@ -114,7 +118,11 @@ std::vector<Instruction> Parser::parseFile(const std::string& filename) {
 
         if (instr.opcode == OpCode::ADD ||
             instr.opcode == OpCode::SUB ||
-            instr.opcode == OpCode::MUL) {
+            instr.opcode == OpCode::MUL ||
+            instr.opcode == OpCode::FADD ||
+            instr.opcode == OpCode::FSUB ||
+            instr.opcode == OpCode::FMUL ||
+            instr.opcode == OpCode::FDIV) {
 
             std::string rdToken, rs1Token, rs2Token;
             ss >> rdToken >> rs1Token >> rs2Token;

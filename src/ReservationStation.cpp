@@ -15,13 +15,27 @@ int countRSEntries(const std::vector<ActiveInstruction>& activeInstructions, RST
     return count;
 }
 
-int getRSCapacity(RSType type, int intCapacity, int mulCapacity, int loadCapacity, int storeCapacity){
+int getRSCapacity(
+    RSType type,
+    int intCapacity,
+    int mulCapacity,
+    int fpAddCapacity,
+    int fpMulCapacity,
+    int loadCapacity,
+    int storeCapacity
+) {
     switch (type) {
         case RSType::INT:
             return intCapacity;
 
         case RSType::MUL:
             return mulCapacity;
+
+        case RSType::FP_ADD:
+            return fpAddCapacity;
+
+        case RSType::FP_MUL:
+            return fpMulCapacity;
 
         case RSType::LOAD:
             return loadCapacity;
@@ -46,6 +60,14 @@ RSType getRSType(OpCode opcode) {
         case OpCode::MUL:
             return RSType::MUL;
 
+        case OpCode::FADD:
+        case OpCode::FSUB:
+            return RSType::FP_ADD;
+
+        case OpCode::FMUL:
+        case OpCode::FDIV:
+            return RSType::FP_MUL;
+
         case OpCode::LD:
             return RSType::LOAD;
 
@@ -61,6 +83,8 @@ std::string rsTypeToString(RSType type) {
     switch (type) {
         case RSType::INT: return "INT";
         case RSType::MUL: return "MUL";
+        case RSType::FP_ADD: return "FP_ADD";
+        case RSType::FP_MUL: return "FP_MUL";
         case RSType::LOAD: return "LOAD";
         case RSType::STORE: return "STORE";
         default: return "NONE";

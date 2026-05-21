@@ -6,6 +6,8 @@
 enum class FUType {
     INT,
     MUL,
+    FP_ADD,
+    FP_MUL,
     MEM,
     NONE
 };
@@ -22,6 +24,8 @@ FunctionalUnit* getFU(
     FUType type,
     FunctionalUnit& intFU,
     FunctionalUnit& mulFU,
+    FunctionalUnit& fpAddFU,
+    FunctionalUnit& fpMulFU,
     FunctionalUnit& memFU
 );
 

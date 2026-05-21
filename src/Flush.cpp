@@ -7,6 +7,8 @@ void flushActiveInstructions(
     int branchIndex,
     FunctionalUnit& intFU,
     FunctionalUnit& mulFU,
+    FunctionalUnit& fpAddFU,
+    FunctionalUnit& fpMulFU,
     FunctionalUnit& memFU,
     std::vector<InstructionStatus>& statusTable
 ) {
@@ -17,7 +19,7 @@ void flushActiveInstructions(
 
             if (activeInstructions[i].executing) {
                 FUType type = getFUType(activeInstructions[i].instr.opcode);
-                FunctionalUnit* fu = getFU(type, intFU, mulFU, memFU);
+                FunctionalUnit* fu = getFU(type, intFU, mulFU, fpAddFU, fpMulFU, memFU);
 
                 if (fu != nullptr && fu->busyUnits > 0) {
                     fu->busyUnits--;

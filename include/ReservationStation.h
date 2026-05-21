@@ -8,6 +8,8 @@
 enum class RSType {
     INT,
     MUL,
+    FP_ADD,
+    FP_MUL,
     LOAD,
     STORE,
     NONE
@@ -26,6 +28,8 @@ int getRSCapacity(
     RSType type,
     int intCapacity,
     int mulCapacity,
+    int fpAddCapacity,
+    int fpMulCapacity,
     int loadCapacity,
     int storeCapacity
 );

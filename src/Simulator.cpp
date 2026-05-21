@@ -133,6 +133,16 @@ static int getLatency(OpCode opcode) {
         case OpCode::MUL:
             return 3;
 
+        case OpCode::FADD:
+        case OpCode::FSUB:
+            return 3;
+
+        case OpCode::FMUL:
+            return 5;
+
+        case OpCode::FDIV:
+            return 10;
+
         case OpCode::LD:
         case OpCode::SD:
             return 2;
@@ -369,6 +379,42 @@ ExecutionResult Simulator::computeResult(const ActiveInstruction& active) {
             break;
         }
 
+        case OpCode::FADD: {
+            int value = active.vj + active.vk;
+
+            result.writesRegister = true;
+            result.destinationRegister = instr.rd;
+            result.value = value;
+            break;
+        }
+
+        case OpCode::FSUB: {
+            int value = active.vj - active.vk;
+
+            result.writesRegister = true;
+            result.destinationRegister = instr.rd;
+            result.value = value;
+            break;
+        }
+
+        case OpCode::FMUL: {
+            int value = active.vj * active.vk;
+
+            result.writesRegister = true;
+            result.destinationRegister = instr.rd;
+            result.value = value;
+            break;
+        }
+
+        case OpCode::FDIV: {
+            int value = active.vk == 0 ? 0 : active.vj / active.vk;
+
+            result.writesRegister = true;
+            result.destinationRegister = instr.rd;
+            result.value = value;
+            break;
+        }
+
         case OpCode::LD: {
             int address = active.vj + instr.immediate;
             int value;
@@ -421,6 +467,8 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
     // Fixed simulator resource configuration.
     const int INT_RS_CAPACITY = 2;
     const int MUL_RS_CAPACITY = 2;
+    const int FP_ADD_RS_CAPACITY = 2;
+    const int FP_MUL_RS_CAPACITY = 2;
     const int LOAD_BUFFER_CAPACITY = 2;
     const int STORE_BUFFER_CAPACITY = 2;
     const int ROB_CAPACITY = 4;
@@ -453,7 +501,9 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
     // Functional unit initialization.
     FunctionalUnit intFU {FUType::INT, 2, 0};
-    FunctionalUnit mulFU {FUType::MUL, 2, 0};
+    FunctionalUnit mulFU {FUType::MUL, 1, 0};
+    FunctionalUnit fpAddFU {FUType::FP_ADD, 1, 0};
+    FunctionalUnit fpMulFU {FUType::FP_MUL, 1, 0};
     FunctionalUnit memFU {FUType::MEM, 2, 0};
 
     // Branch predictor used for speculative issue.
@@ -486,7 +536,15 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
             int currentEntries = countRSEntries(activeInstructions, rsType);
 
-            int capacity = getRSCapacity(rsType, INT_RS_CAPACITY, MUL_RS_CAPACITY, LOAD_BUFFER_CAPACITY, STORE_BUFFER_CAPACITY);
+            int capacity = getRSCapacity(
+                rsType,
+                INT_RS_CAPACITY,
+                MUL_RS_CAPACITY,
+                FP_ADD_RS_CAPACITY,
+                FP_MUL_RS_CAPACITY,
+                LOAD_BUFFER_CAPACITY,
+                STORE_BUFFER_CAPACITY
+            );
 
             if (circularROB.full()) {
                 std::string event =
@@ -769,7 +827,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 }
 
                 FUType type = getFUType(active.instr.opcode);
-                FunctionalUnit* fu = getFU(type, intFU, mulFU, memFU);
+                FunctionalUnit* fu = getFU(type, intFU, mulFU, fpAddFU, fpMulFU, memFU);
 
                 // Check for structural hazard/no FU available
                 if(!fuAvailable(fu)){
@@ -794,8 +852,8 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
         }
 
         // DEBUG STATE PRINTING
-        printFUState(intFU, mulFU, memFU);
-        printRSState(activeInstructions, INT_RS_CAPACITY, MUL_RS_CAPACITY, LOAD_BUFFER_CAPACITY, STORE_BUFFER_CAPACITY);
+        printFUState(intFU, mulFU, fpAddFU, fpMulFU, memFU);
+        printRSState(activeInstructions, INT_RS_CAPACITY, MUL_RS_CAPACITY, FP_ADD_RS_CAPACITY, FP_MUL_RS_CAPACITY, LOAD_BUFFER_CAPACITY, STORE_BUFFER_CAPACITY);
         printRegisterProducer(regProducer);
         printActiveInstructions(activeInstructions);
         printCDBQueue(cdbQueue);
@@ -853,7 +911,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 ExecutionResult result = computeResult(activeInstructions[i]);
 
                 FUType type = getFUType(activeInstructions[i].instr.opcode);
-                FunctionalUnit* fu = getFU(type, intFU, mulFU, memFU);
+                FunctionalUnit* fu = getFU(type, intFU, mulFU, fpAddFU, fpMulFU, memFU);
 
                 // Free FU
                 if (fu != nullptr) {
@@ -1062,7 +1120,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                                 << "\n";
 
                         markFlushedInstructionStatuses(statusTable, index, cycle);
-                        flushActiveInstructions(activeInstructions, index, intFU, mulFU, memFU, statusTable);
+                        flushActiveInstructions(activeInstructions, index, intFU, mulFU, fpAddFU, fpMulFU, memFU, statusTable);
                         flushCDBQueue(cdbQueue, index);
                         flushROB(circularROB, index);
                         flushRegProducers(regProducer, circularROB, index);

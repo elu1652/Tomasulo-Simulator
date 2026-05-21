@@ -7,6 +7,12 @@ enum class OpCode {
     ADDI,
     SUB,
     MUL,
+
+    FADD,
+    FSUB,
+    FMUL,
+    FDIV,
+    
     LD,
     SD,
     BEQ,

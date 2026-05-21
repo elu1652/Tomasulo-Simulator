@@ -4,21 +4,16 @@
 void printFUState(
     const FunctionalUnit& intFU,
     const FunctionalUnit& mulFU,
+    const FunctionalUnit& fpAddFU,
+    const FunctionalUnit& fpMulFU,
     const FunctionalUnit& memFU
 ) {
     std::cout << "FU State:\n";
-
-    std::cout << "  INT: "
-              << intFU.busyUnits << "/" << intFU.totalUnits
-              << " busy\n";
-
-    std::cout << "  MUL: "
-              << mulFU.busyUnits << "/" << mulFU.totalUnits
-              << " busy\n";
-
-    std::cout << "  MEM: "
-              << memFU.busyUnits << "/" << memFU.totalUnits
-              << " busy\n";
+    std::cout << "  INT:    " << intFU.busyUnits << "/" << intFU.totalUnits << " busy\n";
+    std::cout << "  MUL:    " << mulFU.busyUnits << "/" << mulFU.totalUnits << " busy\n";
+    std::cout << "  FP_ADD: " << fpAddFU.busyUnits << "/" << fpAddFU.totalUnits << " busy\n";
+    std::cout << "  FP_MUL: " << fpMulFU.busyUnits << "/" << fpMulFU.totalUnits << " busy\n";
+    std::cout << "  MEM:    " << memFU.busyUnits << "/" << memFU.totalUnits << " busy\n";
 }
 
 void printTag(int tag) {
@@ -102,19 +97,36 @@ void printRSState(
     const std::vector<ActiveInstruction>& activeInstructions,
     int intCapacity,
     int mulCapacity,
+    int fpAddCapacity,
+    int fpMulCapacity,
     int loadCapacity,
     int storeCapacity
 ) {
-    int intCount = countRSEntries(activeInstructions, RSType::INT);
-    int mulCount = countRSEntries(activeInstructions, RSType::MUL);
-    int loadCount = countRSEntries(activeInstructions, RSType::LOAD);
-    int storeCount = countRSEntries(activeInstructions, RSType::STORE);
-
     std::cout << "RS State:\n";
-    std::cout << "  INT RS: " << intCount << "/" << intCapacity << "\n";
-    std::cout << "  MUL RS: " << mulCount << "/" << mulCapacity << "\n";
-    std::cout << "  Load Buffer: " << loadCount << "/" << loadCapacity << "\n";
-    std::cout << "  Store Buffer: " << storeCount << "/" << storeCapacity << "\n";
+
+    std::cout << "  INT RS: "
+              << countRSEntries(activeInstructions, RSType::INT)
+              << "/" << intCapacity << "\n";
+
+    std::cout << "  MUL RS: "
+              << countRSEntries(activeInstructions, RSType::MUL)
+              << "/" << mulCapacity << "\n";
+
+    std::cout << "  FP_ADD RS: "
+              << countRSEntries(activeInstructions, RSType::FP_ADD)
+              << "/" << fpAddCapacity << "\n";
+
+    std::cout << "  FP_MUL RS: "
+              << countRSEntries(activeInstructions, RSType::FP_MUL)
+              << "/" << fpMulCapacity << "\n";
+
+    std::cout << "  Load Buffer: "
+              << countRSEntries(activeInstructions, RSType::LOAD)
+              << "/" << loadCapacity << "\n";
+
+    std::cout << "  Store Buffer: "
+              << countRSEntries(activeInstructions, RSType::STORE)
+              << "/" << storeCapacity << "\n";
 }
 
 void printCDBQueue(std::queue<CDBMessage> cdbQueue) {

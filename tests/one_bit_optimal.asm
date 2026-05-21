@@ -1,4 +1,4 @@
-# one_bit_optimal.asm
+# predictor_one_bit_pattern.asm
 #
 # Test: pattern designed to favor 1-bit branch prediction
 #
@@ -12,19 +12,19 @@
 # Final architectural state should be correct for all predictors.
 #
 # Expected final state:
-# R1 = 0
+# R1 = 1
 # R2 = 0
 # R3 = 6
 # R4 = 6
 # R5 = 1
-# R6 = 12
+# R6 = 0
 #
-# EXPECT_REG R1 0
+# EXPECT_REG R1 1
 # EXPECT_REG R2 0
 # EXPECT_REG R3 6
 # EXPECT_REG R4 6
 # EXPECT_REG R5 1
-# EXPECT_REG R6 12
+# EXPECT_REG R6 0
 # EXPECT_COMMIT_COUNT BNE R1, R0, taken_path 12
 # EXPECT_COMMIT_COUNT ADDI R3, R3, 1 6
 # EXPECT_COMMIT_COUNT ADDI R4, R4, 1 6

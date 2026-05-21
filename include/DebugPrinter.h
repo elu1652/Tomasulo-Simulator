@@ -12,6 +12,8 @@
 void printFUState(
     const FunctionalUnit& intFU,
     const FunctionalUnit& mulFU,
+    const FunctionalUnit& fpAddFU,
+    const FunctionalUnit& fpMulFU,
     const FunctionalUnit& memFU
 );
 
@@ -27,6 +29,8 @@ void printRSState(
     const std::vector<ActiveInstruction>& activeInstructions,
     int intCapacity,
     int mulCapacity,
+    int fpAddCapacity,
+    int fpMulCapacity,
     int loadCapacity,
     int storeCapacity
 );
