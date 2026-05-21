@@ -516,6 +516,14 @@ function render() {
   const cycle = trace.cycles[currentIndex];
   const events = cycle.events || [];
   const rob = cycle.rob || { head: "-", tail: "-", count: 0, entries: [] };
+  const robEntries = rob.entries || [];
+  const displayROBEntries = getDisplayROBEntries(cycle, robEntries);
+  const displayRegisterProducers = getDisplayRegisterProducers(
+    cycle,
+    cycle.registerProducers || [],
+    robEntries
+  );
+  const finalCleanupApplied = displayROBEntries.length !== robEntries.length;
 
   if (cycleSlider) {
     cycleSlider.value = currentIndex;
@@ -528,15 +536,15 @@ function render() {
   setText(cdbText, cycle.cdbBroadcast || "none");
   setText(commitText, cycle.commitEvent || "none");
 
-  setText(robHeadText, `ROB${rob.head}`);
-  setText(robTailText, `ROB${rob.tail}`);
-  setText(robCountText, rob.count);
+  setText(robHeadText, finalCleanupApplied ? "-" : `ROB${rob.head}`);
+  setText(robTailText, finalCleanupApplied ? "-" : `ROB${rob.tail}`);
+  setText(robCountText, displayROBEntries.length);
 
   renderProgram(cycle);
   renderDatapath(cycle, events);
   renderEvents(events);
-  renderROB(rob.entries || []);
-  renderRegisterProducers(cycle.registerProducers || []);
+  renderROB(displayROBEntries);
+  renderRegisterProducers(displayRegisterProducers);
   renderBranchPredictions(cycle);
   renderReservationStations(cycle);
   renderFUState(cycle);
@@ -915,6 +923,72 @@ function renderROB(entries) {
   robTable.innerHTML = html;
 }
 
+function getDisplayROBEntries(cycle, entries) {
+  const finalCommittedEntry = getFinalCommittedROBEntry(cycle, entries);
+
+  if (!finalCommittedEntry) {
+    return entries;
+  }
+
+  return entries.filter((entry) => {
+    return entry.instructionId !== finalCommittedEntry.instructionId;
+  });
+}
+
+function getDisplayRegisterProducers(cycle, producers, robEntries) {
+  const finalCommittedEntry = getFinalCommittedROBEntry(cycle, robEntries);
+
+  if (!finalCommittedEntry || !finalCommittedEntry.writesRegister) {
+    return producers;
+  }
+
+  return producers.filter((producer) => {
+    return producer.robTag !== finalCommittedEntry.robTag;
+  });
+}
+
+function getFinalCommittedROBEntry(cycle, entries) {
+  if (!isFinalSnapshot(currentIndex, trace)) {
+    return null;
+  }
+
+  const committedInstructionId = getCommittedInstructionId(cycle);
+
+  if (committedInstructionId === null) {
+    return null;
+  }
+
+  return entries.find((entry) => {
+    return entry.instructionId === committedInstructionId && entry.ready;
+  }) || null;
+}
+
+function isFinalSnapshot(index, currentTrace) {
+  return Boolean(currentTrace?.cycles) && index === currentTrace.cycles.length - 1;
+}
+
+function getCommittedInstructionId(snapshot) {
+  const candidates = [];
+
+  if (snapshot?.commitEvent) {
+    candidates.push(snapshot.commitEvent);
+  }
+
+  if (Array.isArray(snapshot?.events)) {
+    candidates.push(...snapshot.events);
+  }
+
+  for (const text of candidates) {
+    const match = String(text).match(/\bCommitted I(\d+)\b/);
+
+    if (match) {
+      return Number(match[1]);
+    }
+  }
+
+  return null;
+}
+
 function getROBCapacity() {
   if (!trace || !trace.cycles) {
     return 4;
@@ -947,6 +1021,11 @@ function getROBMarkers(slot) {
   }
 
   const cycle = trace.cycles[currentIndex];
+
+  if (getFinalCommittedROBEntry(cycle, cycle.rob?.entries || [])) {
+    return "";
+  }
+
   const markers = [];
 
   if (cycle.rob && cycle.rob.head === slot) {
@@ -980,6 +1059,11 @@ function getROBMarkerClass(slot) {
   }
 
   const cycle = trace.cycles[currentIndex];
+
+  if (getFinalCommittedROBEntry(cycle, cycle.rob?.entries || [])) {
+    return "";
+  }
+
   let className = "";
 
   if (cycle.rob && cycle.rob.head === slot) {

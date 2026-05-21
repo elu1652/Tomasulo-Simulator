@@ -8,6 +8,9 @@
 #include "BranchPredictor.h"
 #include "LSQ.h"
 #include "Trace.h"
+#include "TraceBuilder.h"
+#include "BranchTraceUtils.h"
+#include "InstructionSemantics.h"
 
 #include <filesystem>
 #include <iostream>
@@ -15,148 +18,6 @@
 
 Simulator::Simulator(BranchPredictorType predictorType): predictorType(predictorType) {
 
-}
-
-std::string formatBinary(int value, int bits) {
-    std::string result;
-
-    for (int i = bits - 1; i >= 0; --i) {
-        result += ((value >> i) & 1) ? '1' : '0';
-    }
-
-    return result;
-}
-
-static std::string predictorStateBits(BranchPredictorType type, int state) {
-    if (branchPredictorIsStatic(type)) {
-        return "static";
-    }
-
-    if (state < 0) {
-        return "";
-    }
-
-    if (type == BranchPredictorType::OneBit) {
-        return formatBinary(state, 1);
-    }
-
-    return formatBinary(state, 2);
-}
-
-static std::string predictorStatePrediction(
-    BranchPredictorType type,
-    int state
-) {
-    if (type == BranchPredictorType::AlwaysNotTaken) {
-        return "NT";
-    }
-
-    if (type == BranchPredictorType::AlwaysTaken) {
-        return "T";
-    }
-
-    if (state < 0) {
-        return "-";
-    }
-
-    if (type == BranchPredictorType::OneBit) {
-        return state == 1 ? "T" : "NT";
-    }
-
-    return state >= 2 ? "T" : "NT";
-}
-
-static TracePredictorState makeTracePredictorState(
-    const BranchPredictor& branchPredictor,
-    BranchPredictorType predictorType
-) {
-    TracePredictorState state;
-
-    state.predictorType = branchPredictorTypeToString(predictorType);
-
-    if (predictorType == BranchPredictorType::GShare) {
-        state.globalHistory = branchPredictor.getGlobalHistory();
-        state.globalHistoryBits = branchPredictor.getHistoryBits();
-        state.globalHistoryText = formatBinary(
-            state.globalHistory,
-            state.globalHistoryBits
-        );
-    }
-
-    if (branchPredictorIsStatic(predictorType)) {
-        TracePredictorStateEntry entry;
-
-        entry.index = -1;
-        entry.state = -1;
-        entry.stateBits = "static";
-        entry.stateText = predictorType == BranchPredictorType::AlwaysTaken
-            ? "Always Taken"
-            : "Always Not Taken";
-        entry.prediction = predictorStatePrediction(predictorType, -1);
-
-        state.entries.push_back(entry);
-        return state;
-    }
-
-    for (const BranchPredictorTableEntry& tableEntry :
-         branchPredictor.getTableEntries()) {
-        TracePredictorStateEntry entry;
-
-        entry.index = tableEntry.index;
-        entry.state = tableEntry.state;
-        entry.stateBits = predictorStateBits(predictorType, tableEntry.state);
-        entry.stateText = branchPredictorStateText(
-            predictorType,
-            tableEntry.state
-        );
-        entry.prediction = predictorStatePrediction(
-            predictorType,
-            tableEntry.state
-        );
-
-        state.entries.push_back(entry);
-    }
-
-    return state;
-}
-
-// Clock cycles required to perform operation.
-static int getLatency(OpCode opcode) {
-    switch (opcode) {
-        case OpCode::ADD:
-        case OpCode::ADDI:
-        case OpCode::SUB:
-        case OpCode::BEQ:
-        case OpCode::BNE:
-            return 1;
-
-        case OpCode::MUL:
-            return 3;
-
-        // FP-style instructions currently use integer register values, but
-        // keep separate latencies/resources to model FP structural hazards.
-        case OpCode::FADD:
-        case OpCode::FSUB:
-            return 3;
-
-        case OpCode::FMUL:
-            return 5;
-
-        case OpCode::FDIV:
-            return 10;
-
-        case OpCode::LD:
-        case OpCode::SD:
-            return 2;
-
-        default:
-            return 1;
-    }
-}
-
-// Check if the instruction writes to a register.
-static bool writesRegister(const Instruction& instr) {
-    return instr.rd != -1;
 }
 
 static ExecutionResult makeRegisterResult(int destinationRegister, int value) {
@@ -185,237 +46,6 @@ static void markFlushedInstructionStatuses(
         statusTable[i].flushed = true;
         statusTable[i].flushCycle = cycle;
     }
-}
-
-static std::vector<std::vector<TracePipelineStage>> makeTracePipeline(
-    const FunctionalUnit& fu
-) {
-    std::vector<std::vector<TracePipelineStage>> tracePipeline;
-
-    if (!fu.pipelined) {
-        return tracePipeline;
-    }
-
-    for (const auto& pipeline : fu.pipelines) {
-        std::vector<TracePipelineStage> traceStages;
-
-        for (const auto& stage : pipeline) {
-            TracePipelineStage traceStage;
-            traceStage.occupied = stage.occupied;
-            traceStage.instructionId = stage.instructionId;
-
-            traceStages.push_back(traceStage);
-        }
-
-        tracePipeline.push_back(traceStages);
-    }
-
-    return tracePipeline;
-}
-
-static TraceReservationStationUsage makeTraceRSUsage(
-    const std::vector<ActiveInstruction>& activeInstructions,
-    RSType type,
-    int capacity
-) {
-    TraceReservationStationUsage usage;
-    usage.used = countRSEntries(activeInstructions, type);
-    usage.capacity = capacity;
-
-    return usage;
-}
-
-static TraceSnapshot makeTraceSnapshot(
-    int cycle,
-    int pc,
-    BranchPredictorType predictorType,
-    const BranchPredictor& branchPredictor,
-    const std::vector<ActiveInstruction>& activeInstructions,
-    const ReorderBuffer& rob,
-    const LoadStoreQueue& lsq,
-    const std::vector<int>& regProducer,
-    const std::vector<InstructionStatus>& statusTable,
-    const RegisterFile& rf,
-    const Memory& mem,
-    const FunctionalUnit& fpAddFU,
-    const FunctionalUnit& fpMulFU,
-    int intRSCapacity,
-    int mulRSCapacity,
-    int fpAddRSCapacity,
-    int fpMulRSCapacity,
-    int loadBufferCapacity,
-    int storeBufferCapacity,
-    const std::string& issuedInstruction,
-    const std::string& cdbBroadcast,
-    const std::string& commitEvent,
-    const std::vector<std::string>& events
-) {
-    TraceSnapshot snapshot;
-
-    snapshot.cycle = cycle;
-    snapshot.pc = pc;
-    snapshot.predictorType = branchPredictorTypeToString(predictorType);
-    snapshot.predictorState = makeTracePredictorState(
-        branchPredictor,
-        predictorType
-    );
-    snapshot.issuedInstruction = issuedInstruction;
-    snapshot.cdbBroadcast = cdbBroadcast;
-    snapshot.commitEvent = commitEvent;
-    snapshot.events = events;
-    snapshot.registers = rf.snapshot(32);
-    snapshot.memory = mem.snapshot(32);
-    snapshot.fuPipelines.fpAdd = makeTracePipeline(fpAddFU);
-    snapshot.fuPipelines.fpMul = makeTracePipeline(fpMulFU);
-    snapshot.rsState.intRS = makeTraceRSUsage(
-        activeInstructions,
-        RSType::INT,
-        intRSCapacity
-    );
-    snapshot.rsState.mulRS = makeTraceRSUsage(
-        activeInstructions,
-        RSType::MUL,
-        mulRSCapacity
-    );
-    snapshot.rsState.fpAddRS = makeTraceRSUsage(
-        activeInstructions,
-        RSType::FP_ADD,
-        fpAddRSCapacity
-    );
-    snapshot.rsState.fpMulRS = makeTraceRSUsage(
-        activeInstructions,
-        RSType::FP_MUL,
-        fpMulRSCapacity
-    );
-    snapshot.rsState.loadBuffer = makeTraceRSUsage(
-        activeInstructions,
-        RSType::LOAD,
-        loadBufferCapacity
-    );
-    snapshot.rsState.storeBuffer = makeTraceRSUsage(
-        activeInstructions,
-        RSType::STORE,
-        storeBufferCapacity
-    );
-
-    snapshot.robHead = rob.head;
-    snapshot.robTail = rob.tail;
-    snapshot.robCount = rob.count;
-
-    for (int reg = 0; reg < static_cast<int>(regProducer.size()); reg++) {
-        if (regProducer[reg] == -1) {
-            continue;
-        }
-
-        TraceRegisterProducer producer;
-
-        producer.registerNumber = reg;
-        producer.robTag = regProducer[reg];
-
-        snapshot.registerProducers.push_back(producer);
-    }
-
-    for (int i = 0; i < static_cast<int>(statusTable.size()); i++) {
-        const InstructionStatus& status = statusTable[i];
-
-        if (!status.isBranch) {
-            continue;
-        }
-
-        TraceBranchPredictionEntry branch;
-
-        branch.instructionId = i;
-        branch.pc = status.staticPc;
-        branch.instruction = status.rawText;
-        branch.predictorType = branchPredictorTypeToString(predictorType);
-        branch.predictedTaken = status.predictedTaken;
-        branch.actualTaken = status.actualTaken;
-        branch.branchResolved = status.branchResolved;
-        branch.resolvedThisCycle = status.branchResolved &&
-                                   status.writebackCycle == cycle;
-        branch.predictionCorrect = status.branchResolved &&
-                                   status.predictedTaken == status.actualTaken;
-        branch.targetPc = status.targetPc;
-        branch.fallthroughPc = status.fallthroughPc;
-        branch.stateBefore = status.predictorStateBefore;
-        branch.stateAfter = status.predictorStateAfter;
-        branch.stateBeforeText = branchPredictorStateText(
-            predictorType,
-            status.predictorStateBefore
-        );
-        branch.stateAfterText = status.branchResolved
-            ? branchPredictorStateText(predictorType, status.predictorStateAfter)
-            : "pending";
-        branch.globalHistoryBefore = status.gshareGlobalHistoryBefore;
-        branch.globalHistoryAfter = status.gshareGlobalHistoryAfter;
-        branch.gshareIndex = status.gshareIndex;
-        branch.counterBefore = status.gshareCounterBefore;
-        branch.counterAfter = status.gshareCounterAfter;
-
-        snapshot.branchPredictions.push_back(branch);
-    }
-
-    for (const ActiveInstruction& active : activeInstructions) {
-        TraceActiveInstruction traceActive;
-
-        traceActive.instructionId = active.instructionIndex;
-        traceActive.robTag = active.robTag;
-        traceActive.rawText = active.instr.rawText;
-        traceActive.executing = active.executing;
-        traceActive.remainingCycles = active.remainingCycles;
-        traceActive.waitingReason = active.waitingReason;
-        traceActive.vj = active.vj;
-        traceActive.vk = active.vk;
-        traceActive.qj = active.qj;
-        traceActive.qk = active.qk;
-
-        snapshot.activeInstructions.push_back(traceActive);
-    }
-
-    for (const ROBEntry& entry : rob.entries) {
-        if (!entry.busy) {
-            continue;
-        }
-
-        TraceROBEntry traceEntry;
-
-        traceEntry.robTag = entry.robTag;
-        traceEntry.instructionId = entry.instructionId;
-        traceEntry.rawText = entry.rawText;
-        traceEntry.busy = entry.busy;
-        traceEntry.ready = entry.ready;
-        traceEntry.writesRegister = entry.writesRegister;
-        traceEntry.destinationRegister = entry.destinationRegister;
-        traceEntry.value = entry.value;
-        traceEntry.writesMemory = entry.writesMemory;
-        traceEntry.memoryAddress = entry.memoryAddress;
-        traceEntry.memoryValue = entry.memoryValue;
-
-        snapshot.robEntries.push_back(traceEntry);
-    }
-
-    for (const LSQEntry& entry : lsq.entries) {
-        if (!entry.busy) {
-            continue;
-        }
-
-        TraceLSQEntry traceEntry;
-
-        traceEntry.instructionId = entry.instructionId;
-        traceEntry.robTag = entry.robTag;
-        traceEntry.rawText = entry.rawText;
-        traceEntry.busy = entry.busy;
-        traceEntry.isLoad = entry.isLoad;
-        traceEntry.isStore = entry.isStore;
-        traceEntry.addressReady = entry.addressReady;
-        traceEntry.address = entry.address;
-        traceEntry.valueReady = entry.valueReady;
-        traceEntry.value = entry.value;
-
-        snapshot.lsqEntries.push_back(traceEntry);
-    }
-
-    return snapshot;
 }
 
 // Compute the result of an instruction after it finishes execution.
@@ -541,8 +171,8 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
     statusTable.clear();
 
-    // Active reservation station entries.
-    // Each entry tracks operand values/tags, execution state, and remaining latency.
+    // In-flight issued instructions. Waiting entries occupy RS slots;
+    // executing entries live in FU/pipeline state until completion.
     std::vector<ActiveInstruction> activeInstructions; 
 
     // Register renaming table.
@@ -588,7 +218,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
     // Main simulation loop.
     // The simulator continues until there are no more instructions to fetch,
-    // no active reservation station entries, no pending CDB broadcasts,
+    // no in-flight issued instructions, no pending CDB broadcasts,
     // and no uncommitted ROB entries.
     while (pc < instructions.size() || !activeInstructions.empty() || !cdbQueue.empty() || !circularROB.empty()) {
 
@@ -759,7 +389,9 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                     }
                 }
 
-                activeInstructions.push_back(newInstr); // Add new instruction to reservation station
+                // Add the instruction to the in-flight list. It occupies an RS slot
+                // until execution starts, then remains here while the FU/pipeline runs.
+                activeInstructions.push_back(newInstr);
 
                 // Record instruction status
                 InstructionStatus status;
@@ -945,6 +577,36 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
         printActiveInstructions(activeInstructions);
         printCDBQueue(cdbQueue);
         printROB(circularROB);
+
+        // Capture the primary visual state at the same point as the debug
+        // state printout. Later end-of-cycle mutations update events and
+        // metadata, but should not make the displayed cycle state contradict
+        // issue-time stalls or pipeline occupancy.
+        TraceSnapshot visualSnapshot = makeTraceSnapshot(
+            cycle,
+            pc,
+            predictorType,
+            branchPredictor,
+            activeInstructions,
+            circularROB,
+            lsq,
+            regProducer,
+            statusTable,
+            rf,
+            mem,
+            fpAddFU,
+            fpMulFU,
+            INT_RS_CAPACITY,
+            MUL_RS_CAPACITY,
+            FP_ADD_RS_CAPACITY,
+            FP_MUL_RS_CAPACITY,
+            LOAD_BUFFER_CAPACITY,
+            STORE_BUFFER_CAPACITY,
+            issuedInstructionThisCycle,
+            cdbBroadcastThisCycle,
+            commitEventThisCycle,
+            traceEvents
+        );
 
         // ROB COMMIT STAGE
         // Commit happens before this cycle's CDB broadcast.
@@ -1250,34 +912,39 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 i++;
             }
         }
-        // TRACE SNAPSHOT GENERATION
-        traceRecorder.addSnapshot(
-            makeTraceSnapshot(
-                cycle,
-                pc,
-                predictorType,
-                branchPredictor,
-                activeInstructions,
-                circularROB,
-                lsq,
-                regProducer,
-                statusTable,
-                rf,
-                mem,
-                fpAddFU,
-                fpMulFU,
-                INT_RS_CAPACITY,
-                MUL_RS_CAPACITY,
-                FP_ADD_RS_CAPACITY,
-                FP_MUL_RS_CAPACITY,
-                LOAD_BUFFER_CAPACITY,
-                STORE_BUFFER_CAPACITY,
-                issuedInstructionThisCycle,
-                cdbBroadcastThisCycle,
-                commitEventThisCycle,
-                traceEvents
-            )
+        TraceSnapshot endOfCycleMetadata = makeTraceSnapshot(
+            cycle,
+            pc,
+            predictorType,
+            branchPredictor,
+            activeInstructions,
+            circularROB,
+            lsq,
+            regProducer,
+            statusTable,
+            rf,
+            mem,
+            fpAddFU,
+            fpMulFU,
+            INT_RS_CAPACITY,
+            MUL_RS_CAPACITY,
+            FP_ADD_RS_CAPACITY,
+            FP_MUL_RS_CAPACITY,
+            LOAD_BUFFER_CAPACITY,
+            STORE_BUFFER_CAPACITY,
+            issuedInstructionThisCycle,
+            cdbBroadcastThisCycle,
+            commitEventThisCycle,
+            traceEvents
         );
+
+        visualSnapshot.cdbBroadcast = cdbBroadcastThisCycle;
+        visualSnapshot.commitEvent = commitEventThisCycle;
+        visualSnapshot.events = traceEvents;
+        visualSnapshot.branchPredictions = endOfCycleMetadata.branchPredictions;
+        visualSnapshot.predictorState = endOfCycleMetadata.predictorState;
+
+        traceRecorder.addSnapshot(visualSnapshot);
         cycle++;
     }
 

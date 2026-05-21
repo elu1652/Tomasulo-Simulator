@@ -26,8 +26,8 @@ struct FunctionalUnit {
     bool pipelined = false;
     int pipelineDepth = 1;
 
-    // Visual representation for pipelined units
-    // pipelines[pipelineIndex][stageIndex] gives the instruction ID in that stage of the pipeline.
+    // Pipeline stages store dynamic instruction IDs for resource and trace
+    // visualization; ActiveInstruction owns the execution state.
     std::vector<std::vector<PipelineStage>> pipelines;
 };
 

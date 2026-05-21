@@ -21,4 +21,7 @@ add_executable(simulator
     src/BranchPredictor.cpp
     src/LSQ.cpp
     src/Trace.cpp
+    src/InstructionSemantics.cpp
+    src/BranchTraceUtils.cpp
+    src/TraceBuilder.cpp
 )

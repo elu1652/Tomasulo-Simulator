@@ -212,9 +212,15 @@ button:disabled {
 
 .cycle-info {
   display: flex;
+  flex-wrap: wrap;
   gap: 14px;
   align-items: center;
-  min-width: 180px;
+  min-width: 280px;
+}
+
+.cycle-state-note {
+  color: #64748b;
+  font-size: 12px;
 }
 
 .main-layout {
