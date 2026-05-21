@@ -55,6 +55,74 @@ static void writeIntArray(std::ofstream& out,
     out << "\n";
 }
 
+static void writePipelineArray(
+    std::ofstream& out,
+    const std::vector<std::vector<TracePipelineStage>>& pipelines,
+    int indentSpaces
+) {
+    std::string indent(indentSpaces, ' ');
+    std::string stageIndent(indentSpaces + 2, ' ');
+    std::string entryIndent(indentSpaces + 4, ' ');
+
+    out << "[\n";
+
+    for (size_t pipeIndex = 0; pipeIndex < pipelines.size(); pipeIndex++) {
+        const auto& pipeline = pipelines[pipeIndex];
+
+        out << stageIndent << "[\n";
+
+        for (size_t stageIndex = 0; stageIndex < pipeline.size(); stageIndex++) {
+            const TracePipelineStage& stage = pipeline[stageIndex];
+
+            out << entryIndent << "{ "
+                << "\"occupied\": " << (stage.occupied ? "true" : "false") << ", "
+                << "\"instructionId\": ";
+
+            if (stage.occupied) {
+                out << stage.instructionId;
+            } else {
+                out << "null";
+            }
+
+            out << " }";
+
+            if (stageIndex + 1 < pipeline.size()) {
+                out << ",";
+            }
+
+            out << "\n";
+        }
+
+        out << stageIndent << "]";
+
+        if (pipeIndex + 1 < pipelines.size()) {
+            out << ",";
+        }
+
+        out << "\n";
+    }
+
+    out << indent << "]";
+}
+
+static void writeRSUsage(
+    std::ofstream& out,
+    const std::string& name,
+    const TraceReservationStationUsage& usage,
+    bool trailingComma
+) {
+    out << "        \"" << name << "\": {\n";
+    out << "          \"used\": " << usage.used << ",\n";
+    out << "          \"capacity\": " << usage.capacity << "\n";
+    out << "        }";
+
+    if (trailingComma) {
+        out << ",";
+    }
+
+    out << "\n";
+}
+
 void TraceRecorder::addSnapshot(const TraceSnapshot& snapshot) {
     snapshots.push_back(snapshot);
 }
@@ -285,6 +353,24 @@ void TraceRecorder::writeJson(const std::string& filename) const {
         }
 
         out << "        ]\n";
+        out << "      },\n";
+
+        out << "      \"fuPipelines\": {\n";
+        out << "        \"FP_ADD\": ";
+        writePipelineArray(out, s.fuPipelines.fpAdd, 8);
+        out << ",\n";
+        out << "        \"FP_MUL\": ";
+        writePipelineArray(out, s.fuPipelines.fpMul, 8);
+        out << "\n";
+        out << "      },\n";
+
+        out << "      \"rsState\": {\n";
+        writeRSUsage(out, "INT", s.rsState.intRS, true);
+        writeRSUsage(out, "MUL", s.rsState.mulRS, true);
+        writeRSUsage(out, "FP_ADD", s.rsState.fpAddRS, true);
+        writeRSUsage(out, "FP_MUL", s.rsState.fpMulRS, true);
+        writeRSUsage(out, "LOAD", s.rsState.loadBuffer, true);
+        writeRSUsage(out, "STORE", s.rsState.storeBuffer, false);
         out << "      },\n";
 
         out << "      \"branchPredictions\": [\n";

@@ -96,6 +96,7 @@ const fpMulRSTable = document.getElementById("fpMulRSTable");
 const loadBufferTable = document.getElementById("loadBufferTable");
 const storeBufferTable = document.getElementById("storeBufferTable");
 const fuStatePanel = document.getElementById("fuStatePanel");
+const fpPipelinePanel = document.getElementById("fpPipelinePanel");
 
 const programBox = document.getElementById("programBox");
 const issueBox = document.getElementById("issueBox");
@@ -537,8 +538,9 @@ function render() {
   renderROB(rob.entries || []);
   renderRegisterProducers(cycle.registerProducers || []);
   renderBranchPredictions(cycle);
-  renderReservationStations(cycle.activeInstructions || []);
+  renderReservationStations(cycle);
   renderFUState(cycle);
+  renderFPPipelines(cycle);
   renderLSQ(cycle.lsq || []);
   renderRegisterState(cycle.registers);
   renderMemoryState(cycle.memory);
@@ -632,14 +634,20 @@ function renderDatapath(cycle, events) {
   const activeInstructions = Array.isArray(cycle.activeInstructions)
     ? cycle.activeInstructions
     : [];
-  const grouped = groupInstructionsByResource(activeInstructions);
-  const activeCount = activeInstructions.length;
+  const grouped = groupInstructionsByResource(activeInstructions, {
+    includeExecuting: false
+  });
+  const rsState = getRSState(cycle, grouped);
+  const waitingCount = Object.values(rsState)
+    .reduce((sum, usage) => sum + usage.used, 0);
   const rob = cycle.rob || { head: "-", tail: "-", count: 0 };
   const robCount = rob.count;
   const lsqCount = cycle.lsq ? cycle.lsq.length : 0;
   const issuedResource = getResourceType(cycle.issuedInstruction);
   const activeResources = new Set(
-    activeInstructions.map((entry) => getResourceType(entry.rawText))
+    activeInstructions
+      .filter(isReservationStationEntry)
+      .map((entry) => getResourceType(entry.rawText))
   );
   const executingResources = new Set(
     activeInstructions
@@ -655,13 +663,13 @@ function renderDatapath(cycle, events) {
     ? "issue stalled"
     : hasIssued ? formatResourceLabel(issuedResource) : "instruction issue");
 
-  setText(rsBoxMain, `${activeCount} active`);
-  setText(intRsBoxMain, `${grouped.INT.length}/2 active`);
-  setText(mulRsBoxMain, `${grouped.MUL.length}/2 active`);
-  setText(fpAddRsBoxMain, `${grouped.FP_ADD.length}/2 active`);
-  setText(fpMulRsBoxMain, `${grouped.FP_MUL.length}/2 active`);
-  setText(loadBufferBoxMain, `${grouped.LOAD.length}/2 active`);
-  setText(storeBufferBoxMain, `${grouped.STORE.length}/2 active`);
+  setText(rsBoxMain, `${waitingCount} waiting`);
+  setText(intRsBoxMain, `${rsState.INT.used}/${rsState.INT.capacity} waiting`);
+  setText(mulRsBoxMain, `${rsState.MUL.used}/${rsState.MUL.capacity} waiting`);
+  setText(fpAddRsBoxMain, `${rsState.FP_ADD.used}/${rsState.FP_ADD.capacity} waiting`);
+  setText(fpMulRsBoxMain, `${rsState.FP_MUL.used}/${rsState.FP_MUL.capacity} waiting`);
+  setText(loadBufferBoxMain, `${rsState.LOAD.used}/${rsState.LOAD.capacity} waiting`);
+  setText(storeBufferBoxMain, `${rsState.STORE.used}/${rsState.STORE.capacity} waiting`);
 
   setText(
     fuBoxMain,
@@ -675,7 +683,7 @@ function renderDatapath(cycle, events) {
     hasExecutionComplete ? "completed this cycle" : "execution"
   );
 
-  updateDatapathFUCounts(cycle, grouped);
+  updateDatapathFUCounts(cycle, groupInstructionsByResource(activeInstructions));
 
   setText(cdbBoxMain, hasCDB ? cycle.cdbBroadcast : "none");
 
@@ -751,8 +759,8 @@ function updateDatapathFUCounts(cycle, grouped) {
 
   setText(intFuBoxMain, `${fuState.INT.busy}/${fuState.INT.total} busy`);
   setText(mulFuBoxMain, `${fuState.MUL.busy}/${fuState.MUL.total} busy`);
-  setText(fpAddFuBoxMain, `${fuState.FP_ADD.busy}/${fuState.FP_ADD.total} busy`);
-  setText(fpMulFuBoxMain, `${fuState.FP_MUL.busy}/${fuState.FP_MUL.total} busy`);
+  setText(fpAddFuBoxMain, formatFUUsageCompact(fuState.FP_ADD));
+  setText(fpMulFuBoxMain, formatFUUsageCompact(fuState.FP_MUL));
   setText(memFuBoxMain, `${fuState.MEM.busy}/${fuState.MEM.total} busy`);
 }
 
@@ -986,21 +994,34 @@ function getROBMarkerClass(slot) {
 }
 
 // Reservation station rendering
-function renderReservationStations(activeEntries) {
-  const grouped = groupInstructionsByResource(activeEntries);
+function renderReservationStations(cycle) {
+  const activeEntries = cycle?.activeInstructions || [];
+  const grouped = groupInstructionsByResource(activeEntries, {
+    includeExecuting: false
+  });
+  const rsState = getRSState(cycle, grouped);
 
-  renderRSTable(intRSTable, grouped.INT, 2, "INT");
-  renderRSTable(mulRSTable, grouped.MUL, 2, "MUL");
-  renderRSTable(fpAddRSTable, grouped.FP_ADD, 2, "FP_ADD");
-  renderRSTable(fpMulRSTable, grouped.FP_MUL, 2, "FP_MUL");
-  renderRSTable(loadBufferTable, grouped.LOAD, 2, "LOAD");
-  renderRSTable(storeBufferTable, grouped.STORE, 2, "STORE");
+  renderRSTable(intRSTable, grouped.INT, rsState.INT.capacity, "INT", rsState.INT);
+  renderRSTable(mulRSTable, grouped.MUL, rsState.MUL.capacity, "MUL", rsState.MUL);
+  renderRSTable(fpAddRSTable, grouped.FP_ADD, rsState.FP_ADD.capacity, "FP_ADD", rsState.FP_ADD);
+  renderRSTable(fpMulRSTable, grouped.FP_MUL, rsState.FP_MUL.capacity, "FP_MUL", rsState.FP_MUL);
+  renderRSTable(loadBufferTable, grouped.LOAD, rsState.LOAD.capacity, "LOAD", rsState.LOAD);
+  renderRSTable(storeBufferTable, grouped.STORE, rsState.STORE.capacity, "STORE", rsState.STORE);
 }
 
-function renderRSTable(container, entries, capacity, type) {
+function renderRSTable(container, entries, capacity, type, usage) {
   if (!container) return;
 
+  const visibleCapacity = Math.max(capacity || 0, entries.length);
+  const displayUsage = usage || {
+    used: entries.length,
+    capacity: visibleCapacity
+  };
+
   let html = `
+    <div class="rs-table-summary">
+      ${escapeHtml(formatRSTableTitle(type))}: ${displayUsage.used}/${displayUsage.capacity} waiting
+    </div>
     <table class="rs-table">
       <thead>
         <tr>
@@ -1018,7 +1039,7 @@ function renderRSTable(container, entries, capacity, type) {
       <tbody>
   `;
 
-  for (let i = 0; i < capacity; i++) {
+  for (let i = 0; i < visibleCapacity; i++) {
     const entry = entries[i];
 
     if (!entry) {
@@ -1068,11 +1089,19 @@ function renderRSTable(container, entries, capacity, type) {
   container.innerHTML = html;
 }
 
+function formatRSTableTitle(type) {
+  if (type === "LOAD") return "Load Buffer";
+  if (type === "STORE") return "Store Buffer";
+
+  return `${type} RS`;
+}
+
 function inferRSType(rawText) {
   return getResourceType(rawText);
 }
 
-function groupInstructionsByResource(activeEntries) {
+function groupInstructionsByResource(activeEntries, options = {}) {
+  const includeExecuting = options.includeExecuting !== false;
   const grouped = {
     INT: [],
     MUL: [],
@@ -1083,6 +1112,10 @@ function groupInstructionsByResource(activeEntries) {
   };
 
   for (const entry of activeEntries || []) {
+    if (!includeExecuting && !isReservationStationEntry(entry)) {
+      continue;
+    }
+
     const type = getResourceType(entry.rawText);
 
     if (grouped[type]) {
@@ -1091,6 +1124,49 @@ function groupInstructionsByResource(activeEntries) {
   }
 
   return grouped;
+}
+
+function isReservationStationEntry(entry) {
+  if (!entry || entry.executing) {
+    return false;
+  }
+
+  if (typeof entry.remainingCycles === "number" && entry.remainingCycles <= 0) {
+    return false;
+  }
+
+  return true;
+}
+
+function getRSState(cycle, grouped) {
+  return {
+    INT: getRSUsage(cycle, "INT", grouped.INT, 2),
+    MUL: getRSUsage(cycle, "MUL", grouped.MUL, 2),
+    FP_ADD: getRSUsage(cycle, "FP_ADD", grouped.FP_ADD, 2),
+    FP_MUL: getRSUsage(cycle, "FP_MUL", grouped.FP_MUL, 4),
+    LOAD: getRSUsage(cycle, "LOAD", grouped.LOAD, 2),
+    STORE: getRSUsage(cycle, "STORE", grouped.STORE, 2)
+  };
+}
+
+function getRSUsage(cycle, key, entries, defaultCapacity) {
+  const traced = cycle?.rsState?.[key];
+
+  if (
+    traced &&
+    typeof traced.used === "number" &&
+    typeof traced.capacity === "number"
+  ) {
+    return {
+      used: traced.used,
+      capacity: traced.capacity
+    };
+  }
+
+  return {
+    used: entries.length,
+    capacity: defaultCapacity
+  };
 }
 
 function getResourceType(rawText) {
@@ -1174,11 +1250,22 @@ function getInstructionClassLabel(rawText) {
 }
 
 function getFUState(cycle, grouped) {
+  const pipelineSummary = getPipelineSummary(cycle);
   const fallback = {
     INT: { busy: countExecuting(grouped.INT), total: 2 },
     MUL: { busy: countExecuting(grouped.MUL), total: 1 },
-    FP_ADD: { busy: countExecuting(grouped.FP_ADD), total: 1 },
-    FP_MUL: { busy: countExecuting(grouped.FP_MUL), total: 1 },
+    FP_ADD: {
+      busy: pipelineSummary.FP_ADD.used || countExecuting(grouped.FP_ADD),
+      total: pipelineSummary.FP_ADD.total || 1,
+      pipelines: pipelineSummary.FP_ADD.pipelines || 1,
+      pipelined: pipelineSummary.FP_ADD.total > 0
+    },
+    FP_MUL: {
+      busy: pipelineSummary.FP_MUL.used || countExecuting(grouped.FP_MUL),
+      total: pipelineSummary.FP_MUL.total || 1,
+      pipelines: pipelineSummary.FP_MUL.pipelines || 1,
+      pipelined: pipelineSummary.FP_MUL.total > 0
+    },
     MEM: {
       busy: countExecuting(grouped.LOAD) + countExecuting(grouped.STORE),
       total: 2
@@ -1193,20 +1280,99 @@ function getFUState(cycle, grouped) {
 
   for (const key of Object.keys(fallback)) {
     const value = traceFUState[key];
+    const hasPipelineTrace = Boolean(fallback[key].pipelined);
 
     if (typeof value === "number") {
-      fallback[key].busy = value;
+      if (!hasPipelineTrace) {
+        fallback[key].busy = value;
+      }
     } else if (value && typeof value === "object") {
-      fallback[key].busy = value.busy ?? value.active ?? fallback[key].busy;
-      fallback[key].total = value.total ?? value.capacity ?? fallback[key].total;
+      if (!hasPipelineTrace) {
+        fallback[key].busy = value.busy ?? value.active ?? fallback[key].busy;
+        fallback[key].total = value.total ?? value.capacity ?? fallback[key].total;
+      }
+
+      fallback[key].pipelines = value.pipelines ?? fallback[key].pipelines;
     }
   }
 
   return fallback;
 }
 
+function getPipelineSummary(cycle) {
+  return {
+    FP_ADD: summarizePipeline(cycle?.fuPipelines?.FP_ADD),
+    FP_MUL: summarizePipeline(cycle?.fuPipelines?.FP_MUL)
+  };
+}
+
+function summarizePipeline(pipelines) {
+  if (!Array.isArray(pipelines)) {
+    return { used: 0, total: 0, pipelines: 0 };
+  }
+
+  let used = 0;
+  let total = 0;
+
+  for (const pipeline of pipelines) {
+    if (!Array.isArray(pipeline)) {
+      continue;
+    }
+
+    total += pipeline.length;
+
+    for (const stage of pipeline) {
+      if (isPipelineStageOccupied(stage)) {
+        used++;
+      }
+    }
+  }
+
+  return {
+    used,
+    total,
+    pipelines: pipelines.length
+  };
+}
+
+function isPipelineStageOccupied(stage) {
+  if (stage && typeof stage === "object") {
+    return Boolean(stage.occupied) || typeof stage.instructionId === "number";
+  }
+
+  if (typeof stage === "string") {
+    return stage !== "--" && stage.trim() !== "";
+  }
+
+  return typeof stage === "number" && stage >= 0;
+}
+
 function countExecuting(entries) {
   return (entries || []).filter((entry) => entry.executing).length;
+}
+
+function formatFUUsage(state) {
+  if (state?.pipelined) {
+    return `${state.busy}/${state.total} pipeline slots used`;
+  }
+
+  return `${state.busy}/${state.total} busy`;
+}
+
+function formatFUUsageCompact(state) {
+  if (state?.pipelined) {
+    return `${state.busy}/${state.total} slots`;
+  }
+
+  return `${state.busy}/${state.total} busy`;
+}
+
+function formatFUPipelineCount(state) {
+  if (!state?.pipelined) {
+    return "";
+  }
+
+  return `${state.pipelines} ${state.pipelines === 1 ? "pipeline" : "pipelines"}`;
 }
 
 function renderFUState(cycle) {
@@ -1287,10 +1453,13 @@ function renderFUState(cycle) {
       <tr class="${activeClass}">
         <td><strong>${escapeHtml(row.name)}</strong></td>
         <td><span class="fu-type-pill ${escapeHtml(row.key.toLowerCase())}">${escapeHtml(row.type)}</span></td>
-        <td>${busy}/${total} busy</td>
+        <td>${escapeHtml(formatFUUsage(row.state))}</td>
         <td>${busy > 0 ? "busy" : "free"}</td>
         <td>${currentInstruction}</td>
-        <td>${escapeHtml(row.operations)}</td>
+        <td>
+          ${escapeHtml(row.operations)}
+          ${row.state.pipelined ? `<div class="fu-pipeline-note">${escapeHtml(formatFUPipelineCount(row.state))}</div>` : ""}
+        </td>
       </tr>
     `;
   }
@@ -1315,6 +1484,133 @@ function formatFUInstruction(entry) {
     ${escapeHtml(entry.rawText || "-")}
     <span class="fu-instruction-state">(${state}${remaining})</span>
   `;
+}
+
+function renderFPPipelines(cycle) {
+  if (!fpPipelinePanel) return;
+
+  const pipelines = cycle?.fuPipelines;
+
+  if (!pipelines || typeof pipelines !== "object") {
+    fpPipelinePanel.innerHTML = '<div class="empty">No pipeline data in this trace.</div>';
+    return;
+  }
+
+  const instructionMap = buildInstructionMap(cycle);
+  const sections = [
+    {
+      title: "FP_ADD Pipeline",
+      key: "FP_ADD",
+      expectedStages: 3,
+      pipelines: pipelines.FP_ADD
+    },
+    {
+      title: "FP_MUL Pipeline",
+      key: "FP_MUL",
+      expectedStages: 5,
+      pipelines: pipelines.FP_MUL
+    }
+  ];
+
+  fpPipelinePanel.innerHTML = sections
+    .map((section) => renderPipelineSection(section, instructionMap))
+    .join("");
+}
+
+function buildInstructionMap(cycle) {
+  const map = new Map();
+
+  for (const entry of cycle?.activeInstructions || []) {
+    if (typeof entry.instructionId === "number") {
+      map.set(entry.instructionId, entry.rawText || "");
+    }
+  }
+
+  for (const entry of trace?.instructionStatus || []) {
+    if (typeof entry.instructionId === "number" && !map.has(entry.instructionId)) {
+      map.set(entry.instructionId, entry.rawText || "");
+    }
+  }
+
+  return map;
+}
+
+function renderPipelineSection(section, instructionMap) {
+  const pipelines = Array.isArray(section.pipelines)
+    ? section.pipelines
+    : [];
+
+  if (pipelines.length === 0) {
+    return `
+      <div class="pipeline-section">
+        <h3>${escapeHtml(section.title)}</h3>
+        <div class="empty">No ${escapeHtml(section.key)} pipeline data in this trace.</div>
+      </div>
+    `;
+  }
+
+  const maxStages = Math.max(
+    section.expectedStages,
+    ...pipelines.map((pipeline) => Array.isArray(pipeline) ? pipeline.length : 0)
+  );
+  const stageLabels = Array.from({ length: maxStages }, (_, index) => {
+    return `<div class="pipeline-stage-label">Stage ${index}</div>`;
+  }).join("");
+
+  const rows = pipelines.map((pipeline, pipeIndex) => {
+    const stages = Array.isArray(pipeline) ? pipeline : [];
+
+    return `
+      <div class="pipeline-row">
+        <div class="pipeline-name">Pipe ${pipeIndex}</div>
+        <div class="pipeline-stages">
+          ${stages.map((stage) => renderPipelineStage(stage, instructionMap)).join("")}
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  return `
+    <div class="pipeline-section">
+      <h3>${escapeHtml(section.title)}</h3>
+      <div class="pipeline-header">
+        <div></div>
+        <div class="pipeline-stage-labels">${stageLabels}</div>
+      </div>
+      ${rows}
+    </div>
+  `;
+}
+
+function renderPipelineStage(stage, instructionMap) {
+  const instructionId = getPipelineInstructionId(stage);
+  const occupied = instructionId >= 0;
+  const text = occupied ? `I${instructionId}` : "--";
+  const instructionText = occupied ? instructionMap.get(instructionId) || "" : "";
+  const title = occupied
+    ? `I${instructionId}${instructionText ? `: ${instructionText}` : ""}`
+    : "empty";
+
+  return `
+    <div class="pipeline-stage ${occupied ? "occupied" : "empty-stage"}" title="${escapeHtml(title)}">
+      ${escapeHtml(text)}
+    </div>
+  `;
+}
+
+function getPipelineInstructionId(stage) {
+  if (stage && typeof stage === "object") {
+    return typeof stage.instructionId === "number"
+      ? stage.instructionId
+      : -1;
+  }
+
+  if (typeof stage === "string") {
+    const match = stage.match(/^I?(\d+)$/i);
+    return match ? Number(match[1]) : -1;
+  }
+
+  return typeof stage === "number" ? stage : -1;
 }
 
 function getOpcode(rawText) {

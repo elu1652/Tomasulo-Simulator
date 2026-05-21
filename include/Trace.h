@@ -5,6 +5,30 @@
 #include <string>
 #include <vector>
 
+struct TracePipelineStage {
+    bool occupied = false;
+    int instructionId = -1;
+};
+
+struct TraceFUPipelines {
+    std::vector<std::vector<TracePipelineStage>> fpAdd;
+    std::vector<std::vector<TracePipelineStage>> fpMul;
+};
+
+struct TraceReservationStationUsage {
+    int used = 0;
+    int capacity = 0;
+};
+
+struct TraceReservationStationState {
+    TraceReservationStationUsage intRS;
+    TraceReservationStationUsage mulRS;
+    TraceReservationStationUsage fpAddRS;
+    TraceReservationStationUsage fpMulRS;
+    TraceReservationStationUsage loadBuffer;
+    TraceReservationStationUsage storeBuffer;
+};
+
 struct TraceActiveInstruction {
     int instructionId = -1;
     int robTag = -1;
@@ -133,6 +157,8 @@ struct TraceSnapshot {
     std::vector<TraceRegisterProducer> registerProducers;
     std::vector<TraceBranchPredictionEntry> branchPredictions;
     TracePredictorState predictorState;
+    TraceFUPipelines fuPipelines;
+    TraceReservationStationState rsState;
 
     std::vector<std::string> events;
 };

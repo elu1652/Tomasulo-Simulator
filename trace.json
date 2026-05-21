@@ -3,7 +3,7 @@
     {
       "instructionId": 0,
       "pc": 0,
-      "rawText": "ADDI R3, R0, 5",
+      "rawText": "ADDI R1, R0, 2",
       "issueCycle": 1,
       "execStartCycle": 2,
       "execEndCycle": 2,
@@ -15,7 +15,7 @@
     {
       "instructionId": 1,
       "pc": 1,
-      "rawText": "ADDI R5, R0, 2",
+      "rawText": "ADDI R2, R0, 3",
       "issueCycle": 2,
       "execStartCycle": 3,
       "execEndCycle": 3,
@@ -27,8 +27,20 @@
     {
       "instructionId": 2,
       "pc": 2,
-      "rawText": "ADD R1, R3, R5",
+      "rawText": "ADDI R3, R0, 4",
       "issueCycle": 3,
+      "execStartCycle": 4,
+      "execEndCycle": 4,
+      "writebackCycle": 5,
+      "commitCycle": 6,
+      "flushed": false,
+      "flushCycle": -1
+    },
+    {
+      "instructionId": 3,
+      "pc": 3,
+      "rawText": "ADDI R4, R0, 5",
+      "issueCycle": 4,
       "execStartCycle": 5,
       "execEndCycle": 5,
       "writebackCycle": 6,
@@ -37,26 +49,50 @@
       "flushCycle": -1
     },
     {
-      "instructionId": 3,
-      "pc": 3,
-      "rawText": "MUL R1, R3, R5",
-      "issueCycle": 4,
-      "execStartCycle": 5,
-      "execEndCycle": 7,
-      "writebackCycle": 8,
-      "commitCycle": 9,
+      "instructionId": 4,
+      "pc": 4,
+      "rawText": "FMUL R10, R1, R2",
+      "issueCycle": 5,
+      "execStartCycle": 6,
+      "execEndCycle": 10,
+      "writebackCycle": 11,
+      "commitCycle": 12,
       "flushed": false,
       "flushCycle": -1
     },
     {
-      "instructionId": 4,
-      "pc": 4,
-      "rawText": "ADD R2, R1, R3",
-      "issueCycle": 5,
+      "instructionId": 5,
+      "pc": 5,
+      "rawText": "FMUL R11, R2, R3",
+      "issueCycle": 6,
+      "execStartCycle": 7,
+      "execEndCycle": 11,
+      "writebackCycle": 12,
+      "commitCycle": 13,
+      "flushed": false,
+      "flushCycle": -1
+    },
+    {
+      "instructionId": 6,
+      "pc": 6,
+      "rawText": "FMUL R12, R3, R4",
+      "issueCycle": 7,
+      "execStartCycle": 8,
+      "execEndCycle": 12,
+      "writebackCycle": 13,
+      "commitCycle": 14,
+      "flushed": false,
+      "flushCycle": -1
+    },
+    {
+      "instructionId": 7,
+      "pc": 7,
+      "rawText": "FMUL R13, R1, R4",
+      "issueCycle": 8,
       "execStartCycle": 9,
-      "execEndCycle": 9,
-      "writebackCycle": 10,
-      "commitCycle": 11,
+      "execEndCycle": 13,
+      "writebackCycle": 14,
+      "commitCycle": 15,
       "flushed": false,
       "flushCycle": -1
     }
@@ -65,8 +101,8 @@
     {
       "cycle": 1,
       "pc": 1,
-      "predictorType": "two-bit",
-      "issuedInstruction": "ADDI R3, R0, 5",
+      "predictorType": "always-taken",
+      "issuedInstruction": "ADDI R1, R0, 2",
       "cdbBroadcast": "none",
       "commitEvent": "",
       "registers": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -79,7 +115,7 @@
           {
             "robTag": 0,
             "instructionId": 0,
-            "rawText": "ADDI R3, R0, 5",
+            "rawText": "ADDI R1, R0, 2",
             "busy": true,
             "ready": false,
             "writesRegister": false,
@@ -95,7 +131,7 @@
         {
           "instructionId": 0,
           "robTag": 0,
-          "rawText": "ADDI R3, R0, 5",
+          "rawText": "ADDI R1, R0, 2",
           "executing": false,
           "remainingCycles": 1,
           "waitingReason": "issued this cycle",
@@ -109,29 +145,87 @@
       ],
       "registerProducers": [
         {
-          "register": 3,
+          "register": 1,
           "robTag": 0
         }
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
+      },
+      "fuPipelines": {
+        "FP_ADD": [
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ],
+        "FP_MUL": [
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ],
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ]
+      },
+      "rsState": {
+        "INT": {
+          "used": 1,
+          "capacity": 2
+        },
+        "MUL": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_ADD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_MUL": {
+          "used": 0,
+          "capacity": 4
+        },
+        "LOAD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "STORE": {
+          "used": 0,
+          "capacity": 2
+        }
       },
       "branchPredictions": [
       ],
       "events": [
-        "Issued: I0 ADDI R3, R0, 5"
+        "Issued: I0 ADDI R1, R0, 2"
       ]
     },
     {
       "cycle": 2,
       "pc": 2,
-      "predictorType": "two-bit",
-      "issuedInstruction": "ADDI R5, R0, 2",
+      "predictorType": "always-taken",
+      "issuedInstruction": "ADDI R2, R0, 3",
       "cdbBroadcast": "none",
       "commitEvent": "",
       "registers": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -144,7 +238,7 @@
           {
             "robTag": 0,
             "instructionId": 0,
-            "rawText": "ADDI R3, R0, 5",
+            "rawText": "ADDI R1, R0, 2",
             "busy": true,
             "ready": false,
             "writesRegister": false,
@@ -157,7 +251,7 @@
           {
             "robTag": 1,
             "instructionId": 1,
-            "rawText": "ADDI R5, R0, 2",
+            "rawText": "ADDI R2, R0, 3",
             "busy": true,
             "ready": false,
             "writesRegister": false,
@@ -173,7 +267,7 @@
         {
           "instructionId": 1,
           "robTag": 1,
-          "rawText": "ADDI R5, R0, 2",
+          "rawText": "ADDI R2, R0, 3",
           "executing": false,
           "remainingCycles": 1,
           "waitingReason": "issued this cycle",
@@ -187,37 +281,95 @@
       ],
       "registerProducers": [
         {
-          "register": 3,
+          "register": 1,
           "robTag": 0
         },
         {
-          "register": 5,
+          "register": 2,
           "robTag": 1
         }
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
+      },
+      "fuPipelines": {
+        "FP_ADD": [
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ],
+        "FP_MUL": [
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ],
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ]
+      },
+      "rsState": {
+        "INT": {
+          "used": 1,
+          "capacity": 2
+        },
+        "MUL": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_ADD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_MUL": {
+          "used": 0,
+          "capacity": 4
+        },
+        "LOAD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "STORE": {
+          "used": 0,
+          "capacity": 2
+        }
       },
       "branchPredictions": [
       ],
       "events": [
-        "Issued: I1 ADDI R5, R0, 2",
-        "Execution started: I0 ADDI R3, R0, 5",
-        "Execution complete: I0 ADDI R3, R0, 5",
-        "Result queued for CDB: I0 R3 = 5"
+        "Issued: I1 ADDI R2, R0, 3",
+        "Execution started: I0 ADDI R1, R0, 2",
+        "Execution complete: I0 ADDI R1, R0, 2",
+        "Result queued for CDB: I0 R1 = 2"
       ]
     },
     {
       "cycle": 3,
       "pc": 3,
-      "predictorType": "two-bit",
-      "issuedInstruction": "ADD R1, R3, R5",
-      "cdbBroadcast": "I0 ADDI R3, R0, 5",
+      "predictorType": "always-taken",
+      "issuedInstruction": "ADDI R3, R0, 4",
+      "cdbBroadcast": "I0 ADDI R1, R0, 2",
       "commitEvent": "",
       "registers": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       "memory": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -229,12 +381,12 @@
           {
             "robTag": 0,
             "instructionId": 0,
-            "rawText": "ADDI R3, R0, 5",
+            "rawText": "ADDI R1, R0, 2",
             "busy": true,
             "ready": true,
             "writesRegister": true,
-            "destinationRegister": 3,
-            "value": 5,
+            "destinationRegister": 1,
+            "value": 2,
             "writesMemory": false,
             "memoryAddress": -1,
             "memoryValue": 0
@@ -242,7 +394,7 @@
           {
             "robTag": 1,
             "instructionId": 1,
-            "rawText": "ADDI R5, R0, 2",
+            "rawText": "ADDI R2, R0, 3",
             "busy": true,
             "ready": false,
             "writesRegister": false,
@@ -255,7 +407,7 @@
           {
             "robTag": 2,
             "instructionId": 2,
-            "rawText": "ADD R1, R3, R5",
+            "rawText": "ADDI R3, R0, 4",
             "busy": true,
             "ready": false,
             "writesRegister": false,
@@ -271,14 +423,14 @@
         {
           "instructionId": 2,
           "robTag": 2,
-          "rawText": "ADD R1, R3, R5",
+          "rawText": "ADDI R3, R0, 4",
           "executing": false,
           "remainingCycles": 1,
           "waitingReason": "issued this cycle",
-          "vj": 5,
+          "vj": 0,
           "vk": 0,
           "qj": -1,
-          "qk": 1
+          "qk": -1
         }
       ],
       "lsq": [
@@ -286,43 +438,101 @@
       "registerProducers": [
         {
           "register": 1,
-          "robTag": 2
-        },
-        {
-          "register": 3,
           "robTag": 0
         },
         {
-          "register": 5,
+          "register": 2,
           "robTag": 1
+        },
+        {
+          "register": 3,
+          "robTag": 2
         }
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
+      },
+      "fuPipelines": {
+        "FP_ADD": [
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ],
+        "FP_MUL": [
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ],
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ]
+      },
+      "rsState": {
+        "INT": {
+          "used": 1,
+          "capacity": 2
+        },
+        "MUL": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_ADD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_MUL": {
+          "used": 0,
+          "capacity": 4
+        },
+        "LOAD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "STORE": {
+          "used": 0,
+          "capacity": 2
+        }
       },
       "branchPredictions": [
       ],
       "events": [
-        "Issued: I2 ADD R1, R3, R5",
-        "Execution started: I1 ADDI R5, R0, 2",
-        "CDB Broadcast: I0 ADDI R3, R0, 5",
-        "Execution complete: I1 ADDI R5, R0, 2",
-        "Result queued for CDB: I1 R5 = 2"
+        "Issued: I2 ADDI R3, R0, 4",
+        "Execution started: I1 ADDI R2, R0, 3",
+        "CDB Broadcast: I0 ADDI R1, R0, 2",
+        "Execution complete: I1 ADDI R2, R0, 3",
+        "Result queued for CDB: I1 R2 = 3"
       ]
     },
     {
       "cycle": 4,
       "pc": 4,
-      "predictorType": "two-bit",
-      "issuedInstruction": "MUL R1, R3, R5",
-      "cdbBroadcast": "I1 ADDI R5, R0, 2",
+      "predictorType": "always-taken",
+      "issuedInstruction": "ADDI R4, R0, 5",
+      "cdbBroadcast": "I1 ADDI R2, R0, 3",
       "commitEvent": "Committed I0",
-      "registers": [0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "registers": [0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       "memory": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       "rob": {
         "head": 1,
@@ -332,12 +542,12 @@
           {
             "robTag": 1,
             "instructionId": 1,
-            "rawText": "ADDI R5, R0, 2",
+            "rawText": "ADDI R2, R0, 3",
             "busy": true,
             "ready": true,
             "writesRegister": true,
-            "destinationRegister": 5,
-            "value": 2,
+            "destinationRegister": 2,
+            "value": 3,
             "writesMemory": false,
             "memoryAddress": -1,
             "memoryValue": 0
@@ -345,7 +555,7 @@
           {
             "robTag": 2,
             "instructionId": 2,
-            "rawText": "ADD R1, R3, R5",
+            "rawText": "ADDI R3, R0, 4",
             "busy": true,
             "ready": false,
             "writesRegister": false,
@@ -358,7 +568,7 @@
           {
             "robTag": 3,
             "instructionId": 3,
-            "rawText": "MUL R1, R3, R5",
+            "rawText": "ADDI R4, R0, 5",
             "busy": true,
             "ready": false,
             "writesRegister": false,
@@ -372,26 +582,14 @@
       },
       "activeInstructions": [
         {
-          "instructionId": 2,
-          "robTag": 2,
-          "rawText": "ADD R1, R3, R5",
-          "executing": false,
-          "remainingCycles": 1,
-          "waitingReason": "RAW dependency",
-          "vj": 5,
-          "vk": 2,
-          "qj": -1,
-          "qk": -1
-        },
-        {
           "instructionId": 3,
           "robTag": 3,
-          "rawText": "MUL R1, R3, R5",
+          "rawText": "ADDI R4, R0, 5",
           "executing": false,
-          "remainingCycles": 3,
+          "remainingCycles": 1,
           "waitingReason": "issued this cycle",
-          "vj": 5,
-          "vk": 2,
+          "vj": 0,
+          "vk": 0,
           "qj": -1,
           "qk": -1
         }
@@ -400,38 +598,103 @@
       ],
       "registerProducers": [
         {
-          "register": 1,
-          "robTag": 3
+          "register": 2,
+          "robTag": 1
         },
         {
-          "register": 5,
-          "robTag": 1
+          "register": 3,
+          "robTag": 2
+        },
+        {
+          "register": 4,
+          "robTag": 3
         }
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
+      },
+      "fuPipelines": {
+        "FP_ADD": [
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ],
+        "FP_MUL": [
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ],
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ]
+      },
+      "rsState": {
+        "INT": {
+          "used": 1,
+          "capacity": 2
+        },
+        "MUL": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_ADD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_MUL": {
+          "used": 0,
+          "capacity": 4
+        },
+        "LOAD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "STORE": {
+          "used": 0,
+          "capacity": 2
+        }
       },
       "branchPredictions": [
       ],
       "events": [
-        "Issued: I3 MUL R1, R3, R5",
+        "Issued: I3 ADDI R4, R0, 5",
+        "Execution started: I2 ADDI R3, R0, 4",
         "Committed I0",
-        "CDB Broadcast: I1 ADDI R5, R0, 2"
+        "CDB Broadcast: I1 ADDI R2, R0, 3",
+        "Execution complete: I2 ADDI R3, R0, 4",
+        "Result queued for CDB: I2 R3 = 4"
       ]
     },
     {
       "cycle": 5,
       "pc": 5,
-      "predictorType": "two-bit",
-      "issuedInstruction": "ADD R2, R1, R3",
-      "cdbBroadcast": "none",
+      "predictorType": "always-taken",
+      "issuedInstruction": "FMUL R10, R1, R2",
+      "cdbBroadcast": "I2 ADDI R3, R0, 4",
       "commitEvent": "Committed I1",
-      "registers": [0, 0, 0, 5, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "registers": [0, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       "memory": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       "rob": {
         "head": 2,
@@ -441,7 +704,7 @@
           {
             "robTag": 0,
             "instructionId": 4,
-            "rawText": "ADD R2, R1, R3",
+            "rawText": "FMUL R10, R1, R2",
             "busy": true,
             "ready": false,
             "writesRegister": false,
@@ -454,12 +717,12 @@
           {
             "robTag": 2,
             "instructionId": 2,
-            "rawText": "ADD R1, R3, R5",
+            "rawText": "ADDI R3, R0, 4",
             "busy": true,
-            "ready": false,
-            "writesRegister": false,
-            "destinationRegister": -1,
-            "value": 0,
+            "ready": true,
+            "writesRegister": true,
+            "destinationRegister": 3,
+            "value": 4,
             "writesMemory": false,
             "memoryAddress": -1,
             "memoryValue": 0
@@ -467,7 +730,7 @@
           {
             "robTag": 3,
             "instructionId": 3,
-            "rawText": "MUL R1, R3, R5",
+            "rawText": "ADDI R4, R0, 5",
             "busy": true,
             "ready": false,
             "writesRegister": false,
@@ -481,27 +744,15 @@
       },
       "activeInstructions": [
         {
-          "instructionId": 3,
-          "robTag": 3,
-          "rawText": "MUL R1, R3, R5",
-          "executing": true,
-          "remainingCycles": 2,
-          "waitingReason": "",
-          "vj": 5,
-          "vk": 2,
-          "qj": -1,
-          "qk": -1
-        },
-        {
           "instructionId": 4,
           "robTag": 0,
-          "rawText": "ADD R2, R1, R3",
+          "rawText": "FMUL R10, R1, R2",
           "executing": false,
-          "remainingCycles": 1,
+          "remainingCycles": 5,
           "waitingReason": "issued this cycle",
-          "vj": 0,
-          "vk": 5,
-          "qj": 3,
+          "vj": 2,
+          "vk": 3,
+          "qj": -1,
           "qk": -1
         }
       ],
@@ -509,51 +760,298 @@
       ],
       "registerProducers": [
         {
-          "register": 1,
+          "register": 3,
+          "robTag": 2
+        },
+        {
+          "register": 4,
           "robTag": 3
         },
         {
-          "register": 2,
+          "register": 10,
           "robTag": 0
         }
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
+      },
+      "fuPipelines": {
+        "FP_ADD": [
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ],
+        "FP_MUL": [
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ],
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ]
+      },
+      "rsState": {
+        "INT": {
+          "used": 0,
+          "capacity": 2
+        },
+        "MUL": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_ADD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_MUL": {
+          "used": 1,
+          "capacity": 4
+        },
+        "LOAD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "STORE": {
+          "used": 0,
+          "capacity": 2
+        }
       },
       "branchPredictions": [
       ],
       "events": [
-        "Issued: I4 ADD R2, R1, R3",
-        "Execution started: I2 ADD R1, R3, R5",
-        "Execution started: I3 MUL R1, R3, R5",
+        "Issued: I4 FMUL R10, R1, R2",
+        "Execution started: I3 ADDI R4, R0, 5",
         "Committed I1",
-        "Execution complete: I2 ADD R1, R3, R5",
-        "Result queued for CDB: I2 R1 = 7"
+        "CDB Broadcast: I2 ADDI R3, R0, 4",
+        "Execution complete: I3 ADDI R4, R0, 5",
+        "Result queued for CDB: I3 R4 = 5"
       ]
     },
     {
       "cycle": 6,
-      "pc": 5,
-      "predictorType": "two-bit",
-      "issuedInstruction": "",
-      "cdbBroadcast": "I2 ADD R1, R3, R5",
-      "commitEvent": "",
-      "registers": [0, 0, 0, 5, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "pc": 6,
+      "predictorType": "always-taken",
+      "issuedInstruction": "FMUL R11, R2, R3",
+      "cdbBroadcast": "I3 ADDI R4, R0, 5",
+      "commitEvent": "Committed I2",
+      "registers": [0, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       "memory": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       "rob": {
-        "head": 2,
-        "tail": 1,
+        "head": 3,
+        "tail": 2,
         "count": 3,
         "entries": [
           {
             "robTag": 0,
             "instructionId": 4,
-            "rawText": "ADD R2, R1, R3",
+            "rawText": "FMUL R10, R1, R2",
+            "busy": true,
+            "ready": false,
+            "writesRegister": false,
+            "destinationRegister": -1,
+            "value": 0,
+            "writesMemory": false,
+            "memoryAddress": -1,
+            "memoryValue": 0
+          },
+          {
+            "robTag": 1,
+            "instructionId": 5,
+            "rawText": "FMUL R11, R2, R3",
+            "busy": true,
+            "ready": false,
+            "writesRegister": false,
+            "destinationRegister": -1,
+            "value": 0,
+            "writesMemory": false,
+            "memoryAddress": -1,
+            "memoryValue": 0
+          },
+          {
+            "robTag": 3,
+            "instructionId": 3,
+            "rawText": "ADDI R4, R0, 5",
+            "busy": true,
+            "ready": true,
+            "writesRegister": true,
+            "destinationRegister": 4,
+            "value": 5,
+            "writesMemory": false,
+            "memoryAddress": -1,
+            "memoryValue": 0
+          }
+        ]
+      },
+      "activeInstructions": [
+        {
+          "instructionId": 4,
+          "robTag": 0,
+          "rawText": "FMUL R10, R1, R2",
+          "executing": true,
+          "remainingCycles": 4,
+          "waitingReason": "",
+          "vj": 2,
+          "vk": 3,
+          "qj": -1,
+          "qk": -1
+        },
+        {
+          "instructionId": 5,
+          "robTag": 1,
+          "rawText": "FMUL R11, R2, R3",
+          "executing": false,
+          "remainingCycles": 5,
+          "waitingReason": "issued this cycle",
+          "vj": 3,
+          "vk": 4,
+          "qj": -1,
+          "qk": -1
+        }
+      ],
+      "lsq": [
+      ],
+      "registerProducers": [
+        {
+          "register": 4,
+          "robTag": 3
+        },
+        {
+          "register": 10,
+          "robTag": 0
+        },
+        {
+          "register": 11,
+          "robTag": 1
+        }
+      ],
+      "predictorState": {
+        "predictorType": "always-taken",
+        "globalHistory": -1,
+        "globalHistoryBits": -1,
+        "globalHistoryText": "",
+        "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
+        ]
+      },
+      "fuPipelines": {
+        "FP_ADD": [
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ],
+        "FP_MUL": [
+          [
+            { "occupied": true, "instructionId": 4 },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ],
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ]
+      },
+      "rsState": {
+        "INT": {
+          "used": 0,
+          "capacity": 2
+        },
+        "MUL": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_ADD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_MUL": {
+          "used": 1,
+          "capacity": 4
+        },
+        "LOAD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "STORE": {
+          "used": 0,
+          "capacity": 2
+        }
+      },
+      "branchPredictions": [
+      ],
+      "events": [
+        "Issued: I5 FMUL R11, R2, R3",
+        "Execution started: I4 FMUL R10, R1, R2",
+        "Committed I2",
+        "CDB Broadcast: I3 ADDI R4, R0, 5"
+      ]
+    },
+    {
+      "cycle": 7,
+      "pc": 7,
+      "predictorType": "always-taken",
+      "issuedInstruction": "FMUL R12, R3, R4",
+      "cdbBroadcast": "none",
+      "commitEvent": "Committed I3",
+      "registers": [0, 2, 3, 4, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "memory": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "rob": {
+        "head": 0,
+        "tail": 3,
+        "count": 3,
+        "entries": [
+          {
+            "robTag": 0,
+            "instructionId": 4,
+            "rawText": "FMUL R10, R1, R2",
+            "busy": true,
+            "ready": false,
+            "writesRegister": false,
+            "destinationRegister": -1,
+            "value": 0,
+            "writesMemory": false,
+            "memoryAddress": -1,
+            "memoryValue": 0
+          },
+          {
+            "robTag": 1,
+            "instructionId": 5,
+            "rawText": "FMUL R11, R2, R3",
             "busy": true,
             "ready": false,
             "writesRegister": false,
@@ -565,21 +1063,8 @@
           },
           {
             "robTag": 2,
-            "instructionId": 2,
-            "rawText": "ADD R1, R3, R5",
-            "busy": true,
-            "ready": true,
-            "writesRegister": true,
-            "destinationRegister": 1,
-            "value": 7,
-            "writesMemory": false,
-            "memoryAddress": -1,
-            "memoryValue": 0
-          },
-          {
-            "robTag": 3,
-            "instructionId": 3,
-            "rawText": "MUL R1, R3, R5",
+            "instructionId": 6,
+            "rawText": "FMUL R12, R3, R4",
             "busy": true,
             "ready": false,
             "writesRegister": false,
@@ -593,27 +1078,39 @@
       },
       "activeInstructions": [
         {
-          "instructionId": 3,
-          "robTag": 3,
-          "rawText": "MUL R1, R3, R5",
+          "instructionId": 4,
+          "robTag": 0,
+          "rawText": "FMUL R10, R1, R2",
           "executing": true,
-          "remainingCycles": 1,
+          "remainingCycles": 3,
           "waitingReason": "",
-          "vj": 5,
-          "vk": 2,
+          "vj": 2,
+          "vk": 3,
           "qj": -1,
           "qk": -1
         },
         {
-          "instructionId": 4,
-          "robTag": 0,
-          "rawText": "ADD R2, R1, R3",
+          "instructionId": 5,
+          "robTag": 1,
+          "rawText": "FMUL R11, R2, R3",
+          "executing": true,
+          "remainingCycles": 4,
+          "waitingReason": "",
+          "vj": 3,
+          "vk": 4,
+          "qj": -1,
+          "qk": -1
+        },
+        {
+          "instructionId": 6,
+          "robTag": 2,
+          "rawText": "FMUL R12, R3, R4",
           "executing": false,
-          "remainingCycles": 1,
-          "waitingReason": "RAW dependency",
-          "vj": 0,
+          "remainingCycles": 5,
+          "waitingReason": "issued this cycle",
+          "vj": 4,
           "vk": 5,
-          "qj": 3,
+          "qj": -1,
           "qk": -1
         }
       ],
@@ -621,46 +1118,136 @@
       ],
       "registerProducers": [
         {
-          "register": 1,
-          "robTag": 3
+          "register": 10,
+          "robTag": 0
         },
         {
-          "register": 2,
-          "robTag": 0
+          "register": 11,
+          "robTag": 1
+        },
+        {
+          "register": 12,
+          "robTag": 2
         }
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
+      },
+      "fuPipelines": {
+        "FP_ADD": [
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ],
+        "FP_MUL": [
+          [
+            { "occupied": true, "instructionId": 5 },
+            { "occupied": true, "instructionId": 4 },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ],
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ]
+      },
+      "rsState": {
+        "INT": {
+          "used": 0,
+          "capacity": 2
+        },
+        "MUL": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_ADD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_MUL": {
+          "used": 1,
+          "capacity": 4
+        },
+        "LOAD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "STORE": {
+          "used": 0,
+          "capacity": 2
+        }
       },
       "branchPredictions": [
       ],
       "events": [
-        "CDB Broadcast: I2 ADD R1, R3, R5"
+        "Issued: I6 FMUL R12, R3, R4",
+        "Execution started: I5 FMUL R11, R2, R3",
+        "Committed I3"
       ]
     },
     {
-      "cycle": 7,
-      "pc": 5,
-      "predictorType": "two-bit",
-      "issuedInstruction": "",
+      "cycle": 8,
+      "pc": 8,
+      "predictorType": "always-taken",
+      "issuedInstruction": "FMUL R13, R1, R4",
       "cdbBroadcast": "none",
-      "commitEvent": "Committed I2",
-      "registers": [0, 7, 0, 5, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "commitEvent": "",
+      "registers": [0, 2, 3, 4, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       "memory": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       "rob": {
-        "head": 3,
-        "tail": 1,
-        "count": 2,
+        "head": 0,
+        "tail": 0,
+        "count": 4,
         "entries": [
           {
             "robTag": 0,
             "instructionId": 4,
-            "rawText": "ADD R2, R1, R3",
+            "rawText": "FMUL R10, R1, R2",
+            "busy": true,
+            "ready": false,
+            "writesRegister": false,
+            "destinationRegister": -1,
+            "value": 0,
+            "writesMemory": false,
+            "memoryAddress": -1,
+            "memoryValue": 0
+          },
+          {
+            "robTag": 1,
+            "instructionId": 5,
+            "rawText": "FMUL R11, R2, R3",
+            "busy": true,
+            "ready": false,
+            "writesRegister": false,
+            "destinationRegister": -1,
+            "value": 0,
+            "writesMemory": false,
+            "memoryAddress": -1,
+            "memoryValue": 0
+          },
+          {
+            "robTag": 2,
+            "instructionId": 6,
+            "rawText": "FMUL R12, R3, R4",
             "busy": true,
             "ready": false,
             "writesRegister": false,
@@ -672,8 +1259,8 @@
           },
           {
             "robTag": 3,
-            "instructionId": 3,
-            "rawText": "MUL R1, R3, R5",
+            "instructionId": 7,
+            "rawText": "FMUL R13, R1, R4",
             "busy": true,
             "ready": false,
             "writesRegister": false,
@@ -689,13 +1276,49 @@
         {
           "instructionId": 4,
           "robTag": 0,
-          "rawText": "ADD R2, R1, R3",
-          "executing": false,
-          "remainingCycles": 1,
-          "waitingReason": "RAW dependency",
-          "vj": 0,
+          "rawText": "FMUL R10, R1, R2",
+          "executing": true,
+          "remainingCycles": 2,
+          "waitingReason": "",
+          "vj": 2,
+          "vk": 3,
+          "qj": -1,
+          "qk": -1
+        },
+        {
+          "instructionId": 5,
+          "robTag": 1,
+          "rawText": "FMUL R11, R2, R3",
+          "executing": true,
+          "remainingCycles": 3,
+          "waitingReason": "",
+          "vj": 3,
+          "vk": 4,
+          "qj": -1,
+          "qk": -1
+        },
+        {
+          "instructionId": 6,
+          "robTag": 2,
+          "rawText": "FMUL R12, R3, R4",
+          "executing": true,
+          "remainingCycles": 4,
+          "waitingReason": "",
+          "vj": 4,
           "vk": 5,
-          "qj": 3,
+          "qj": -1,
+          "qk": -1
+        },
+        {
+          "instructionId": 7,
+          "robTag": 3,
+          "rawText": "FMUL R13, R1, R4",
+          "executing": false,
+          "remainingCycles": 5,
+          "waitingReason": "issued this cycle",
+          "vj": 2,
+          "vk": 5,
+          "qj": -1,
           "qk": -1
         }
       ],
@@ -703,48 +1326,139 @@
       ],
       "registerProducers": [
         {
-          "register": 1,
-          "robTag": 3
+          "register": 10,
+          "robTag": 0
         },
         {
-          "register": 2,
-          "robTag": 0
+          "register": 11,
+          "robTag": 1
+        },
+        {
+          "register": 12,
+          "robTag": 2
+        },
+        {
+          "register": 13,
+          "robTag": 3
         }
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
+      },
+      "fuPipelines": {
+        "FP_ADD": [
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ],
+        "FP_MUL": [
+          [
+            { "occupied": true, "instructionId": 6 },
+            { "occupied": true, "instructionId": 5 },
+            { "occupied": true, "instructionId": 4 },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ],
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ]
+      },
+      "rsState": {
+        "INT": {
+          "used": 0,
+          "capacity": 2
+        },
+        "MUL": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_ADD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_MUL": {
+          "used": 1,
+          "capacity": 4
+        },
+        "LOAD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "STORE": {
+          "used": 0,
+          "capacity": 2
+        }
       },
       "branchPredictions": [
       ],
       "events": [
-        "Committed I2",
-        "Execution complete: I3 MUL R1, R3, R5",
-        "Result queued for CDB: I3 R1 = 10"
+        "Issued: I7 FMUL R13, R1, R4",
+        "Execution started: I6 FMUL R12, R3, R4"
       ]
     },
     {
-      "cycle": 8,
-      "pc": 5,
-      "predictorType": "two-bit",
+      "cycle": 9,
+      "pc": 8,
+      "predictorType": "always-taken",
       "issuedInstruction": "",
-      "cdbBroadcast": "I3 MUL R1, R3, R5",
+      "cdbBroadcast": "none",
       "commitEvent": "",
-      "registers": [0, 7, 0, 5, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "registers": [0, 2, 3, 4, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       "memory": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       "rob": {
-        "head": 3,
-        "tail": 1,
-        "count": 2,
+        "head": 0,
+        "tail": 0,
+        "count": 4,
         "entries": [
           {
             "robTag": 0,
             "instructionId": 4,
-            "rawText": "ADD R2, R1, R3",
+            "rawText": "FMUL R10, R1, R2",
+            "busy": true,
+            "ready": false,
+            "writesRegister": false,
+            "destinationRegister": -1,
+            "value": 0,
+            "writesMemory": false,
+            "memoryAddress": -1,
+            "memoryValue": 0
+          },
+          {
+            "robTag": 1,
+            "instructionId": 5,
+            "rawText": "FMUL R11, R2, R3",
+            "busy": true,
+            "ready": false,
+            "writesRegister": false,
+            "destinationRegister": -1,
+            "value": 0,
+            "writesMemory": false,
+            "memoryAddress": -1,
+            "memoryValue": 0
+          },
+          {
+            "robTag": 2,
+            "instructionId": 6,
+            "rawText": "FMUL R12, R3, R4",
             "busy": true,
             "ready": false,
             "writesRegister": false,
@@ -756,12 +1470,861 @@
           },
           {
             "robTag": 3,
-            "instructionId": 3,
-            "rawText": "MUL R1, R3, R5",
+            "instructionId": 7,
+            "rawText": "FMUL R13, R1, R4",
+            "busy": true,
+            "ready": false,
+            "writesRegister": false,
+            "destinationRegister": -1,
+            "value": 0,
+            "writesMemory": false,
+            "memoryAddress": -1,
+            "memoryValue": 0
+          }
+        ]
+      },
+      "activeInstructions": [
+        {
+          "instructionId": 4,
+          "robTag": 0,
+          "rawText": "FMUL R10, R1, R2",
+          "executing": true,
+          "remainingCycles": 1,
+          "waitingReason": "",
+          "vj": 2,
+          "vk": 3,
+          "qj": -1,
+          "qk": -1
+        },
+        {
+          "instructionId": 5,
+          "robTag": 1,
+          "rawText": "FMUL R11, R2, R3",
+          "executing": true,
+          "remainingCycles": 2,
+          "waitingReason": "",
+          "vj": 3,
+          "vk": 4,
+          "qj": -1,
+          "qk": -1
+        },
+        {
+          "instructionId": 6,
+          "robTag": 2,
+          "rawText": "FMUL R12, R3, R4",
+          "executing": true,
+          "remainingCycles": 3,
+          "waitingReason": "",
+          "vj": 4,
+          "vk": 5,
+          "qj": -1,
+          "qk": -1
+        },
+        {
+          "instructionId": 7,
+          "robTag": 3,
+          "rawText": "FMUL R13, R1, R4",
+          "executing": true,
+          "remainingCycles": 4,
+          "waitingReason": "",
+          "vj": 2,
+          "vk": 5,
+          "qj": -1,
+          "qk": -1
+        }
+      ],
+      "lsq": [
+      ],
+      "registerProducers": [
+        {
+          "register": 10,
+          "robTag": 0
+        },
+        {
+          "register": 11,
+          "robTag": 1
+        },
+        {
+          "register": 12,
+          "robTag": 2
+        },
+        {
+          "register": 13,
+          "robTag": 3
+        }
+      ],
+      "predictorState": {
+        "predictorType": "always-taken",
+        "globalHistory": -1,
+        "globalHistoryBits": -1,
+        "globalHistoryText": "",
+        "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
+        ]
+      },
+      "fuPipelines": {
+        "FP_ADD": [
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ],
+        "FP_MUL": [
+          [
+            { "occupied": true, "instructionId": 7 },
+            { "occupied": true, "instructionId": 6 },
+            { "occupied": true, "instructionId": 5 },
+            { "occupied": true, "instructionId": 4 },
+            { "occupied": false, "instructionId": null }
+          ],
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ]
+      },
+      "rsState": {
+        "INT": {
+          "used": 0,
+          "capacity": 2
+        },
+        "MUL": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_ADD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_MUL": {
+          "used": 0,
+          "capacity": 4
+        },
+        "LOAD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "STORE": {
+          "used": 0,
+          "capacity": 2
+        }
+      },
+      "branchPredictions": [
+      ],
+      "events": [
+        "Execution started: I7 FMUL R13, R1, R4"
+      ]
+    },
+    {
+      "cycle": 10,
+      "pc": 8,
+      "predictorType": "always-taken",
+      "issuedInstruction": "",
+      "cdbBroadcast": "none",
+      "commitEvent": "",
+      "registers": [0, 2, 3, 4, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "memory": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "rob": {
+        "head": 0,
+        "tail": 0,
+        "count": 4,
+        "entries": [
+          {
+            "robTag": 0,
+            "instructionId": 4,
+            "rawText": "FMUL R10, R1, R2",
+            "busy": true,
+            "ready": false,
+            "writesRegister": false,
+            "destinationRegister": -1,
+            "value": 0,
+            "writesMemory": false,
+            "memoryAddress": -1,
+            "memoryValue": 0
+          },
+          {
+            "robTag": 1,
+            "instructionId": 5,
+            "rawText": "FMUL R11, R2, R3",
+            "busy": true,
+            "ready": false,
+            "writesRegister": false,
+            "destinationRegister": -1,
+            "value": 0,
+            "writesMemory": false,
+            "memoryAddress": -1,
+            "memoryValue": 0
+          },
+          {
+            "robTag": 2,
+            "instructionId": 6,
+            "rawText": "FMUL R12, R3, R4",
+            "busy": true,
+            "ready": false,
+            "writesRegister": false,
+            "destinationRegister": -1,
+            "value": 0,
+            "writesMemory": false,
+            "memoryAddress": -1,
+            "memoryValue": 0
+          },
+          {
+            "robTag": 3,
+            "instructionId": 7,
+            "rawText": "FMUL R13, R1, R4",
+            "busy": true,
+            "ready": false,
+            "writesRegister": false,
+            "destinationRegister": -1,
+            "value": 0,
+            "writesMemory": false,
+            "memoryAddress": -1,
+            "memoryValue": 0
+          }
+        ]
+      },
+      "activeInstructions": [
+        {
+          "instructionId": 5,
+          "robTag": 1,
+          "rawText": "FMUL R11, R2, R3",
+          "executing": true,
+          "remainingCycles": 1,
+          "waitingReason": "",
+          "vj": 3,
+          "vk": 4,
+          "qj": -1,
+          "qk": -1
+        },
+        {
+          "instructionId": 6,
+          "robTag": 2,
+          "rawText": "FMUL R12, R3, R4",
+          "executing": true,
+          "remainingCycles": 2,
+          "waitingReason": "",
+          "vj": 4,
+          "vk": 5,
+          "qj": -1,
+          "qk": -1
+        },
+        {
+          "instructionId": 7,
+          "robTag": 3,
+          "rawText": "FMUL R13, R1, R4",
+          "executing": true,
+          "remainingCycles": 3,
+          "waitingReason": "",
+          "vj": 2,
+          "vk": 5,
+          "qj": -1,
+          "qk": -1
+        }
+      ],
+      "lsq": [
+      ],
+      "registerProducers": [
+        {
+          "register": 10,
+          "robTag": 0
+        },
+        {
+          "register": 11,
+          "robTag": 1
+        },
+        {
+          "register": 12,
+          "robTag": 2
+        },
+        {
+          "register": 13,
+          "robTag": 3
+        }
+      ],
+      "predictorState": {
+        "predictorType": "always-taken",
+        "globalHistory": -1,
+        "globalHistoryBits": -1,
+        "globalHistoryText": "",
+        "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
+        ]
+      },
+      "fuPipelines": {
+        "FP_ADD": [
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ],
+        "FP_MUL": [
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": true, "instructionId": 7 },
+            { "occupied": true, "instructionId": 6 },
+            { "occupied": true, "instructionId": 5 },
+            { "occupied": false, "instructionId": null }
+          ],
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ]
+      },
+      "rsState": {
+        "INT": {
+          "used": 0,
+          "capacity": 2
+        },
+        "MUL": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_ADD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_MUL": {
+          "used": 0,
+          "capacity": 4
+        },
+        "LOAD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "STORE": {
+          "used": 0,
+          "capacity": 2
+        }
+      },
+      "branchPredictions": [
+      ],
+      "events": [
+        "Execution complete: I4 FMUL R10, R1, R2",
+        "Result queued for CDB: I4 R10 = 6"
+      ]
+    },
+    {
+      "cycle": 11,
+      "pc": 8,
+      "predictorType": "always-taken",
+      "issuedInstruction": "",
+      "cdbBroadcast": "I4 FMUL R10, R1, R2",
+      "commitEvent": "",
+      "registers": [0, 2, 3, 4, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "memory": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "rob": {
+        "head": 0,
+        "tail": 0,
+        "count": 4,
+        "entries": [
+          {
+            "robTag": 0,
+            "instructionId": 4,
+            "rawText": "FMUL R10, R1, R2",
             "busy": true,
             "ready": true,
             "writesRegister": true,
-            "destinationRegister": 1,
+            "destinationRegister": 10,
+            "value": 6,
+            "writesMemory": false,
+            "memoryAddress": -1,
+            "memoryValue": 0
+          },
+          {
+            "robTag": 1,
+            "instructionId": 5,
+            "rawText": "FMUL R11, R2, R3",
+            "busy": true,
+            "ready": false,
+            "writesRegister": false,
+            "destinationRegister": -1,
+            "value": 0,
+            "writesMemory": false,
+            "memoryAddress": -1,
+            "memoryValue": 0
+          },
+          {
+            "robTag": 2,
+            "instructionId": 6,
+            "rawText": "FMUL R12, R3, R4",
+            "busy": true,
+            "ready": false,
+            "writesRegister": false,
+            "destinationRegister": -1,
+            "value": 0,
+            "writesMemory": false,
+            "memoryAddress": -1,
+            "memoryValue": 0
+          },
+          {
+            "robTag": 3,
+            "instructionId": 7,
+            "rawText": "FMUL R13, R1, R4",
+            "busy": true,
+            "ready": false,
+            "writesRegister": false,
+            "destinationRegister": -1,
+            "value": 0,
+            "writesMemory": false,
+            "memoryAddress": -1,
+            "memoryValue": 0
+          }
+        ]
+      },
+      "activeInstructions": [
+        {
+          "instructionId": 6,
+          "robTag": 2,
+          "rawText": "FMUL R12, R3, R4",
+          "executing": true,
+          "remainingCycles": 1,
+          "waitingReason": "",
+          "vj": 4,
+          "vk": 5,
+          "qj": -1,
+          "qk": -1
+        },
+        {
+          "instructionId": 7,
+          "robTag": 3,
+          "rawText": "FMUL R13, R1, R4",
+          "executing": true,
+          "remainingCycles": 2,
+          "waitingReason": "",
+          "vj": 2,
+          "vk": 5,
+          "qj": -1,
+          "qk": -1
+        }
+      ],
+      "lsq": [
+      ],
+      "registerProducers": [
+        {
+          "register": 10,
+          "robTag": 0
+        },
+        {
+          "register": 11,
+          "robTag": 1
+        },
+        {
+          "register": 12,
+          "robTag": 2
+        },
+        {
+          "register": 13,
+          "robTag": 3
+        }
+      ],
+      "predictorState": {
+        "predictorType": "always-taken",
+        "globalHistory": -1,
+        "globalHistoryBits": -1,
+        "globalHistoryText": "",
+        "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
+        ]
+      },
+      "fuPipelines": {
+        "FP_ADD": [
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ],
+        "FP_MUL": [
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": true, "instructionId": 7 },
+            { "occupied": true, "instructionId": 6 },
+            { "occupied": false, "instructionId": null }
+          ],
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ]
+      },
+      "rsState": {
+        "INT": {
+          "used": 0,
+          "capacity": 2
+        },
+        "MUL": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_ADD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_MUL": {
+          "used": 0,
+          "capacity": 4
+        },
+        "LOAD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "STORE": {
+          "used": 0,
+          "capacity": 2
+        }
+      },
+      "branchPredictions": [
+      ],
+      "events": [
+        "CDB Broadcast: I4 FMUL R10, R1, R2",
+        "Execution complete: I5 FMUL R11, R2, R3",
+        "Result queued for CDB: I5 R11 = 12"
+      ]
+    },
+    {
+      "cycle": 12,
+      "pc": 8,
+      "predictorType": "always-taken",
+      "issuedInstruction": "",
+      "cdbBroadcast": "I5 FMUL R11, R2, R3",
+      "commitEvent": "Committed I4",
+      "registers": [0, 2, 3, 4, 5, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "memory": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "rob": {
+        "head": 1,
+        "tail": 0,
+        "count": 3,
+        "entries": [
+          {
+            "robTag": 1,
+            "instructionId": 5,
+            "rawText": "FMUL R11, R2, R3",
+            "busy": true,
+            "ready": true,
+            "writesRegister": true,
+            "destinationRegister": 11,
+            "value": 12,
+            "writesMemory": false,
+            "memoryAddress": -1,
+            "memoryValue": 0
+          },
+          {
+            "robTag": 2,
+            "instructionId": 6,
+            "rawText": "FMUL R12, R3, R4",
+            "busy": true,
+            "ready": false,
+            "writesRegister": false,
+            "destinationRegister": -1,
+            "value": 0,
+            "writesMemory": false,
+            "memoryAddress": -1,
+            "memoryValue": 0
+          },
+          {
+            "robTag": 3,
+            "instructionId": 7,
+            "rawText": "FMUL R13, R1, R4",
+            "busy": true,
+            "ready": false,
+            "writesRegister": false,
+            "destinationRegister": -1,
+            "value": 0,
+            "writesMemory": false,
+            "memoryAddress": -1,
+            "memoryValue": 0
+          }
+        ]
+      },
+      "activeInstructions": [
+        {
+          "instructionId": 7,
+          "robTag": 3,
+          "rawText": "FMUL R13, R1, R4",
+          "executing": true,
+          "remainingCycles": 1,
+          "waitingReason": "",
+          "vj": 2,
+          "vk": 5,
+          "qj": -1,
+          "qk": -1
+        }
+      ],
+      "lsq": [
+      ],
+      "registerProducers": [
+        {
+          "register": 11,
+          "robTag": 1
+        },
+        {
+          "register": 12,
+          "robTag": 2
+        },
+        {
+          "register": 13,
+          "robTag": 3
+        }
+      ],
+      "predictorState": {
+        "predictorType": "always-taken",
+        "globalHistory": -1,
+        "globalHistoryBits": -1,
+        "globalHistoryText": "",
+        "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
+        ]
+      },
+      "fuPipelines": {
+        "FP_ADD": [
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ],
+        "FP_MUL": [
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": true, "instructionId": 7 },
+            { "occupied": false, "instructionId": null }
+          ],
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ]
+      },
+      "rsState": {
+        "INT": {
+          "used": 0,
+          "capacity": 2
+        },
+        "MUL": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_ADD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_MUL": {
+          "used": 0,
+          "capacity": 4
+        },
+        "LOAD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "STORE": {
+          "used": 0,
+          "capacity": 2
+        }
+      },
+      "branchPredictions": [
+      ],
+      "events": [
+        "Committed I4",
+        "CDB Broadcast: I5 FMUL R11, R2, R3",
+        "Execution complete: I6 FMUL R12, R3, R4",
+        "Result queued for CDB: I6 R12 = 20"
+      ]
+    },
+    {
+      "cycle": 13,
+      "pc": 8,
+      "predictorType": "always-taken",
+      "issuedInstruction": "",
+      "cdbBroadcast": "I6 FMUL R12, R3, R4",
+      "commitEvent": "Committed I5",
+      "registers": [0, 2, 3, 4, 5, 0, 0, 0, 0, 0, 6, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "memory": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "rob": {
+        "head": 2,
+        "tail": 0,
+        "count": 2,
+        "entries": [
+          {
+            "robTag": 2,
+            "instructionId": 6,
+            "rawText": "FMUL R12, R3, R4",
+            "busy": true,
+            "ready": true,
+            "writesRegister": true,
+            "destinationRegister": 12,
+            "value": 20,
+            "writesMemory": false,
+            "memoryAddress": -1,
+            "memoryValue": 0
+          },
+          {
+            "robTag": 3,
+            "instructionId": 7,
+            "rawText": "FMUL R13, R1, R4",
+            "busy": true,
+            "ready": false,
+            "writesRegister": false,
+            "destinationRegister": -1,
+            "value": 0,
+            "writesMemory": false,
+            "memoryAddress": -1,
+            "memoryValue": 0
+          }
+        ]
+      },
+      "activeInstructions": [
+      ],
+      "lsq": [
+      ],
+      "registerProducers": [
+        {
+          "register": 12,
+          "robTag": 2
+        },
+        {
+          "register": 13,
+          "robTag": 3
+        }
+      ],
+      "predictorState": {
+        "predictorType": "always-taken",
+        "globalHistory": -1,
+        "globalHistoryBits": -1,
+        "globalHistoryText": "",
+        "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
+        ]
+      },
+      "fuPipelines": {
+        "FP_ADD": [
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ],
+        "FP_MUL": [
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ],
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ]
+      },
+      "rsState": {
+        "INT": {
+          "used": 0,
+          "capacity": 2
+        },
+        "MUL": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_ADD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_MUL": {
+          "used": 0,
+          "capacity": 4
+        },
+        "LOAD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "STORE": {
+          "used": 0,
+          "capacity": 2
+        }
+      },
+      "branchPredictions": [
+      ],
+      "events": [
+        "Committed I5",
+        "CDB Broadcast: I6 FMUL R12, R3, R4",
+        "Execution complete: I7 FMUL R13, R1, R4",
+        "Result queued for CDB: I7 R13 = 10"
+      ]
+    },
+    {
+      "cycle": 14,
+      "pc": 8,
+      "predictorType": "always-taken",
+      "issuedInstruction": "",
+      "cdbBroadcast": "I7 FMUL R13, R1, R4",
+      "commitEvent": "Committed I6",
+      "registers": [0, 2, 3, 4, 5, 0, 0, 0, 0, 0, 6, 12, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "memory": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "rob": {
+        "head": 3,
+        "tail": 0,
+        "count": 1,
+        "entries": [
+          {
+            "robTag": 3,
+            "instructionId": 7,
+            "rawText": "FMUL R13, R1, R4",
+            "busy": true,
+            "ready": true,
+            "writesRegister": true,
+            "destinationRegister": 13,
             "value": 10,
             "writesMemory": false,
             "memoryAddress": -1,
@@ -770,166 +2333,100 @@
         ]
       },
       "activeInstructions": [
-        {
-          "instructionId": 4,
-          "robTag": 0,
-          "rawText": "ADD R2, R1, R3",
-          "executing": false,
-          "remainingCycles": 1,
-          "waitingReason": "RAW dependency",
-          "vj": 10,
-          "vk": 5,
-          "qj": -1,
-          "qk": -1
-        }
       ],
       "lsq": [
       ],
       "registerProducers": [
         {
-          "register": 1,
+          "register": 13,
           "robTag": 3
+        }
+      ],
+      "predictorState": {
+        "predictorType": "always-taken",
+        "globalHistory": -1,
+        "globalHistoryBits": -1,
+        "globalHistoryText": "",
+        "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
+        ]
+      },
+      "fuPipelines": {
+        "FP_ADD": [
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ],
+        "FP_MUL": [
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ],
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ]
+      },
+      "rsState": {
+        "INT": {
+          "used": 0,
+          "capacity": 2
         },
-        {
-          "register": 2,
-          "robTag": 0
+        "MUL": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_ADD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_MUL": {
+          "used": 0,
+          "capacity": 4
+        },
+        "LOAD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "STORE": {
+          "used": 0,
+          "capacity": 2
         }
-      ],
-      "predictorState": {
-        "predictorType": "two-bit",
-        "globalHistory": -1,
-        "globalHistoryBits": -1,
-        "globalHistoryText": "",
-        "entries": [
-        ]
       },
       "branchPredictions": [
       ],
       "events": [
-        "CDB Broadcast: I3 MUL R1, R3, R5"
+        "Committed I6",
+        "CDB Broadcast: I7 FMUL R13, R1, R4"
       ]
     },
     {
-      "cycle": 9,
-      "pc": 5,
-      "predictorType": "two-bit",
+      "cycle": 15,
+      "pc": 8,
+      "predictorType": "always-taken",
       "issuedInstruction": "",
       "cdbBroadcast": "none",
-      "commitEvent": "Committed I3",
-      "registers": [0, 10, 0, 5, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "commitEvent": "Committed I7",
+      "registers": [0, 2, 3, 4, 5, 0, 0, 0, 0, 0, 6, 12, 20, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       "memory": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       "rob": {
         "head": 0,
-        "tail": 1,
-        "count": 1,
-        "entries": [
-          {
-            "robTag": 0,
-            "instructionId": 4,
-            "rawText": "ADD R2, R1, R3",
-            "busy": true,
-            "ready": false,
-            "writesRegister": false,
-            "destinationRegister": -1,
-            "value": 0,
-            "writesMemory": false,
-            "memoryAddress": -1,
-            "memoryValue": 0
-          }
-        ]
-      },
-      "activeInstructions": [
-      ],
-      "lsq": [
-      ],
-      "registerProducers": [
-        {
-          "register": 2,
-          "robTag": 0
-        }
-      ],
-      "predictorState": {
-        "predictorType": "two-bit",
-        "globalHistory": -1,
-        "globalHistoryBits": -1,
-        "globalHistoryText": "",
-        "entries": [
-        ]
-      },
-      "branchPredictions": [
-      ],
-      "events": [
-        "Execution started: I4 ADD R2, R1, R3",
-        "Committed I3",
-        "Execution complete: I4 ADD R2, R1, R3",
-        "Result queued for CDB: I4 R2 = 15"
-      ]
-    },
-    {
-      "cycle": 10,
-      "pc": 5,
-      "predictorType": "two-bit",
-      "issuedInstruction": "",
-      "cdbBroadcast": "I4 ADD R2, R1, R3",
-      "commitEvent": "",
-      "registers": [0, 10, 0, 5, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      "memory": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      "rob": {
-        "head": 0,
-        "tail": 1,
-        "count": 1,
-        "entries": [
-          {
-            "robTag": 0,
-            "instructionId": 4,
-            "rawText": "ADD R2, R1, R3",
-            "busy": true,
-            "ready": true,
-            "writesRegister": true,
-            "destinationRegister": 2,
-            "value": 15,
-            "writesMemory": false,
-            "memoryAddress": -1,
-            "memoryValue": 0
-          }
-        ]
-      },
-      "activeInstructions": [
-      ],
-      "lsq": [
-      ],
-      "registerProducers": [
-        {
-          "register": 2,
-          "robTag": 0
-        }
-      ],
-      "predictorState": {
-        "predictorType": "two-bit",
-        "globalHistory": -1,
-        "globalHistoryBits": -1,
-        "globalHistoryText": "",
-        "entries": [
-        ]
-      },
-      "branchPredictions": [
-      ],
-      "events": [
-        "CDB Broadcast: I4 ADD R2, R1, R3"
-      ]
-    },
-    {
-      "cycle": 11,
-      "pc": 5,
-      "predictorType": "two-bit",
-      "issuedInstruction": "",
-      "cdbBroadcast": "none",
-      "commitEvent": "Committed I4",
-      "registers": [0, 10, 15, 5, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      "memory": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      "rob": {
-        "head": 1,
-        "tail": 1,
+        "tail": 0,
         "count": 0,
         "entries": [
         ]
@@ -941,17 +2438,75 @@
       "registerProducers": [
       ],
       "predictorState": {
-        "predictorType": "two-bit",
+        "predictorType": "always-taken",
         "globalHistory": -1,
         "globalHistoryBits": -1,
         "globalHistoryText": "",
         "entries": [
+          {
+            "index": -1,
+            "state": -1,
+            "stateBits": "static",
+            "stateText": "Always Taken",
+            "prediction": "T"
+          }
         ]
+      },
+      "fuPipelines": {
+        "FP_ADD": [
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ],
+        "FP_MUL": [
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ],
+          [
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null },
+            { "occupied": false, "instructionId": null }
+          ]
+        ]
+      },
+      "rsState": {
+        "INT": {
+          "used": 0,
+          "capacity": 2
+        },
+        "MUL": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_ADD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "FP_MUL": {
+          "used": 0,
+          "capacity": 4
+        },
+        "LOAD": {
+          "used": 0,
+          "capacity": 2
+        },
+        "STORE": {
+          "used": 0,
+          "capacity": 2
+        }
       },
       "branchPredictions": [
       ],
       "events": [
-        "Committed I4"
+        "Committed I7"
       ]
     }
   ]

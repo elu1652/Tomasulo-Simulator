@@ -187,6 +187,44 @@ static void markFlushedInstructionStatuses(
     }
 }
 
+static std::vector<std::vector<TracePipelineStage>> makeTracePipeline(
+    const FunctionalUnit& fu
+) {
+    std::vector<std::vector<TracePipelineStage>> tracePipeline;
+
+    if (!fu.pipelined) {
+        return tracePipeline;
+    }
+
+    for (const auto& pipeline : fu.pipelines) {
+        std::vector<TracePipelineStage> traceStages;
+
+        for (const auto& stage : pipeline) {
+            TracePipelineStage traceStage;
+            traceStage.occupied = stage.occupied;
+            traceStage.instructionId = stage.instructionId;
+
+            traceStages.push_back(traceStage);
+        }
+
+        tracePipeline.push_back(traceStages);
+    }
+
+    return tracePipeline;
+}
+
+static TraceReservationStationUsage makeTraceRSUsage(
+    const std::vector<ActiveInstruction>& activeInstructions,
+    RSType type,
+    int capacity
+) {
+    TraceReservationStationUsage usage;
+    usage.used = countRSEntries(activeInstructions, type);
+    usage.capacity = capacity;
+
+    return usage;
+}
+
 static TraceSnapshot makeTraceSnapshot(
     int cycle,
     int pc,
@@ -199,6 +237,14 @@ static TraceSnapshot makeTraceSnapshot(
     const std::vector<InstructionStatus>& statusTable,
     const RegisterFile& rf,
     const Memory& mem,
+    const FunctionalUnit& fpAddFU,
+    const FunctionalUnit& fpMulFU,
+    int intRSCapacity,
+    int mulRSCapacity,
+    int fpAddRSCapacity,
+    int fpMulRSCapacity,
+    int loadBufferCapacity,
+    int storeBufferCapacity,
     const std::string& issuedInstruction,
     const std::string& cdbBroadcast,
     const std::string& commitEvent,
@@ -219,6 +265,38 @@ static TraceSnapshot makeTraceSnapshot(
     snapshot.events = events;
     snapshot.registers = rf.snapshot(32);
     snapshot.memory = mem.snapshot(32);
+    snapshot.fuPipelines.fpAdd = makeTracePipeline(fpAddFU);
+    snapshot.fuPipelines.fpMul = makeTracePipeline(fpMulFU);
+    snapshot.rsState.intRS = makeTraceRSUsage(
+        activeInstructions,
+        RSType::INT,
+        intRSCapacity
+    );
+    snapshot.rsState.mulRS = makeTraceRSUsage(
+        activeInstructions,
+        RSType::MUL,
+        mulRSCapacity
+    );
+    snapshot.rsState.fpAddRS = makeTraceRSUsage(
+        activeInstructions,
+        RSType::FP_ADD,
+        fpAddRSCapacity
+    );
+    snapshot.rsState.fpMulRS = makeTraceRSUsage(
+        activeInstructions,
+        RSType::FP_MUL,
+        fpMulRSCapacity
+    );
+    snapshot.rsState.loadBuffer = makeTraceRSUsage(
+        activeInstructions,
+        RSType::LOAD,
+        loadBufferCapacity
+    );
+    snapshot.rsState.storeBuffer = makeTraceRSUsage(
+        activeInstructions,
+        RSType::STORE,
+        storeBufferCapacity
+    );
 
     snapshot.robHead = rob.head;
     snapshot.robTail = rob.tail;
@@ -1186,6 +1264,14 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 statusTable,
                 rf,
                 mem,
+                fpAddFU,
+                fpMulFU,
+                INT_RS_CAPACITY,
+                MUL_RS_CAPACITY,
+                FP_ADD_RS_CAPACITY,
+                FP_MUL_RS_CAPACITY,
+                LOAD_BUFFER_CAPACITY,
+                STORE_BUFFER_CAPACITY,
                 issuedInstructionThisCycle,
                 cdbBroadcastThisCycle,
                 commitEventThisCycle,
