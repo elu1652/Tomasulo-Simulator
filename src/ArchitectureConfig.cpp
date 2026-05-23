@@ -12,6 +12,8 @@ struct Range {
 };
 
 const std::unordered_map<std::string, Range>& configRanges() {
+    // Shared validation for all per-run architecture overrides. Defaults live
+    // on ArchitectureConfig; this table only constrains user-provided values.
     static const std::unordered_map<std::string, Range> ranges = {
         {"robCapacity", {1, 128}},
         {"intRsCapacity", {1, 64}},

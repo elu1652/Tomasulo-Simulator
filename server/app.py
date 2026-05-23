@@ -205,6 +205,8 @@ def run_simulator(
     if predictor:
         command.extend(["--predictor", predictor])
 
+    # Architecture overrides are per request. The simulator keeps its defaults
+    # whenever this argument is omitted, so CLI/tests stay unchanged.
     if architecture_config:
         command.extend([
             "--arch-config",
@@ -380,6 +382,8 @@ def get_architecture_config():
             "error": "Invalid architecture config: architectureConfig must be an object",
         }), 400)
 
+    # Flask validates the same flat integer object that the frontend sends.
+    # The C++ layer validates again before applying values to ArchitectureConfig.
     config = {}
 
     for key, value in raw_config.items():

@@ -6,6 +6,7 @@ let activeMode = "cycle";
 let analysisResults = null;
 let selectedAnalysisPredictor = null;
 
+// Static predictor descriptions used by both cycle mode and comparison mode.
 const PREDICTOR_DETAILS = {
   "always-not-taken": {
     name: "Always Not Taken",
@@ -343,7 +344,7 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
-// File loading / backend run
+// File loading / API helpers
 function handleProgramFile(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -380,6 +381,8 @@ async function runSimulationFromInput() {
   setRunButtonDisabled(true);
 
   try {
+    // Cycle simulation and prediction analysis use the same architecture
+    // payload shape so results can be compared under the same machine model.
     const response = await fetch("/run", {
       method: "POST",
       headers: {
@@ -429,6 +432,8 @@ async function runPredictionAnalysis() {
   }
 
   try {
+    // Prediction analysis forwards the selected architecture config to every
+    // predictor run on the backend.
     const response = await fetch("/compare-predictors", {
       method: "POST",
       headers: {
@@ -541,6 +546,10 @@ function setMode(mode) {
   }
 }
 
+// Architecture Config
+// The selected values are sent with both /run and /compare-predictors. After
+// simulation, the backend trace is treated as the source of truth because older
+// traces may omit architectureConfig and the backend may fill default values.
 function initializeArchitectureControls() {
   syncArchitectureInputs();
   renderArchitectureSummary();
@@ -647,6 +656,8 @@ function architectureConfigsEqual(left, right) {
 }
 
 function getArchitectureConfigForRequest() {
+  // Input listeners keep architectureConfig current; this function is the
+  // single request payload path for cycle and prediction-analysis runs.
   return { ...architectureConfig };
 }
 
@@ -687,6 +698,8 @@ function parseProgramLines(text) {
     }
 
     if (!line) continue;
+    // .REG/.MEM are setup-only directives. They may appear in source text but
+    // are not executable PCs, so the Program/PC view excludes them.
     if (line.startsWith(".")) continue;
 
     program.push(line);
@@ -791,6 +804,9 @@ function render() {
 }
 
 // Program / PC rendering
+// PC highlighting uses real instruction indices from trace.program/status, not
+// source line numbers. This keeps setup directives and labels from shifting the
+// displayed executable PC list.
 function renderProgram(cycle) {
   if (!programListing) return;
 
@@ -1964,6 +1980,8 @@ function renderPerformanceStats() {
     return;
   }
 
+  // Stall cycle counters answer "did this cycle stall at least once?";
+  // stall event counters count each recorded cause, so they can be larger.
   performanceStatsPanel.innerHTML = `
     <div class="performance-stats-grid">
       ${renderStatItem("Total cycles", formatIntegerStat(stats.totalCycles))}

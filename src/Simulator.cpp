@@ -9,6 +9,7 @@
 #include "LSQ.h"
 #include "Trace.h"
 #include "TraceBuilder.h"
+#include "ProgramSetup.h"
 #include "BranchTraceUtils.h"
 #include "InstructionSemantics.h"
 #include "PerformanceStats.h"
@@ -104,25 +105,6 @@ static void recordBackendStall(
     stalledThisCycle = true;
     backendStalledThisCycle = true;
     stats.totalStallEvents++;
-}
-
-static void applyProgramSetup(
-    RegisterFile& rf,
-    Memory& mem,
-    const ProgramSetup& setup
-) {
-    for (const auto& [reg, value] : setup.registerInitializers) {
-        if (reg == 0 && value != 0) {
-            std::cerr << "Warning: .REG R0 " << value
-                      << " ignored; R0 is always zero\n";
-        }
-
-        rf.write(reg, value);
-    }
-
-    for (const auto& [address, value] : setup.memoryInitializers) {
-        mem.store(address, value);
-    }
 }
 
 // Compute the result of an instruction after it finishes execution.
@@ -307,6 +289,9 @@ void Simulator::execute(
 
         std::cout << "\n\nCycle " << cycle << "\n";
 
+        // Start-of-cycle pipeline advancement is reflected in the visual
+        // snapshot for this cycle. Completion and CDB queueing happen later
+        // so the frontend can show the final occupied stage before cleanup.
         advancePipeline(fpAddFU);
         advancePipeline(fpMulFU);
 
@@ -692,10 +677,11 @@ void Simulator::execute(
         printCDBQueue(cdbQueue);
         printROB(circularROB);
 
-        // Capture the primary visual state at the same point as the debug
+        // Trace snapshot timing:
+        // capture the primary visual state at the same point as the debug
         // state printout. Later end-of-cycle mutations update events and
         // metadata, but should not make the displayed cycle state contradict
-        // issue-time stalls or pipeline occupancy.
+        // issue-time stalls, ROB-full displays, or final FP pipeline stages.
         TraceSnapshot visualSnapshot = makeTraceSnapshot(
             cycle,
             pc,
@@ -1050,6 +1036,9 @@ void Simulator::execute(
                 i++;
             }
         }
+        // A second snapshot is used only for metadata that is naturally known
+        // after resolution/writeback, such as branch predictor state and final
+        // event strings. It does not replace the visual state captured above.
         TraceSnapshot endOfCycleMetadata = makeTraceSnapshot(
             cycle,
             pc,

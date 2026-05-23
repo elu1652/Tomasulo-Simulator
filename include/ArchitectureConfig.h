@@ -3,6 +3,8 @@
 #include <string>
 
 struct ArchitectureConfig {
+    // Defaults are the project behavior used by CLI/tests when no per-run
+    // frontend or command-line override is provided.
     int robCapacity = 16;
 
     int intRsCapacity = 2;

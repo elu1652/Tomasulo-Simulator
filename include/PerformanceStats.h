@@ -12,6 +12,8 @@ struct PerformanceStats {
     int robFullStallCycles = 0;
     int rsFullStallCycles = 0;
 
+    // Event counters count every recorded cause. Cycle counters above count
+    // whether at least one matching stall happened in a cycle.
     int totalStallEvents = 0;
     int rawDependencyStallEvents = 0;
     int fuBusyStallEvents = 0;

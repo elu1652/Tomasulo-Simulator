@@ -228,6 +228,8 @@ static void writeArchitectureConfig(
     std::ofstream& out,
     const ArchitectureConfig& config
 ) {
+    // Export the exact per-run config used by Simulator so the frontend never
+    // has to infer capacities from project defaults or hardcoded fallbacks.
     out << "  \"architectureConfig\": {\n";
     out << "    \"robCapacity\": " << config.robCapacity << ",\n";
     out << "    \"intRsCapacity\": " << config.intRsCapacity << ",\n";

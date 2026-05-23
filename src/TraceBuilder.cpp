@@ -75,6 +75,10 @@ TraceSnapshot makeTraceSnapshot(
     const std::string& commitEvent,
     const std::vector<std::string>& events
 ) {
+    // Trace snapshots are presentation snapshots for the visualizer, not a
+    // pure serialization of final end-of-cycle cleanup. Simulator.cpp chooses
+    // the capture point so ROB/RS/FU panels match the cycle decision being
+    // explained, then patches in late metadata such as branch results.
     TraceSnapshot snapshot;
 
     snapshot.cycle = cycle;

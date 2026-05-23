@@ -33,6 +33,9 @@ static bool parseSetupDirective(
     const std::string& filename,
     const std::string& displayLine
 ) {
+    // .REG and .MEM are assembler/test setup directives, not executable
+    // instructions. They are stored separately so static PCs and dynamic
+    // instruction IDs are assigned only to real program instructions.
     std::string normalized = line;
     normalized.erase(
         std::remove(normalized.begin(), normalized.end(), ','),
