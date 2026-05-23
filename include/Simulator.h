@@ -7,6 +7,7 @@
 #include "Memory.h"
 #include "InstructionStatus.h"
 #include "BranchPredictor.h"
+#include "Program.h"
 
 
 struct ExecutionResult {
@@ -70,7 +71,10 @@ private:
 public:
     explicit Simulator(BranchPredictorType predictorType = BranchPredictorType::TwoBit);
 
-    void execute(const std::vector<Instruction>& instructions);
+    void execute(
+        const std::vector<Instruction>& instructions,
+        const ProgramSetup& setup = ProgramSetup{}
+    );
 
     ExecutionResult computeResult(const ActiveInstruction& active);
 };

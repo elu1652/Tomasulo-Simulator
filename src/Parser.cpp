@@ -27,6 +27,63 @@ static int parseRegister(const std::string& token) {
     return std::stoi(token.substr(1));
 }
 
+static bool parseSetupDirective(
+    const std::string& line,
+    ProgramSetup& setup,
+    const std::string& filename,
+    const std::string& displayLine
+) {
+    std::string normalized = line;
+    normalized.erase(
+        std::remove(normalized.begin(), normalized.end(), ','),
+        normalized.end()
+    );
+
+    std::stringstream ss(normalized);
+    std::string directive;
+    ss >> directive;
+
+    if (directive == ".REG") {
+        std::string regToken;
+        std::string valueToken;
+        ss >> regToken >> valueToken;
+
+        if (regToken.empty() || valueToken.empty()) {
+            std::cerr << "Warning: invalid .REG directive ignored in "
+                      << filename << ": " << line << "\n";
+            return true;
+        }
+
+        setup.registerInitializers.push_back({
+            parseRegister(regToken),
+            std::stoi(valueToken)
+        });
+        setup.directiveLines.push_back(displayLine);
+        return true;
+    }
+
+    if (directive == ".MEM") {
+        std::string addressToken;
+        std::string valueToken;
+        ss >> addressToken >> valueToken;
+
+        if (addressToken.empty() || valueToken.empty()) {
+            std::cerr << "Warning: invalid .MEM directive ignored in "
+                      << filename << ": " << line << "\n";
+            return true;
+        }
+
+        setup.memoryInitializers.push_back({
+            std::stoi(addressToken),
+            std::stoi(valueToken)
+        });
+        setup.directiveLines.push_back(displayLine);
+        return true;
+    }
+
+    return false;
+}
+
 static OpCode parseOpCode(const std::string& token) {
     if (token == "ADD") return OpCode::ADD;
     if (token == "ADDI") return OpCode::ADDI;
@@ -44,20 +101,25 @@ static OpCode parseOpCode(const std::string& token) {
     return OpCode::INVALID;
 }
 
-std::vector<Instruction> Parser::parseFile(const std::string& filename) {
-    std::vector<Instruction> instructions;
+ParsedProgram Parser::parseProgram(const std::string& filename) {
+    ParsedProgram program;
     std::unordered_map<std::string, int> labelToInstructionIndex;
 
     std::ifstream file(filename);
 
     if (!file.is_open()) {
         std::cerr << "Error: could not open file: " << filename << std::endl;
-        return instructions;
+        return program;
     }
 
     std::string line;
 
+    int lineNumber = 0;
+
     while (std::getline(file, line)) {
+        lineNumber++;
+        std::string originalLine = line;
+
         // Remove comments
         size_t commentPos = line.find('#');
         if (commentPos != std::string::npos) {
@@ -89,7 +151,8 @@ std::vector<Instruction> Parser::parseFile(const std::string& filename) {
                 break;
             }
 
-            labelToInstructionIndex[labelName] = static_cast<int>(instructions.size()); // Map label to instruction index
+            labelToInstructionIndex[labelName] =
+                static_cast<int>(program.instructions.size()); // Map label to instruction index
 
             line = trim(line.substr(colonPos + 1));
 
@@ -103,8 +166,18 @@ std::vector<Instruction> Parser::parseFile(const std::string& filename) {
             continue;
         }
 
+        if (parseSetupDirective(
+                line,
+                program.setup,
+                filename,
+                trim(originalLine)
+            )) {
+            continue;
+        }
+
         Instruction instr;
         instr.rawText = line;
+        instr.sourceLine = lineNumber;
 
         // Remove commas
         line.erase(std::remove(line.begin(), line.end(), ','), line.end());
@@ -194,12 +267,12 @@ std::vector<Instruction> Parser::parseFile(const std::string& filename) {
             continue;
         }
 
-        instructions.push_back(instr);
+        program.instructions.push_back(instr);
     }
 
     // Resolve branch labels after all instructions are parsed
     // Handles branching to future labels
-    for (Instruction& instr : instructions) {
+    for (Instruction& instr : program.instructions) {
         if (instr.opcode == OpCode::BEQ ||
             instr.opcode == OpCode::BNE) {
 
@@ -216,5 +289,9 @@ std::vector<Instruction> Parser::parseFile(const std::string& filename) {
         }
     }
 
-    return instructions;
+    return program;
+}
+
+std::vector<Instruction> Parser::parseFile(const std::string& filename) {
+    return parseProgram(filename).instructions;
 }

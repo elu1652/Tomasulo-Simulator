@@ -1,0 +1,17 @@
+.REG R1 10      # first operand
+.REG R2, 20     # second operand
+.MEM 0 123      # memory[0]
+.MEM 4, 456     # memory[4]
+
+ADD R3, R1, R2
+LD R4, 0(R0)
+LD R5, 4(R0)
+
+# EXPECT_REG R1 10
+# EXPECT_REG R2 20
+# EXPECT_REG R3 30
+# EXPECT_REG R4 123
+# EXPECT_REG R5 456
+# EXPECT_COMMIT_COUNT ADD R3, R1, R2 1
+# EXPECT_COMMIT_COUNT LD R4, 0(R0) 1
+# EXPECT_COMMIT_COUNT LD R5, 4(R0) 1

@@ -102,6 +102,25 @@ static void recordBackendStall(
     stats.totalStallEvents++;
 }
 
+static void applyProgramSetup(
+    RegisterFile& rf,
+    Memory& mem,
+    const ProgramSetup& setup
+) {
+    for (const auto& [reg, value] : setup.registerInitializers) {
+        if (reg == 0 && value != 0) {
+            std::cerr << "Warning: .REG R0 " << value
+                      << " ignored; R0 is always zero\n";
+        }
+
+        rf.write(reg, value);
+    }
+
+    for (const auto& [address, value] : setup.memoryInitializers) {
+        mem.store(address, value);
+    }
+}
+
 // Compute the result of an instruction after it finishes execution.
 // Register results are queued for CDB broadcast.
 // Loads either read committed memory or use a value forwarded by the LSQ.
@@ -206,7 +225,10 @@ ExecutionResult Simulator::computeResult(const ActiveInstruction& active) {
 
 
 
-void Simulator::execute(const std::vector<Instruction>& instructions) {
+void Simulator::execute(
+    const std::vector<Instruction>& instructions,
+    const ProgramSetup& setup
+) {
 
     // Fixed simulator resource configuration.
     const int INT_RS_CAPACITY = 2;
@@ -215,7 +237,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
     const int FP_MUL_RS_CAPACITY = 4;
     const int LOAD_BUFFER_CAPACITY = 2;
     const int STORE_BUFFER_CAPACITY = 2;
-    const int ROB_CAPACITY = 4;
+    const int ROB_CAPACITY = 16;
 
     // Cycle setup.
     int cycle = 1;
@@ -243,6 +265,8 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
     TraceRecorder traceRecorder;
     PerformanceStats stats;
+
+    applyProgramSetup(rf, mem, setup);
 
     // Functional unit initialization.
     FunctionalUnit intFU {FUType::INT, 2, 0};
@@ -1080,6 +1104,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
     printBranchPredictionSummary(statusTable);
     printPerformanceStats(stats);
 
+    traceRecorder.setProgram(instructions, setup.directiveLines);
     traceRecorder.setInstructionStatus(statusTable);
     traceRecorder.setPerformanceStats(stats);
 

@@ -400,10 +400,10 @@ function loadTrace(parsedTrace, nextProgramLines) {
 
   trace = parsedTrace;
 
-  if (Array.isArray(nextProgramLines)) {
-    programLines = nextProgramLines;
-  } else if (Array.isArray(trace.program)) {
-    programLines = trace.program;
+  if (Array.isArray(trace.program)) {
+    programLines = normalizeProgramLines(trace.program);
+  } else if (Array.isArray(nextProgramLines)) {
+    programLines = normalizeProgramLines(nextProgramLines);
   }
 
   currentIndex = 0;
@@ -467,13 +467,43 @@ function setMode(mode) {
 }
 
 function parseProgramLines(text) {
-  return text
-    .split(/\r?\n/)
+  const program = [];
+
+  for (const originalLine of text.split(/\r?\n/)) {
+    let line = originalLine
+      .replace(/#.*$/g, "")
+      .replace(/\/\/.*$/g, "")
+      .trim();
+
+    if (!line) continue;
+
+    while (line.includes(":")) {
+      const colonIndex = line.indexOf(":");
+      line = line.slice(colonIndex + 1).trim();
+
+      if (!line) break;
+    }
+
+    if (!line) continue;
+    if (line.startsWith(".")) continue;
+
+    program.push(line);
+  }
+
+  return program;
+}
+
+function normalizeProgramLines(lines) {
+  return lines
+    .map((entry) => {
+      if (entry && typeof entry === "object") {
+        return String(entry.text ?? entry.rawText ?? "");
+      }
+
+      return String(entry);
+    })
     .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .filter((line) => !line.startsWith("#"))
-    .filter((line) => !line.startsWith("//"))
-    .filter((line) => !line.endsWith(":"));
+    .filter(Boolean);
 }
 
 // Cycle controls
@@ -539,12 +569,13 @@ function render() {
 
   setText(robHeadText, finalCleanupApplied ? "-" : `ROB${rob.head}`);
   setText(robTailText, finalCleanupApplied ? "-" : `ROB${rob.tail}`);
-  setText(robCountText, displayROBEntries.length);
+  const robCapacity = getROBCapacity(cycle);
+  setText(robCountText, `${displayROBEntries.length}/${robCapacity}`);
 
   renderProgram(cycle);
   renderDatapath(cycle, events);
   renderEvents(events);
-  renderROB(displayROBEntries);
+  renderROB(displayROBEntries, cycle);
   renderRegisterProducers(displayRegisterProducers);
   renderBranchPredictions(cycle);
   renderReservationStations(cycle);
@@ -614,6 +645,16 @@ function findIssuedProgramIndex(issuedInstruction) {
 function getIssuedProgramIndex(cycle) {
   if (!cycle.issuedInstruction) return -1;
 
+  if (Array.isArray(trace?.instructionStatus)) {
+    const issuedStatus = trace.instructionStatus.find((entry) => {
+      return entry.issueCycle === cycle.cycle;
+    });
+
+    if (issuedStatus && typeof issuedStatus.pc === "number") {
+      return issuedStatus.pc;
+    }
+  }
+
   if (typeof cycle.pc === "number") {
     return cycle.pc - 1;
   }
@@ -652,6 +693,7 @@ function renderDatapath(cycle, events) {
     .reduce((sum, usage) => sum + usage.used, 0);
   const rob = cycle.rob || { head: "-", tail: "-", count: 0 };
   const robCount = rob.count;
+  const robCapacity = getROBCapacity(cycle);
   const lsqCount = cycle.lsq ? cycle.lsq.length : 0;
   const issuedResource = getResourceType(cycle.issuedInstruction);
   const activeResources = new Set(
@@ -697,7 +739,7 @@ function renderDatapath(cycle, events) {
 
   setText(cdbBoxMain, hasCDB ? cycle.cdbBroadcast : "none");
 
-  setText(robBoxMain, `${robCount} entries`);
+  setText(robBoxMain, `${robCount}/${robCapacity} entries`);
   setText(robBoxSub, `head ROB${rob.head}, tail ROB${rob.tail}`);
 
   setText(lsqBoxMain, `${lsqCount} entries`);
@@ -839,13 +881,13 @@ function renderEvents(events) {
 }
 
 // ROB rendering
-function renderROB(entries) {
+function renderROB(entries, cycle) {
   if (!robTable) {
     console.error("Missing ROB container. Expected id='robTable' or id='robEntries'.");
     return;
   }
 
-  const capacity = getROBCapacity();
+  const capacity = getROBCapacity(cycle);
 
   let html = `
     <table class="rob-table">
@@ -991,7 +1033,15 @@ function getCommittedInstructionId(snapshot) {
   return null;
 }
 
-function getROBCapacity() {
+function getROBCapacity(cycle = null) {
+  if (typeof cycle?.rob?.capacity === "number" && cycle.rob.capacity > 0) {
+    return cycle.rob.capacity;
+  }
+
+  if (typeof trace?.robCapacity === "number" && trace.robCapacity > 0) {
+    return trace.robCapacity;
+  }
+
   if (!trace || !trace.cycles) {
     return 4;
   }
@@ -1014,7 +1064,7 @@ function getROBCapacity() {
     }
   }
 
-  return maxTag + 1;
+  return Math.max(4, maxTag + 1);
 }
 
 function getROBMarkers(slot) {

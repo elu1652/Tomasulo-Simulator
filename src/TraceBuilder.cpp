@@ -126,6 +126,7 @@ TraceSnapshot makeTraceSnapshot(
     snapshot.robHead = rob.head;
     snapshot.robTail = rob.tail;
     snapshot.robCount = rob.count;
+    snapshot.robCapacity = rob.capacity();
 
     for (int reg = 0; reg < static_cast<int>(regProducer.size()); reg++) {
         if (regProducer[reg] == -1) {

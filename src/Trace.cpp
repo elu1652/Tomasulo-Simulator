@@ -3,6 +3,8 @@
 #include <fstream>
 #include <iostream>
 
+#include "Instruction.h"
+
 static std::string escapeJson(const std::string& input) {
     std::string output;
 
@@ -127,6 +129,24 @@ void TraceRecorder::addSnapshot(const TraceSnapshot& snapshot) {
     snapshots.push_back(snapshot);
 }
 
+void TraceRecorder::setProgram(
+    const std::vector<Instruction>& instructions,
+    const std::vector<std::string>& setupDirectiveLines
+) {
+    program.clear();
+    program.reserve(instructions.size());
+
+    for (int i = 0; i < static_cast<int>(instructions.size()); i++) {
+        TraceProgramEntry entry;
+        entry.pc = i;
+        entry.text = instructions[i].rawText;
+        entry.sourceLine = instructions[i].sourceLine;
+        program.push_back(entry);
+    }
+
+    setupDirectives = setupDirectiveLines;
+}
+
 void TraceRecorder::setInstructionStatus(
     const std::vector<InstructionStatus>& statusTable
 ) {
@@ -215,6 +235,38 @@ void TraceRecorder::writeJson(const std::string& filename) const {
     out << "{\n";
     writePerformanceStats(out, performanceStats);
     out << ",\n";
+    out << "  \"program\": [\n";
+
+    for (size_t i = 0; i < program.size(); i++) {
+        const TraceProgramEntry& entry = program[i];
+
+        out << "    {\n";
+        out << "      \"pc\": " << entry.pc << ",\n";
+        out << "      \"text\": \"" << escapeJson(entry.text) << "\",\n";
+        out << "      \"sourceLine\": " << entry.sourceLine << "\n";
+        out << "    }";
+
+        if (i + 1 < program.size()) {
+            out << ",";
+        }
+
+        out << "\n";
+    }
+
+    out << "  ],\n";
+    out << "  \"setupDirectives\": [\n";
+
+    for (size_t i = 0; i < setupDirectives.size(); i++) {
+        out << "    \"" << escapeJson(setupDirectives[i]) << "\"";
+
+        if (i + 1 < setupDirectives.size()) {
+            out << ",";
+        }
+
+        out << "\n";
+    }
+
+    out << "  ],\n";
     out << "  \"instructionStatus\": [\n";
 
     for (size_t i = 0; i < instructionStatus.size(); i++) {
@@ -260,6 +312,7 @@ void TraceRecorder::writeJson(const std::string& filename) const {
         out << "        \"head\": " << s.robHead << ",\n";
         out << "        \"tail\": " << s.robTail << ",\n";
         out << "        \"count\": " << s.robCount << ",\n";
+        out << "        \"capacity\": " << s.robCapacity << ",\n";
         out << "        \"entries\": [\n";
 
         for (size_t j = 0; j < s.robEntries.size(); j++) {

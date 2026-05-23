@@ -33,4 +33,5 @@ struct Instruction {
     int branchTarget = -1;
 
     std::string rawText;
+    int sourceLine = -1;
 };

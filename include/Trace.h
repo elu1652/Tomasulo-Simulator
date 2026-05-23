@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+struct Instruction;
+
 struct TracePipelineStage {
     bool occupied = false;
     int instructionId = -1;
@@ -136,6 +138,12 @@ struct TraceInstructionStatusEntry {
     int flushCycle = -1;
 };
 
+struct TraceProgramEntry {
+    int pc = -1;
+    std::string text;
+    int sourceLine = -1;
+};
+
 struct TraceSnapshot {
     int cycle = 0;
     int pc = 0;
@@ -151,6 +159,7 @@ struct TraceSnapshot {
     int robHead = 0;
     int robTail = 0;
     int robCount = 0;
+    int robCapacity = 0;
 
     std::vector<TraceActiveInstruction> activeInstructions;
     std::vector<TraceROBEntry> robEntries;
@@ -167,9 +176,15 @@ struct TraceSnapshot {
 struct TraceRecorder {
     std::vector<TraceSnapshot> snapshots;
     std::vector<TraceInstructionStatusEntry> instructionStatus;
+    std::vector<TraceProgramEntry> program;
+    std::vector<std::string> setupDirectives;
     PerformanceStats performanceStats;
 
     void addSnapshot(const TraceSnapshot& snapshot);
+    void setProgram(
+        const std::vector<Instruction>& instructions,
+        const std::vector<std::string>& setupDirectiveLines
+    );
     void setInstructionStatus(const std::vector<InstructionStatus>& statusTable);
     void setPerformanceStats(const PerformanceStats& stats);
     void writeJson(const std::string& filename) const;

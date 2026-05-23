@@ -38,15 +38,15 @@ int main(int argc, char* argv[]) {
           << "\n";
 
     Parser parser;
-    std::vector<Instruction> instructions = parser.parseFile(filename);
+    ParsedProgram program = parser.parseProgram(filename);
 
-    if (instructions.empty()) {
+    if (program.instructions.empty()) {
         std::cerr << "No instructions loaded from: " << filename << "\n";
         return 1;
     }
 
     Simulator sim(predictorType);
-    sim.execute(instructions);
+    sim.execute(program.instructions, program.setup);
 
     return 0;
 }

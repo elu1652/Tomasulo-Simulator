@@ -1,4 +1,4 @@
-# tests/final_dynamic_matvec_2iter.asm
+# tests/matrix_mul.asm
 #
 # Based on final exam dynamic scheduling table.
 #
@@ -20,7 +20,7 @@
 # Use always-taken predictor and R13 = 3 if you want the first two
 # loop branches to behave like perfect prediction.
 #
-# Expected after two completed iterations if memory has:
+# Expected after full execution if memory has:
 #   MEM[0]  = 10
 #   MEM[4]  = 20
 #   MEM[8]  = 30
@@ -28,26 +28,32 @@
 #
 # Then:
 #   Iteration 1: R3 = 10 * 20 = 200, R4 = 200
-#   Iteration 2: R3 = 30 * 40 = 1200, R4 = 1400
+#   Iteration 2: R3 = 20 * 30 = 600, R4 = 800
+#   Iteration 3: R3 = 30 * 40 = 1200, R4 = 2000
 #
-# EXPECT_REG R10 8
-# EXPECT_REG R11 12
-# EXPECT_REG R13 1
+# EXPECT_REG R10 12
+# EXPECT_REG R11 16
+# EXPECT_REG R13 0
 # EXPECT_REG R3 1200
-# EXPECT_REG R4 1400
-# EXPECT_COMMIT_COUNT LD R1, 0(R10) 2
-# EXPECT_COMMIT_COUNT LD R2, 0(R11) 2
-# EXPECT_COMMIT_COUNT FMUL R3, R1, R2 2
-# EXPECT_COMMIT_COUNT FADD R4, R4, R3 2
-# EXPECT_COMMIT_COUNT ADDI R10, R10, 4 2
-# EXPECT_COMMIT_COUNT ADDI R11, R11, 4 2
-# EXPECT_COMMIT_COUNT ADDI R13, R13, -1 2
-# EXPECT_COMMIT_COUNT BNE R13, R0, loop 2
+# EXPECT_REG R4 2000
+# EXPECT_COMMIT_COUNT LD R1, 0(R10) 3
+# EXPECT_COMMIT_COUNT LD R2, 0(R11) 3
+# EXPECT_COMMIT_COUNT FMUL R3, R1, R2 3
+# EXPECT_COMMIT_COUNT FADD R4, R4, R3 3
+# EXPECT_COMMIT_COUNT ADDI R10, R10, 4 3
+# EXPECT_COMMIT_COUNT ADDI R11, R11, 4 3
+# EXPECT_COMMIT_COUNT ADDI R13, R13, -1 3
+# EXPECT_COMMIT_COUNT BNE R13, R0, loop 3
 
-ADDI R10, R0, 0      # a0 = base of A
-ADDI R11, R0, 4      # a1 = base of B
-ADDI R13, R0, 3      # t3 = 3 so first two loop branches are taken
-ADDI R4, R0, 0       # f3 accumulator = 0
+.REG R10 0           # a0 = base of A
+.REG R11 4           # a1 = base of B
+.REG R13 3           # t3 = 3 loop iterations
+.REG R4 0            # f3 accumulator = 0
+
+.MEM 0 10
+.MEM 4 20
+.MEM 8 30
+.MEM 12 40
 
 loop:
 LD R1, 0(R10)        # flw f0, 0(a0)
