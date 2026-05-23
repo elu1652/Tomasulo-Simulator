@@ -374,21 +374,12 @@ async function runSimulationFromInput() {
     return;
   }
 
-  let requestArchitectureConfig;
-  try {
-    requestArchitectureConfig = collectArchitectureConfig();
-  } catch (error) {
-    setRunStatus(error.message, "error");
-    return;
-  }
-
   setMode("cycle");
   pause();
   setRunStatus("Running simulator...", "");
   setRunButtonDisabled(true);
 
   try {
-    console.log("Architecture config sent:", requestArchitectureConfig);
     const response = await fetch("/run", {
       method: "POST",
       headers: {
@@ -398,7 +389,7 @@ async function runSimulationFromInput() {
         code: assemblyCode,
         assembly: assemblyCode,
         predictor: predictorSelect ? predictorSelect.value : undefined,
-        architectureConfig: requestArchitectureConfig
+        architectureConfig: getArchitectureConfigForRequest()
       })
     });
 
@@ -428,14 +419,6 @@ async function runPredictionAnalysis() {
     return;
   }
 
-  let requestArchitectureConfig;
-  try {
-    requestArchitectureConfig = collectArchitectureConfig();
-  } catch (error) {
-    setRunStatus(error.message, "error");
-    return;
-  }
-
   setMode("analysis");
   pause();
   setRunStatus("Running prediction analysis...", "");
@@ -446,7 +429,6 @@ async function runPredictionAnalysis() {
   }
 
   try {
-    console.log("Architecture config sent:", requestArchitectureConfig);
     const response = await fetch("/compare-predictors", {
       method: "POST",
       headers: {
@@ -455,7 +437,7 @@ async function runPredictionAnalysis() {
       body: JSON.stringify({
         code: assemblyCode,
         assembly: assemblyCode,
-        architectureConfig: requestArchitectureConfig
+        architectureConfig: getArchitectureConfigForRequest()
       })
     });
 
@@ -664,63 +646,8 @@ function architectureConfigsEqual(left, right) {
   });
 }
 
-function collectArchitectureConfig() {
-  const collected = { ...ARCHITECTURE_CONFIG_DEFAULTS };
-  const inputs = Array.from(document.querySelectorAll("[data-arch-key]"));
-
-  for (const key of Object.keys(ARCHITECTURE_CONFIG_DEFAULTS)) {
-    const input = inputs.find((candidate) => candidate.dataset.archKey === key);
-
-    if (!input) {
-      throw new Error(`Missing architecture config input for ${key}.`);
-    }
-
-    const rawValue = String(input.value || "").trim();
-
-    if (!rawValue) {
-      throw new Error(`Architecture config ${formatArchitectureKey(key)} cannot be empty.`);
-    }
-
-    if (!/^\d+$/.test(rawValue)) {
-      throw new Error(`Architecture config ${formatArchitectureKey(key)} must be an integer.`);
-    }
-
-    const value = Number.parseInt(rawValue, 10);
-
-    if (value <= 0) {
-      throw new Error(`Architecture config ${formatArchitectureKey(key)} must be greater than 0.`);
-    }
-
-    const min = Number.parseInt(input.min, 10);
-    const max = Number.parseInt(input.max, 10);
-
-    if (Number.isFinite(min) && value < min) {
-      throw new Error(`Architecture config ${formatArchitectureKey(key)} must be at least ${min}.`);
-    }
-
-    if (Number.isFinite(max) && value > max) {
-      throw new Error(`Architecture config ${formatArchitectureKey(key)} must be at most ${max}.`);
-    }
-
-    collected[key] = value;
-  }
-
-  architectureConfig = collected;
-  persistArchitectureConfig();
-  updateArchitecturePresetSelection();
-  renderArchitectureSummary(collected);
-
-  return { ...collected };
-}
-
-function formatArchitectureKey(key) {
-  return key
-    .replace(/([A-Z])/g, " $1")
-    .replace(/^./, (letter) => letter.toUpperCase());
-}
-
 function getArchitectureConfigForRequest() {
-  return collectArchitectureConfig();
+  return { ...architectureConfig };
 }
 
 function getTraceArchitectureConfig() {

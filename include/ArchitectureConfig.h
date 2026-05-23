@@ -43,9 +43,3 @@ bool parseArchitectureConfigOverrides(
     ArchitectureConfig& config,
     std::string& error
 );
-
-bool loadArchitectureConfigFile(
-    const std::string& path,
-    ArchitectureConfig& config,
-    std::string& error
-);

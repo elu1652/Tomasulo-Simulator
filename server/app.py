@@ -84,9 +84,6 @@ def run_simulation():
     if config_error:
         return config_error
 
-    if config is not None:
-        print("Architecture config received by Flask:", config, flush=True)
-
     simulator_error = validate_simulator_exists()
     if simulator_error:
         return simulator_error
@@ -140,9 +137,6 @@ def compare_predictors():
     config, config_error = get_architecture_config()
     if config_error:
         return config_error
-
-    if config is not None:
-        print("Architecture config received by Flask:", config, flush=True)
 
     simulator_error = validate_simulator_exists()
     if simulator_error:
@@ -207,49 +201,25 @@ def run_simulator(
     architecture_config: dict | None = None,
 ):
     command = [str(SIMULATOR_PATH), str(asm_path)]
-    config_path = None
 
     if predictor:
         command.extend(["--predictor", predictor])
 
     if architecture_config:
-        with tempfile.NamedTemporaryFile(
-            mode="w",
-            suffix=".json",
-            encoding="utf-8",
-            delete=False,
-            dir="/tmp",
-        ) as config_file:
-            json.dump(architecture_config, config_file)
-            config_path = Path(config_file.name)
+        command.extend([
+            "--arch-config",
+            serialize_architecture_config(architecture_config),
+        ])
 
-        command.extend(["--config", str(config_path)])
-
-    TRACE_PATH.unlink(missing_ok=True)
-
-    try:
-        completed = subprocess.run(
-            command,
-            cwd=REPO_ROOT,
-            capture_output=True,
-            text=True,
-            timeout=RUN_TIMEOUT_SECONDS,
-            shell=False,
-            check=False,
-        )
-
-        log_simulator_architecture_config(completed)
-        return completed
-    finally:
-        if config_path is not None:
-            config_path.unlink(missing_ok=True)
-
-
-def log_simulator_architecture_config(completed: subprocess.CompletedProcess):
-    for line in completed.stdout.splitlines():
-        if line.startswith("Architecture config used:"):
-            print(f"C++ simulator {line}", flush=True)
-            return
+    return subprocess.run(
+        command,
+        cwd=BUILD_DIR,
+        capture_output=True,
+        text=True,
+        timeout=RUN_TIMEOUT_SECONDS,
+        shell=False,
+        check=False,
+    )
 
 
 def read_trace() -> dict:
@@ -436,6 +406,13 @@ def get_architecture_config():
         config[key] = value
 
     return config, None
+
+
+def serialize_architecture_config(config: dict) -> str:
+    return ",".join(
+        f"{key}={value}"
+        for key, value in sorted(config.items())
+    )
 
 
 def get_predictor() -> str | bool | None:

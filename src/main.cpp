@@ -46,25 +46,6 @@ int main(int argc, char* argv[]) {
                           << "\n";
                 return 1;
             }
-        } else if (arg == "--config") {
-            if (i + 1 >= argc) {
-                std::cerr << "Missing config path after --config\n";
-                return 1;
-            }
-
-            std::string error;
-            std::string configPath = argv[++i];
-
-            if (!loadArchitectureConfigFile(
-                    configPath,
-                    architectureConfig,
-                    error
-                )) {
-                std::cerr << "Invalid architecture config: "
-                          << error
-                          << "\n";
-                return 1;
-            }
         } else {
             filename = arg;
         }
@@ -75,14 +56,6 @@ int main(int argc, char* argv[]) {
     std::cout << "\nBranch predictor: "
           << branchPredictorTypeToString(predictorType)
           << "\n";
-
-    std::cout << "Architecture config used: ROB="
-              << architectureConfig.robCapacity
-              << ", FP_MUL depth="
-              << architectureConfig.fpMulPipelineDepth
-              << ", FP_MUL count="
-              << architectureConfig.fpMulPipelineCount
-              << "\n";
 
     Parser parser;
     ParsedProgram program = parser.parseProgram(filename);

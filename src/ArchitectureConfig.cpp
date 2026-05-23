@@ -1,7 +1,5 @@
 #include "ArchitectureConfig.h"
 
-#include <fstream>
-#include <regex>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -139,78 +137,6 @@ bool parseArchitectureConfigOverrides(
             }
         } catch (...) {
             error = key + " must be an integer";
-            return false;
-        }
-    }
-
-    return true;
-}
-
-bool loadArchitectureConfigFile(
-    const std::string& path,
-    ArchitectureConfig& config,
-    std::string& error
-) {
-    std::ifstream input(path);
-
-    if (!input) {
-        error = "could not open architecture config file: " + path;
-        return false;
-    }
-
-    std::stringstream buffer;
-    buffer << input.rdbuf();
-    std::string json = buffer.str();
-
-    std::regex pairPattern(
-        R"json("([A-Za-z][A-Za-z0-9_]*)"\s*:\s*(-?\d+))json"
-    );
-    std::sregex_iterator current(json.begin(), json.end(), pairPattern);
-    std::sregex_iterator end;
-    bool sawAnyField = false;
-
-    for (; current != end; ++current) {
-        sawAnyField = true;
-        const std::string key = (*current)[1].str();
-        const std::string valueText = (*current)[2].str();
-
-        try {
-            size_t parsedChars = 0;
-            int value = std::stoi(valueText, &parsedChars);
-
-            if (parsedChars != valueText.size()) {
-                error = key + " must be an integer";
-                return false;
-            }
-
-            if (!applyArchitectureConfigOverride(config, key, value, error)) {
-                return false;
-            }
-        } catch (...) {
-            error = key + " must be an integer";
-            return false;
-        }
-    }
-
-    if (!sawAnyField) {
-        error = "architecture config file did not contain any key/value fields";
-        return false;
-    }
-
-    std::regex unknownStringKeyPattern(
-        R"json("([A-Za-z][A-Za-z0-9_]*)"\s*:)json"
-    );
-    current = std::sregex_iterator(
-        json.begin(),
-        json.end(),
-        unknownStringKeyPattern
-    );
-
-    for (; current != end; ++current) {
-        const std::string key = (*current)[1].str();
-
-        if (configRanges().find(key) == configRanges().end()) {
-            error = "unknown architecture config key: " + key;
             return false;
         }
     }
