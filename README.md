@@ -11,6 +11,9 @@ The goal is to show how instructions move through an out-of-order execution engi
 - In-order issue with out-of-order execution and in-order ROB commit
 - Reservation stations for integer, multiply, FP-style, load, and store operations
 - FP-style operations (`FADD`, `FSUB`, `FMUL`, `FDIV`) routed through separate FP resources
+- Pipelined FP functional units: FP_ADD has one 3-stage pipeline, and FP_MUL has two 5-stage pipelines
+- FP pipeline stage data is exported in traces and shown in the browser visualizer
+- Reservation station views distinguish waiting instructions from executing FU/pipeline state
 - Load and store buffers backed by an LSQ
 - Register renaming using physical ROB producer tags
 - `Vj` / `Vk` / `Qj` / `Qk` operand dependency tracking
@@ -30,6 +33,7 @@ The goal is to show how instructions move through an out-of-order execution engi
 - Branch misprediction recovery with PC redirect and younger-instruction flush
 - Cycle-by-cycle debug output
 - Instruction timing table and branch prediction summary
+- Prediction Analysis mode for comparing all branch predictors on the same input program
 - `trace.json` export for visualization
 - Browser visualizer for stepping through trace snapshots
 - Local Flask backend for running assembly from the browser
@@ -136,10 +140,12 @@ The simulator supports `FADD`, `FSUB`, `FMUL`, and `FDIV`. These instructions cu
 
 | Instruction | Reservation Station | Functional Unit | Latency |
 |---|---|---|---|
-| `FADD` | FP_ADD RS | FP_ADD FU | 3 |
-| `FSUB` | FP_ADD RS | FP_ADD FU | 3 |
-| `FMUL` | FP_MUL RS | FP_MUL FU | 5 |
+| `FADD` | FP_ADD RS | FP_ADD FU, 1 pipeline, 3 stages | 3 |
+| `FSUB` | FP_ADD RS | FP_ADD FU, 1 pipeline, 3 stages | 3 |
+| `FMUL` | FP_MUL RS | FP_MUL FU, 2 pipelines, 5 stages each | 5 |
 | `FDIV` | FP_MUL RS | FP_MUL FU | 10 |
+
+FP_ADD is modeled as one 3-stage pipeline. FP_MUL is modeled as two 5-stage pipelines. Multiple `FMUL` instructions can overlap in the FP_MUL pipeline, and when two FP_MUL pipelines are available, two ready `FMUL` instructions can start in the same cycle.
 
 Normal `MUL` still uses the regular MUL reservation station and MUL functional unit. `FADD`/`FSUB` are separate from `FMUL`/`FDIV`, so FP_ADD and FP_MUL can be busy at the same time. In-order commit still applies: a younger completed instruction can wait in the ROB if an older long-latency FP instruction is ahead of it.
 
@@ -166,6 +172,8 @@ Active Instructions:
   I24: BNE R2, R0, loop | qj: ROB1
 ```
 
+In trace and debug output, `activeInstructions` means in-flight issued instructions, not only reservation station entries. RS occupancy is derived from in-flight instructions that have not started executing. Once an instruction starts execution, it logically leaves the RS and is tracked by the FU or pipeline state while remaining in the in-flight instruction list until completion.
+
 The CDB carries both identifiers:
 
 ```text
@@ -187,11 +195,13 @@ Each simulator cycle currently follows this order:
 5. Broadcast one old CDB result
 6. Complete newly finished instructions
 7. Queue new CDB/store/branch results
-8. Record trace snapshot
+8. Record trace/debug snapshot
 9. Advance to next cycle
 ```
 
 A register-writing instruction that finishes execution in cycle `N` queues a CDB result at the end of cycle `N`, can broadcast in cycle `N + 1`, and can commit no earlier than cycle `N + 2` if it is at the ROB head.
+
+The visual trace snapshot is captured around the cycle decision/debug point rather than as pure end-of-cycle cleanup. This keeps displayed stalls and final FP pipeline stages aligned with the cycle events shown in the visualizer.
 
 ---
 
@@ -208,6 +218,8 @@ Each cycle snapshot includes fields such as:
 - `cdbBroadcast`
 - `commitEvent`
 - `activeInstructions`
+- `fuPipelines`
+- `rsState`
 - `rob.entries`, `rob.head`, `rob.tail`, `rob.count`
 - `lsq`
 - `registers`
@@ -217,6 +229,8 @@ Each cycle snapshot includes fields such as:
 - `events`
 
 The trace is intentionally additive: newer visualizer panels use newer fields, while older trace files without those fields should still load without crashing.
+
+Newer traces include RS used/capacity information and FP pipeline rows/stages for the frontend.
 
 ---
 
@@ -297,11 +311,14 @@ Current UI panels include:
 - Cycle controls with previous/next, play/pause, and slider
 - Optional `.asm` loader and program listing with PC highlight
 - Branch predictor dropdown before running a simulation
+- Prediction Analysis mode for comparing predictor modes on the same program
 - Architectural datapath view
 - Functional unit state panel for INT, MUL, FP_ADD, FP_MUL, and MEM
+- FP pipeline stage panel
+- Pipelined FU slot usage display
 - Events panel
 - ROB table
-- Reservation station and load/store buffer tables
+- Reservation station and load/store buffer tables showing waiting instructions only
 - LSQ table
 - Register producer table
 - Branch predictor summary and branch prediction table
@@ -433,12 +450,6 @@ Expectations are written in assembly comments:
 
 The tests cover arithmetic, FP-style functional units, RAW dependencies, WAW-style renaming behavior, self-dependencies, CDB contention, out-of-order writeback, ROB capacity stalls, load-use dependencies, store commit behavior, LSQ memory ordering, store/load interactions, branches, nested loops, speculative execution, and wrong-path flush behavior.
 
-FP-focused examples:
-
-- `tests/fp_basic.asm`: checks basic `FADD`/`FSUB`/`FMUL`/`FDIV` arithmetic.
-- `tests/fp_independent_units.asm`: shows FP_ADD and FP_MUL can execute independently.
-- `tests/fp_structural_hazard.asm`: shows repeated FP operations waiting on busy FP units.
-
 A small GUI helper can generate test files:
 
 ```bash
@@ -450,7 +461,12 @@ python3 tests/create_test.py
 ## Current Limitations
 
 - The ISA is a small custom teaching ISA, not full RISC-V.
+- FP instructions use integer values, not IEEE floating-point values.
 - Simulator capacities are fixed in code unless manually changed.
+- The simulator issues at most one instruction per cycle.
+- The CDB broadcasts at most one result per cycle.
+- `FDIV` currently shares FP_MUL resources.
+- FP pipeline stages are visual/resource-tracking state, while full instruction state remains in the in-flight instruction list.
 - The memory model is simplified.
 - LSQ behavior supports address-aware ordering and forwarding, but it is still a simplified model rather than a production CPU memory subsystem.
 - Automated tests focus on final architectural correctness and selected commit counts more than exhaustive microarchitectural timing validation.
@@ -461,14 +477,15 @@ python3 tests/create_test.py
 ## Planned Features
 
 - More configurable architecture parameters
-- More performance and CPI statistics
+- More performance statistics, IPC, and stall breakdowns
 - Additional branch predictor experiments
 - More visual animation and interaction in the browser
 - Stronger automated validation of branch prediction statistics
+- True floating-point register/value support later
 - Optional packaging or Docker setup later
 
 ---
 
 ## Project Status
 
-The simulator currently implements Tomasulo-style out-of-order execution with reservation stations, physical ROB-tag-based register renaming, a single-broadcast CDB, a true circular ROB with reusable slots, in-order commit, branch speculation and recovery, LSQ-based memory ordering, trace export, and a browser visualizer backed by a local Flask server.
+The simulator currently implements Tomasulo-style out-of-order execution with reservation stations, physical ROB-tag-based register renaming, a single-broadcast CDB, a true circular ROB with reusable slots, in-order commit, branch speculation and recovery including GShare, LSQ-based memory ordering, pipelined FP functional units, trace export with FP pipeline visualization, Prediction Analysis mode, and a browser visualizer backed by a local Flask server.
