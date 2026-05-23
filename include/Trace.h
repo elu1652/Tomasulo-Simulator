@@ -1,6 +1,7 @@
 #pragma once
 
 #include "InstructionStatus.h"
+#include "PerformanceStats.h"
 
 #include <string>
 #include <vector>
@@ -166,8 +167,10 @@ struct TraceSnapshot {
 struct TraceRecorder {
     std::vector<TraceSnapshot> snapshots;
     std::vector<TraceInstructionStatusEntry> instructionStatus;
+    PerformanceStats performanceStats;
 
     void addSnapshot(const TraceSnapshot& snapshot);
     void setInstructionStatus(const std::vector<InstructionStatus>& statusTable);
+    void setPerformanceStats(const PerformanceStats& stats);
     void writeJson(const std::string& filename) const;
 };

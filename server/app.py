@@ -185,6 +185,7 @@ def run_predictor_comparison(assembly_code: str, predictor: str) -> dict:
         "accuracy": 0.0,
         "branchPredictions": [],
         "predictorState": None,
+        "performanceStats": None,
         "error": None,
         "stdout": "",
         "stderr": "",
@@ -233,6 +234,7 @@ def run_predictor_comparison(assembly_code: str, predictor: str) -> dict:
     result["accuracy"] = accuracy["accuracy"]
     result["branchPredictions"] = branch_predictions
     result["predictorState"] = final_cycle.get("predictorState")
+    result["performanceStats"] = trace.get("performanceStats")
     result.pop("stdout")
     result.pop("stderr")
 

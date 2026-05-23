@@ -11,7 +11,9 @@
 #include "TraceBuilder.h"
 #include "BranchTraceUtils.h"
 #include "InstructionSemantics.h"
+#include "PerformanceStats.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <iostream>
 #include <queue>
@@ -46,6 +48,58 @@ static void markFlushedInstructionStatuses(
         statusTable[i].flushed = true;
         statusTable[i].flushCycle = cycle;
     }
+}
+
+static void recordMaxOccupancy(
+    PerformanceStats& stats,
+    const std::vector<ActiveInstruction>& activeInstructions,
+    const ReorderBuffer& circularROB,
+    const FunctionalUnit& fpAddFU,
+    const FunctionalUnit& fpMulFU
+) {
+    stats.robMaxOccupancy = std::max(stats.robMaxOccupancy, circularROB.count);
+    stats.intRsMaxOccupancy = std::max(
+        stats.intRsMaxOccupancy,
+        countRSEntries(activeInstructions, RSType::INT)
+    );
+    stats.mulRsMaxOccupancy = std::max(
+        stats.mulRsMaxOccupancy,
+        countRSEntries(activeInstructions, RSType::MUL)
+    );
+    stats.fpAddRsMaxOccupancy = std::max(
+        stats.fpAddRsMaxOccupancy,
+        countRSEntries(activeInstructions, RSType::FP_ADD)
+    );
+    stats.fpMulRsMaxOccupancy = std::max(
+        stats.fpMulRsMaxOccupancy,
+        countRSEntries(activeInstructions, RSType::FP_MUL)
+    );
+    stats.loadBufferMaxOccupancy = std::max(
+        stats.loadBufferMaxOccupancy,
+        countRSEntries(activeInstructions, RSType::LOAD)
+    );
+    stats.storeBufferMaxOccupancy = std::max(
+        stats.storeBufferMaxOccupancy,
+        countRSEntries(activeInstructions, RSType::STORE)
+    );
+    stats.fpAddPipelineMaxOccupancy = std::max(
+        stats.fpAddPipelineMaxOccupancy,
+        fpAddFU.busyUnits
+    );
+    stats.fpMulPipelineMaxOccupancy = std::max(
+        stats.fpMulPipelineMaxOccupancy,
+        fpMulFU.busyUnits
+    );
+}
+
+static void recordBackendStall(
+    PerformanceStats& stats,
+    bool& stalledThisCycle,
+    bool& backendStalledThisCycle
+) {
+    stalledThisCycle = true;
+    backendStalledThisCycle = true;
+    stats.totalStallEvents++;
 }
 
 // Compute the result of an instruction after it finishes execution.
@@ -188,6 +242,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
     LoadStoreQueue lsq;
 
     TraceRecorder traceRecorder;
+    PerformanceStats stats;
 
     // Functional unit initialization.
     FunctionalUnit intFU {FUType::INT, 2, 0};
@@ -199,15 +254,15 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
     fpAddFU.totalUnits = 1;
     fpAddFU.busyUnits = 0;
     fpAddFU.pipelined = true;
-    fpAddFU.pipelineDepth = 3;
+    fpAddFU.pipelineDepth = 4;
     initializePipeline(fpAddFU);
 
     FunctionalUnit fpMulFU;
     fpMulFU.type = FUType::FP_MUL;
-    fpMulFU.totalUnits = 2;
+    fpMulFU.totalUnits = 1;
     fpMulFU.busyUnits = 0;
     fpMulFU.pipelined = true;
-    fpMulFU.pipelineDepth = 5;
+    fpMulFU.pipelineDepth = 7;
     initializePipeline(fpMulFU);
 
     FunctionalUnit memFU {FUType::MEM, 2, 0};
@@ -231,6 +286,14 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
         std::string cdbBroadcastThisCycle = "none";
         std::string commitEventThisCycle;
         std::vector<std::string> traceEvents;
+        bool stalledThisCycle = false;
+        bool issueStalledThisCycle = false;
+        bool backendStalledThisCycle = false;
+
+        stats.cdbQueueMaxSize = std::max(
+            stats.cdbQueueMaxSize,
+            static_cast<int>(cdbQueue.size())
+        );
 
         // ISSUE STAGE
         // Issue at most one instruction per cycle in order.
@@ -261,6 +324,11 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
                 std::cout << event << "\n";
                 traceEvents.push_back(event);
+                stalledThisCycle = true;
+                issueStalledThisCycle = true;
+                stats.issueStallCycles++;
+                stats.robFullStallCycles++;
+                stats.totalStallEvents++;
             }
             else if (currentEntries >= capacity) {
                 std::string event =
@@ -269,6 +337,11 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
                 std::cout << event << "\n";
                 traceEvents.push_back(event);
+                stalledThisCycle = true;
+                issueStalledThisCycle = true;
+                stats.issueStallCycles++;
+                stats.rsFullStallCycles++;
+                stats.totalStallEvents++;
             }
             else{
                 int dynamicId = nextDynamicId++;
@@ -450,6 +523,8 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 if (active.instr.opcode == OpCode::SD) {
                     if (active.qj != -1) {
                         active.waitingReason = "store address RAW dependency";
+                        recordBackendStall(stats, stalledThisCycle, backendStalledThisCycle);
+                        stats.rawDependencyStallEvents++;
                         continue;
                     }
 
@@ -474,11 +549,15 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
                     if (active.qk != -1) {
                         active.waitingReason = "store value RAW dependency";
+                        recordBackendStall(stats, stalledThisCycle, backendStalledThisCycle);
+                        stats.rawDependencyStallEvents++;
                         continue;
                     }
                 } else {
                     if(active.qj != -1 || active.qk != -1){
                         active.waitingReason = "RAW dependency";
+                        recordBackendStall(stats, stalledThisCycle, backendStalledThisCycle);
+                        stats.rawDependencyStallEvents++;
                         continue;
                     }
                 }
@@ -515,6 +594,8 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
                     if (!loadCheck.canExecute) {
                         active.waitingReason = loadCheck.reason;
+                        recordBackendStall(stats, stalledThisCycle, backendStalledThisCycle);
+                        stats.memoryOrderingStallEvents++;
                         continue;
                     }
 
@@ -543,6 +624,8 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                 // Check for structural hazard/no FU available
                 if(!fuAvailable(fu)){
                     active.waitingReason = fuTypeToString(type) + " FU busy";
+                    recordBackendStall(stats, stalledThisCycle, backendStalledThisCycle);
+                    stats.fuBusyStallEvents++;
                     continue;
                 }
 
@@ -608,6 +691,8 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
             traceEvents
         );
 
+        recordMaxOccupancy(stats, activeInstructions, circularROB, fpAddFU, fpMulFU);
+
         // ROB COMMIT STAGE
         // Commit happens before this cycle's CDB broadcast.
         // A result that broadcasts this cycle cannot commit until a later cycle.
@@ -626,6 +711,16 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
             traceEvents.push_back(commitEventThisCycle);
             lsq.removeCommitted(committedInstructionId);
+            stats.committedInstructions++;
+
+            if (committedInstructionId >= 0 &&
+                committedInstructionId < static_cast<int>(statusTable.size())) {
+                int staticPc = statusTable[committedInstructionId].staticPc;
+
+                if (staticPc >= 0 && staticPc < static_cast<int>(instructions.size())) {
+                    recordCommittedInstruction(stats, instructions[staticPc].opcode);
+                }
+            }
         }
 
         // CDB BROADCAST / WRITEBACK / WAKEUP STAGE
@@ -633,6 +728,7 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
         if (!cdbQueue.empty()) {
             CDBMessage cdb = cdbQueue.front();
             cdbQueue.pop();
+            stats.cdbBroadcasts++;
 
             cdbBroadcastThisCycle =
                 "I" + std::to_string(cdb.producerTag) + " " + cdb.rawText;
@@ -708,6 +804,10 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                     cdb.robTag = activeInstructions[i].robTag;     // physical ROB slot
 
                     cdbQueue.push(cdb);
+                    stats.cdbQueueMaxSize = std::max(
+                        stats.cdbQueueMaxSize,
+                        static_cast<int>(cdbQueue.size())
+                    );
                 }
 
                 if (result.writesMemory) {
@@ -766,6 +866,13 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
                     // Compare the stored prediction made at issue time against the actual branch result.
                     // On a misprediction, redirect the PC and flush all younger wrong-path instructions.
                     bool predictedTaken = activeInstructions[i].predictedTaken;
+                    stats.branchCount++;
+
+                    if (predictedTaken == result.branchTaken) {
+                        stats.branchCorrect++;
+                    } else {
+                        stats.branchMispredictions++;
+                    }
                     
                     int branchPc = statusTable[index].staticPc;
 
@@ -944,9 +1051,24 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
         visualSnapshot.branchPredictions = endOfCycleMetadata.branchPredictions;
         visualSnapshot.predictorState = endOfCycleMetadata.predictorState;
 
+        if (stalledThisCycle || issueStalledThisCycle || backendStalledThisCycle) {
+            stats.cyclesWithAnyStall++;
+        }
+
+        if (backendStalledThisCycle) {
+            stats.backendStallCycles++;
+        }
+
+        stats.cdbQueueMaxSize = std::max(
+            stats.cdbQueueMaxSize,
+            static_cast<int>(cdbQueue.size())
+        );
+
         traceRecorder.addSnapshot(visualSnapshot);
         cycle++;
     }
+
+    stats.totalCycles = cycle - 1;
 
     std::cout << "\nFinal Register State:\n";
     rf.print();
@@ -956,8 +1078,10 @@ void Simulator::execute(const std::vector<Instruction>& instructions) {
 
     printInstructionStatusTable(statusTable);
     printBranchPredictionSummary(statusTable);
+    printPerformanceStats(stats);
 
     traceRecorder.setInstructionStatus(statusTable);
+    traceRecorder.setPerformanceStats(stats);
 
     std::string traceFilename = "trace.json";
 

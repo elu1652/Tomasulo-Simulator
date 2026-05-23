@@ -24,4 +24,5 @@ add_executable(simulator
     src/InstructionSemantics.cpp
     src/BranchTraceUtils.cpp
     src/TraceBuilder.cpp
+    src/PerformanceStats.cpp
 )

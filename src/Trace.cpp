@@ -152,6 +152,53 @@ void TraceRecorder::setInstructionStatus(
     }
 }
 
+void TraceRecorder::setPerformanceStats(const PerformanceStats& stats) {
+    performanceStats = stats;
+}
+
+static void writePerformanceStats(std::ofstream& out, const PerformanceStats& stats) {
+    out << "  \"performanceStats\": {\n";
+    out << "    \"totalCycles\": " << stats.totalCycles << ",\n";
+    out << "    \"committedInstructions\": " << stats.committedInstructions << ",\n";
+    out << "    \"ipc\": " << stats.ipc() << ",\n";
+    out << "    \"cyclesWithAnyStall\": " << stats.cyclesWithAnyStall << ",\n";
+    out << "    \"issueStallCycles\": " << stats.issueStallCycles << ",\n";
+    out << "    \"backendStallCycles\": " << stats.backendStallCycles << ",\n";
+    out << "    \"totalStallEvents\": " << stats.totalStallEvents << ",\n";
+    out << "    \"robFullStallCycles\": " << stats.robFullStallCycles << ",\n";
+    out << "    \"rsFullStallCycles\": " << stats.rsFullStallCycles << ",\n";
+    out << "    \"rawDependencyStallEvents\": " << stats.rawDependencyStallEvents << ",\n";
+    out << "    \"fuBusyStallEvents\": " << stats.fuBusyStallEvents << ",\n";
+    out << "    \"memoryOrderingStallEvents\": " << stats.memoryOrderingStallEvents << ",\n";
+    out << "    \"cdbBroadcasts\": " << stats.cdbBroadcasts << ",\n";
+    out << "    \"cdbQueueMaxSize\": " << stats.cdbQueueMaxSize << ",\n";
+    out << "    \"branchCount\": " << stats.branchCount << ",\n";
+    out << "    \"branchCorrect\": " << stats.branchCorrect << ",\n";
+    out << "    \"branchMispredictions\": " << stats.branchMispredictions << ",\n";
+    out << "    \"branchAccuracy\": " << stats.branchAccuracy() << ",\n";
+    out << "    \"instructionMix\": {\n";
+    out << "      \"int\": " << stats.intInstructionsCommitted << ",\n";
+    out << "      \"mul\": " << stats.mulInstructionsCommitted << ",\n";
+    out << "      \"fpAdd\": " << stats.fpAddInstructionsCommitted << ",\n";
+    out << "      \"fpMul\": " << stats.fpMulInstructionsCommitted << ",\n";
+    out << "      \"load\": " << stats.loadInstructionsCommitted << ",\n";
+    out << "      \"store\": " << stats.storeInstructionsCommitted << ",\n";
+    out << "      \"branch\": " << stats.branchInstructionsCommitted << "\n";
+    out << "    },\n";
+    out << "    \"maxOccupancy\": {\n";
+    out << "      \"rob\": " << stats.robMaxOccupancy << ",\n";
+    out << "      \"intRs\": " << stats.intRsMaxOccupancy << ",\n";
+    out << "      \"mulRs\": " << stats.mulRsMaxOccupancy << ",\n";
+    out << "      \"fpAddRs\": " << stats.fpAddRsMaxOccupancy << ",\n";
+    out << "      \"fpMulRs\": " << stats.fpMulRsMaxOccupancy << ",\n";
+    out << "      \"loadBuffer\": " << stats.loadBufferMaxOccupancy << ",\n";
+    out << "      \"storeBuffer\": " << stats.storeBufferMaxOccupancy << ",\n";
+    out << "      \"fpAddPipeline\": " << stats.fpAddPipelineMaxOccupancy << ",\n";
+    out << "      \"fpMulPipeline\": " << stats.fpMulPipelineMaxOccupancy << "\n";
+    out << "    }\n";
+    out << "  }";
+}
+
 // Keep trace serialization in one place so new visualizer fields can be added
 // without changing simulator timing or state mutation order.
 void TraceRecorder::writeJson(const std::string& filename) const {
@@ -166,6 +213,8 @@ void TraceRecorder::writeJson(const std::string& filename) const {
 
 
     out << "{\n";
+    writePerformanceStats(out, performanceStats);
+    out << ",\n";
     out << "  \"instructionStatus\": [\n";
 
     for (size_t i = 0; i < instructionStatus.size(); i++) {

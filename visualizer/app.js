@@ -88,6 +88,7 @@ const registerState = document.getElementById("registerState");
 const memoryState = document.getElementById("memoryState");
 const instructionStatusTable = document.getElementById("instructionStatusTable");
 const programListing = document.getElementById("programListing");
+const performanceStatsPanel = document.getElementById("performanceStatsPanel");
 
 const intRSTable = document.getElementById("intRSTable");
 const mulRSTable = document.getElementById("mulRSTable");
@@ -549,6 +550,7 @@ function render() {
   renderReservationStations(cycle);
   renderFUState(cycle);
   renderFPPipelines(cycle);
+  renderPerformanceStats();
   renderLSQ(cycle.lsq || []);
   renderRegisterState(cycle.registers);
   renderMemoryState(cycle.memory);
@@ -1697,6 +1699,109 @@ function getPipelineInstructionId(stage) {
   return typeof stage === "number" ? stage : -1;
 }
 
+function renderPerformanceStats() {
+  if (!performanceStatsPanel) return;
+
+  const stats = trace?.performanceStats;
+
+  if (!stats || typeof stats !== "object") {
+    performanceStatsPanel.innerHTML = '<div class="empty">Performance statistics not available for this trace.</div>';
+    return;
+  }
+
+  performanceStatsPanel.innerHTML = `
+    <div class="performance-stats-grid">
+      ${renderStatItem("Total cycles", formatIntegerStat(stats.totalCycles))}
+      ${renderStatItem("Committed instructions", formatIntegerStat(stats.committedInstructions))}
+      ${renderStatItem("IPC", formatDecimalStat(stats.ipc, 2))}
+      ${renderStatItem("Cycles with any stall", formatIntegerStat(stats.cyclesWithAnyStall))}
+      ${renderStatItem("Issue stall cycles", formatIntegerStat(stats.issueStallCycles))}
+      ${renderStatItem("Backend stall cycles", formatIntegerStat(stats.backendStallCycles))}
+      ${renderStatItem("Total stall events", formatIntegerStat(stats.totalStallEvents))}
+      ${renderStatItem("ROB full stall cycles", formatIntegerStat(stats.robFullStallCycles))}
+      ${renderStatItem("RS full stall cycles", formatIntegerStat(stats.rsFullStallCycles))}
+      ${renderStatItem("RAW dependency stall events", formatIntegerStat(stats.rawDependencyStallEvents))}
+      ${renderStatItem("FU busy stall events", formatIntegerStat(stats.fuBusyStallEvents))}
+      ${renderStatItem("Memory ordering stall events", formatIntegerStat(stats.memoryOrderingStallEvents))}
+      ${renderStatItem("CDB broadcasts", formatIntegerStat(stats.cdbBroadcasts))}
+      ${renderStatItem("Branch count", formatIntegerStat(stats.branchCount))}
+      ${renderStatItem("Branch accuracy", formatPercentStat(stats.branchAccuracy, 1))}
+      ${renderStatItem("Branch mispredictions", formatIntegerStat(stats.branchMispredictions))}
+    </div>
+
+    <div class="performance-subsections">
+      <div>
+        <h3>Instruction Mix</h3>
+        ${renderCompactStats(stats.instructionMix, [
+          ["INT", "int"],
+          ["MUL", "mul"],
+          ["FP_ADD", "fpAdd"],
+          ["FP_MUL", "fpMul"],
+          ["LOAD", "load"],
+          ["STORE", "store"],
+          ["BRANCH", "branch"]
+        ])}
+      </div>
+      <div>
+        <h3>Max Occupancy</h3>
+        ${renderCompactStats(stats.maxOccupancy, [
+          ["ROB", "rob"],
+          ["INT RS", "intRs"],
+          ["MUL RS", "mulRs"],
+          ["FP_ADD RS", "fpAddRs"],
+          ["FP_MUL RS", "fpMulRs"],
+          ["Load Buffer", "loadBuffer"],
+          ["Store Buffer", "storeBuffer"],
+          ["FP_ADD pipeline", "fpAddPipeline"],
+          ["FP_MUL pipeline", "fpMulPipeline"]
+        ])}
+      </div>
+    </div>
+  `;
+}
+
+function renderStatItem(label, value) {
+  return `
+    <div class="performance-stat-item">
+      <span>${escapeHtml(label)}</span>
+      <strong>${escapeHtml(value)}</strong>
+    </div>
+  `;
+}
+
+function renderCompactStats(source, rows) {
+  const values = source && typeof source === "object" ? source : {};
+
+  return `
+    <div class="compact-stat-list">
+      ${rows.map(([label, key]) => `
+        <div class="summary-row">
+          <span>${escapeHtml(label)}</span>
+          <strong>${formatIntegerStat(values[key])}</strong>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function formatIntegerStat(value) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? String(Math.trunc(value))
+    : "-";
+}
+
+function formatDecimalStat(value, digits = 2) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? value.toFixed(digits)
+    : "-";
+}
+
+function formatPercentStat(value, digits = 1) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? `${value.toFixed(digits)}%`
+    : "-";
+}
+
 function getOpcode(rawText) {
   const tokens = String(rawText)
     .toUpperCase()
@@ -2149,17 +2254,28 @@ function renderAnalysisResults() {
 
   let overviewHtml = `
     <h3>Accuracy Overview</h3>
-    <table class="accuracy-table">
-      <thead>
-        <tr>
-          <th>Predictor</th>
-          <th>Correct</th>
-          <th>Total</th>
-          <th>Accuracy</th>
-          <th>Notes</th>
-        </tr>
-      </thead>
-      <tbody>
+    <div class="table-scroll">
+      <table class="accuracy-table performance-comparison-table">
+        <thead>
+          <tr>
+            <th>Predictor</th>
+            <th>Cycles</th>
+            <th>Committed</th>
+            <th>IPC</th>
+            <th>Branch Accuracy</th>
+            <th>Mispredictions</th>
+            <th>Cycles With Stall</th>
+            <th>Issue Stall Cycles</th>
+            <th>Backend Stall Cycles</th>
+            <th>ROB Stall Cycles</th>
+            <th>RS Stall Cycles</th>
+            <th>RAW Stall Events</th>
+            <th>FU Stall Events</th>
+            <th>Memory Stall Events</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
   `;
 
   for (const result of results) {
@@ -2167,30 +2283,47 @@ function renderAnalysisResults() {
     const note = result.error
       ? result.error
       : getPredictorNote(result.predictor);
+    const stats = result.performanceStats || {};
     const accuracy = result.error
       ? "-"
-      : formatAccuracy(result.correct, result.total);
+      : formatPercentStat(
+          typeof stats.branchAccuracy === "number" ? stats.branchAccuracy : result.accuracy,
+          1
+        );
     const barWidth = result.error
       ? 0
-      : Math.max(0, Math.min(100, Number(result.accuracy) || 0));
+      : Math.max(0, Math.min(100, Number(
+          typeof stats.branchAccuracy === "number" ? stats.branchAccuracy : result.accuracy
+        ) || 0));
 
     overviewHtml += `
       <tr class="${isBest ? "best-predictor-row" : ""}">
         <td><strong>${escapeHtml(getPredictorLabel(result.predictor))}</strong></td>
-        <td>${result.error ? "-" : result.correct}</td>
-        <td>${result.error ? "-" : result.total}</td>
+        <td>${result.error ? "-" : formatIntegerStat(stats.totalCycles)}</td>
+        <td>${result.error ? "-" : formatIntegerStat(stats.committedInstructions)}</td>
+        <td>${result.error ? "-" : formatDecimalStat(stats.ipc, 2)}</td>
         <td>
           <div class="accuracy-value">${accuracy}</div>
           <div class="accuracy-bar"><span style="width: ${barWidth}%"></span></div>
         </td>
+        <td>${result.error ? "-" : formatIntegerStat(stats.branchMispredictions)}</td>
+        <td>${result.error ? "-" : formatIntegerStat(stats.cyclesWithAnyStall)}</td>
+        <td>${result.error ? "-" : formatIntegerStat(stats.issueStallCycles)}</td>
+        <td>${result.error ? "-" : formatIntegerStat(stats.backendStallCycles)}</td>
+        <td>${result.error ? "-" : formatIntegerStat(stats.robFullStallCycles)}</td>
+        <td>${result.error ? "-" : formatIntegerStat(stats.rsFullStallCycles)}</td>
+        <td>${result.error ? "-" : formatIntegerStat(stats.rawDependencyStallEvents)}</td>
+        <td>${result.error ? "-" : formatIntegerStat(stats.fuBusyStallEvents)}</td>
+        <td>${result.error ? "-" : formatIntegerStat(stats.memoryOrderingStallEvents)}</td>
         <td>${escapeHtml(note)}</td>
       </tr>
     `;
   }
 
   overviewHtml += `
-      </tbody>
-    </table>
+        </tbody>
+      </table>
+    </div>
   `;
 
   analysisOverview.innerHTML = overviewHtml;
@@ -2250,6 +2383,7 @@ function renderAnalysisDetails(results) {
   const branchPredictions = Array.isArray(selectedResult.branchPredictions)
     ? selectedResult.branchPredictions
     : [];
+  const selectedStats = selectedResult.performanceStats;
 
   analysisDetails.innerHTML = `
     <div class="analysis-accuracy-card">
@@ -2271,11 +2405,38 @@ function renderAnalysisDetails(results) {
       </div>
     </div>
 
+    <h3>Performance Statistics</h3>
+    ${buildAnalysisPerformanceStats(selectedStats)}
+
     <h3>Branch Summary</h3>
     ${buildAnalysisBranchTable(branchPredictions, predictorType)}
 
     <h3>Predictor State Table</h3>
     ${buildAnalysisPredictorStateTable(selectedResult.predictorState, predictorType)}
+  `;
+}
+
+function buildAnalysisPerformanceStats(stats) {
+  if (!stats || typeof stats !== "object") {
+    return '<div class="empty">Performance statistics not available for this trace.</div>';
+  }
+
+  return `
+    <div class="performance-stats-grid analysis-performance-grid">
+      ${renderStatItem("Cycles", formatIntegerStat(stats.totalCycles))}
+      ${renderStatItem("Committed", formatIntegerStat(stats.committedInstructions))}
+      ${renderStatItem("IPC", formatDecimalStat(stats.ipc, 2))}
+      ${renderStatItem("Branch Accuracy", formatPercentStat(stats.branchAccuracy, 1))}
+      ${renderStatItem("Mispredictions", formatIntegerStat(stats.branchMispredictions))}
+      ${renderStatItem("Cycles With Stall", formatIntegerStat(stats.cyclesWithAnyStall))}
+      ${renderStatItem("Issue Stall Cycles", formatIntegerStat(stats.issueStallCycles))}
+      ${renderStatItem("Backend Stall Cycles", formatIntegerStat(stats.backendStallCycles))}
+      ${renderStatItem("ROB Stall Cycles", formatIntegerStat(stats.robFullStallCycles))}
+      ${renderStatItem("RS Stall Cycles", formatIntegerStat(stats.rsFullStallCycles))}
+      ${renderStatItem("RAW Stall Events", formatIntegerStat(stats.rawDependencyStallEvents))}
+      ${renderStatItem("FU Stall Events", formatIntegerStat(stats.fuBusyStallEvents))}
+      ${renderStatItem("Memory Stall Events", formatIntegerStat(stats.memoryOrderingStallEvents))}
+    </div>
   `;
 }
 

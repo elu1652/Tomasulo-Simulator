@@ -16,10 +16,10 @@ int getLatency(OpCode opcode) {
         // through separate FP resources to model latency and structural hazards.
         case OpCode::FADD:
         case OpCode::FSUB:
-            return 3;
+            return 4;
 
         case OpCode::FMUL:
-            return 5;
+            return 7;
 
         case OpCode::FDIV:
             return 10;
