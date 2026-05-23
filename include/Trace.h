@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ArchitectureConfig.h"
 #include "InstructionStatus.h"
 #include "PerformanceStats.h"
 
@@ -178,9 +179,11 @@ struct TraceRecorder {
     std::vector<TraceInstructionStatusEntry> instructionStatus;
     std::vector<TraceProgramEntry> program;
     std::vector<std::string> setupDirectives;
+    ArchitectureConfig architectureConfig;
     PerformanceStats performanceStats;
 
     void addSnapshot(const TraceSnapshot& snapshot);
+    void setArchitectureConfig(const ArchitectureConfig& config);
     void setProgram(
         const std::vector<Instruction>& instructions,
         const std::vector<std::string>& setupDirectiveLines

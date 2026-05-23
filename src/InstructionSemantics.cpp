@@ -1,35 +1,37 @@
 #include "InstructionSemantics.h"
 
-int getLatency(OpCode opcode) {
+int getLatency(OpCode opcode, const ArchitectureConfig& config) {
     switch (opcode) {
         case OpCode::ADD:
         case OpCode::ADDI:
         case OpCode::SUB:
         case OpCode::BEQ:
         case OpCode::BNE:
-            return 1;
+            return config.intLatency;
 
         case OpCode::MUL:
-            return 3;
+            return config.mulLatency;
 
         // FP-style instructions currently use integer values, but are routed
         // through separate FP resources to model latency and structural hazards.
         case OpCode::FADD:
         case OpCode::FSUB:
-            return 4;
+            return config.fpAddLatency;
 
         case OpCode::FMUL:
-            return 7;
+            return config.fpMulLatency;
 
         case OpCode::FDIV:
-            return 10;
+            return config.fpDivLatency;
 
         case OpCode::LD:
+            return config.loadLatency;
+
         case OpCode::SD:
-            return 2;
+            return config.storeLatency;
 
         default:
-            return 1;
+            return config.intLatency;
     }
 }
 

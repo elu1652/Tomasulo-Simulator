@@ -56,6 +56,59 @@
       <div class="analysis-note analysis-mode-only">
         Runs the same assembly against all branch predictors and compares accuracy.
       </div>
+      <details class="architecture-config-panel">
+        <summary>Architecture Config</summary>
+        <div class="architecture-config-toolbar">
+          <label for="architecturePresetSelect">
+            Preset
+            <select id="architecturePresetSelect">
+              <option value="projectDefault">Default project config</option>
+              <option value="exam">Exam dynamic scheduling</option>
+              <option value="wide">Wide machine</option>
+            </select>
+          </label>
+          <button id="resetArchitectureConfigBtn" type="button">Reset to default</button>
+          <span id="architectureSummary" class="architecture-summary">Architecture: default</span>
+        </div>
+        <div class="architecture-config-grid">
+          <fieldset>
+            <legend>ROB / Commit</legend>
+            <label>ROB entries <input type="number" data-arch-key="robCapacity" min="1" max="128" /></label>
+          </fieldset>
+          <fieldset>
+            <legend>Reservation Stations / Buffers</legend>
+            <label>INT RS <input type="number" data-arch-key="intRsCapacity" min="1" max="64" /></label>
+            <label>MUL RS <input type="number" data-arch-key="mulRsCapacity" min="1" max="64" /></label>
+            <label>FP_ADD RS <input type="number" data-arch-key="fpAddRsCapacity" min="1" max="64" /></label>
+            <label>FP_MUL RS <input type="number" data-arch-key="fpMulRsCapacity" min="1" max="64" /></label>
+            <label>Load buffer <input type="number" data-arch-key="loadBufferCapacity" min="1" max="64" /></label>
+            <label>Store buffer <input type="number" data-arch-key="storeBufferCapacity" min="1" max="64" /></label>
+          </fieldset>
+          <fieldset>
+            <legend>Functional Units</legend>
+            <label>INT FU <input type="number" data-arch-key="intFuCount" min="1" max="16" /></label>
+            <label>MUL FU <input type="number" data-arch-key="mulFuCount" min="1" max="16" /></label>
+            <label>MEM FU <input type="number" data-arch-key="memFuCount" min="1" max="16" /></label>
+          </fieldset>
+          <fieldset>
+            <legend>FP Pipelines</legend>
+            <label>FP_ADD pipes <input type="number" data-arch-key="fpAddPipelineCount" min="1" max="16" /></label>
+            <label>FP_ADD depth <input type="number" data-arch-key="fpAddPipelineDepth" min="1" max="32" /></label>
+            <label>FP_MUL pipes <input type="number" data-arch-key="fpMulPipelineCount" min="1" max="16" /></label>
+            <label>FP_MUL depth <input type="number" data-arch-key="fpMulPipelineDepth" min="1" max="32" /></label>
+          </fieldset>
+          <fieldset>
+            <legend>Latencies</legend>
+            <label>INT <input type="number" data-arch-key="intLatency" min="1" max="64" /></label>
+            <label>MUL <input type="number" data-arch-key="mulLatency" min="1" max="64" /></label>
+            <label>Load <input type="number" data-arch-key="loadLatency" min="1" max="64" /></label>
+            <label>Store <input type="number" data-arch-key="storeLatency" min="1" max="64" /></label>
+            <label>FADD/FSUB <input type="number" data-arch-key="fpAddLatency" min="1" max="64" /></label>
+            <label>FMUL <input type="number" data-arch-key="fpMulLatency" min="1" max="64" /></label>
+            <label>FDIV <input type="number" data-arch-key="fpDivLatency" min="1" max="64" /></label>
+          </fieldset>
+        </div>
+      </details>
       <div id="runStatus" class="run-status" role="status">Backend endpoint: POST /run</div>
     </section>
 

@@ -143,6 +143,74 @@ button:disabled {
   font-size: 13px;
 }
 
+.architecture-config-panel {
+  margin-top: 12px;
+  border: 1px solid #d8dee4;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #f8fafc;
+}
+
+.architecture-config-panel summary {
+  cursor: pointer;
+  font-weight: bold;
+  color: #334155;
+}
+
+.architecture-config-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+  margin-top: 12px;
+}
+
+.architecture-config-toolbar label,
+.architecture-config-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.architecture-config-toolbar select,
+.architecture-config-grid input {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: white;
+}
+
+.architecture-summary {
+  color: #64748b;
+  font-size: 12px;
+  padding-bottom: 8px;
+}
+
+.architecture-config-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.architecture-config-grid fieldset {
+  border: 1px solid #d8dee4;
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 10px;
+}
+
+.architecture-config-grid legend {
+  color: #334155;
+  font-size: 12px;
+  font-weight: bold;
+}
+
 .predictor-control {
   display: flex;
   flex-direction: column;

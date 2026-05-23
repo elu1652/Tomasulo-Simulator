@@ -18,7 +18,11 @@
 #include <iostream>
 #include <queue>
 
-Simulator::Simulator(BranchPredictorType predictorType): predictorType(predictorType) {
+Simulator::Simulator(
+    BranchPredictorType predictorType,
+    const ArchitectureConfig& architectureConfig
+): predictorType(predictorType),
+   architectureConfig(architectureConfig) {
 
 }
 
@@ -230,14 +234,14 @@ void Simulator::execute(
     const ProgramSetup& setup
 ) {
 
-    // Fixed simulator resource configuration.
-    const int INT_RS_CAPACITY = 2;
-    const int MUL_RS_CAPACITY = 2;
-    const int FP_ADD_RS_CAPACITY = 2;
-    const int FP_MUL_RS_CAPACITY = 4;
-    const int LOAD_BUFFER_CAPACITY = 2;
-    const int STORE_BUFFER_CAPACITY = 2;
-    const int ROB_CAPACITY = 16;
+    // Per-run simulator resource configuration.
+    const int INT_RS_CAPACITY = architectureConfig.intRsCapacity;
+    const int MUL_RS_CAPACITY = architectureConfig.mulRsCapacity;
+    const int FP_ADD_RS_CAPACITY = architectureConfig.fpAddRsCapacity;
+    const int FP_MUL_RS_CAPACITY = architectureConfig.fpMulRsCapacity;
+    const int LOAD_BUFFER_CAPACITY = architectureConfig.loadBufferCapacity;
+    const int STORE_BUFFER_CAPACITY = architectureConfig.storeBufferCapacity;
+    const int ROB_CAPACITY = architectureConfig.robCapacity;
 
     // Cycle setup.
     int cycle = 1;
@@ -269,27 +273,27 @@ void Simulator::execute(
     applyProgramSetup(rf, mem, setup);
 
     // Functional unit initialization.
-    FunctionalUnit intFU {FUType::INT, 2, 0};
+    FunctionalUnit intFU {FUType::INT, architectureConfig.intFuCount, 0};
 
-    FunctionalUnit mulFU {FUType::MUL, 1, 0};
+    FunctionalUnit mulFU {FUType::MUL, architectureConfig.mulFuCount, 0};
 
     FunctionalUnit fpAddFU;
     fpAddFU.type = FUType::FP_ADD;
-    fpAddFU.totalUnits = 1;
+    fpAddFU.totalUnits = architectureConfig.fpAddPipelineCount;
     fpAddFU.busyUnits = 0;
     fpAddFU.pipelined = true;
-    fpAddFU.pipelineDepth = 4;
+    fpAddFU.pipelineDepth = architectureConfig.fpAddPipelineDepth;
     initializePipeline(fpAddFU);
 
     FunctionalUnit fpMulFU;
     fpMulFU.type = FUType::FP_MUL;
-    fpMulFU.totalUnits = 1;
+    fpMulFU.totalUnits = architectureConfig.fpMulPipelineCount;
     fpMulFU.busyUnits = 0;
     fpMulFU.pipelined = true;
-    fpMulFU.pipelineDepth = 7;
+    fpMulFU.pipelineDepth = architectureConfig.fpMulPipelineDepth;
     initializePipeline(fpMulFU);
 
-    FunctionalUnit memFU {FUType::MEM, 2, 0};
+    FunctionalUnit memFU {FUType::MEM, architectureConfig.memFuCount, 0};
 
     // Branch predictor used for speculative issue.
     // Change the predictor type here to compare prediction strategies.
@@ -373,7 +377,10 @@ void Simulator::execute(
                 ActiveInstruction newInstr;
                 newInstr.instr = instructions[pc];
                 newInstr.instructionIndex = dynamicId;
-                newInstr.remainingCycles = getLatency(newInstr.instr.opcode);
+                newInstr.remainingCycles = getLatency(
+                    newInstr.instr.opcode,
+                    architectureConfig
+                );
                 newInstr.executing = false;
                 newInstr.waitingReason = "Not started";
 
@@ -1104,6 +1111,7 @@ void Simulator::execute(
     printBranchPredictionSummary(statusTable);
     printPerformanceStats(stats);
 
+    traceRecorder.setArchitectureConfig(architectureConfig);
     traceRecorder.setProgram(instructions, setup.directiveLines);
     traceRecorder.setInstructionStatus(statusTable);
     traceRecorder.setPerformanceStats(stats);

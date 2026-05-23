@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 
+#include "ArchitectureConfig.h"
 #include "Instruction.h"
 
 static std::string escapeJson(const std::string& input) {
@@ -129,6 +130,10 @@ void TraceRecorder::addSnapshot(const TraceSnapshot& snapshot) {
     snapshots.push_back(snapshot);
 }
 
+void TraceRecorder::setArchitectureConfig(const ArchitectureConfig& config) {
+    architectureConfig = config;
+}
+
 void TraceRecorder::setProgram(
     const std::vector<Instruction>& instructions,
     const std::vector<std::string>& setupDirectiveLines
@@ -219,6 +224,35 @@ static void writePerformanceStats(std::ofstream& out, const PerformanceStats& st
     out << "  }";
 }
 
+static void writeArchitectureConfig(
+    std::ofstream& out,
+    const ArchitectureConfig& config
+) {
+    out << "  \"architectureConfig\": {\n";
+    out << "    \"robCapacity\": " << config.robCapacity << ",\n";
+    out << "    \"intRsCapacity\": " << config.intRsCapacity << ",\n";
+    out << "    \"mulRsCapacity\": " << config.mulRsCapacity << ",\n";
+    out << "    \"fpAddRsCapacity\": " << config.fpAddRsCapacity << ",\n";
+    out << "    \"fpMulRsCapacity\": " << config.fpMulRsCapacity << ",\n";
+    out << "    \"loadBufferCapacity\": " << config.loadBufferCapacity << ",\n";
+    out << "    \"storeBufferCapacity\": " << config.storeBufferCapacity << ",\n";
+    out << "    \"intFuCount\": " << config.intFuCount << ",\n";
+    out << "    \"mulFuCount\": " << config.mulFuCount << ",\n";
+    out << "    \"memFuCount\": " << config.memFuCount << ",\n";
+    out << "    \"fpAddPipelineCount\": " << config.fpAddPipelineCount << ",\n";
+    out << "    \"fpAddPipelineDepth\": " << config.fpAddPipelineDepth << ",\n";
+    out << "    \"fpMulPipelineCount\": " << config.fpMulPipelineCount << ",\n";
+    out << "    \"fpMulPipelineDepth\": " << config.fpMulPipelineDepth << ",\n";
+    out << "    \"intLatency\": " << config.intLatency << ",\n";
+    out << "    \"mulLatency\": " << config.mulLatency << ",\n";
+    out << "    \"loadLatency\": " << config.loadLatency << ",\n";
+    out << "    \"storeLatency\": " << config.storeLatency << ",\n";
+    out << "    \"fpAddLatency\": " << config.fpAddLatency << ",\n";
+    out << "    \"fpMulLatency\": " << config.fpMulLatency << ",\n";
+    out << "    \"fpDivLatency\": " << config.fpDivLatency << "\n";
+    out << "  }";
+}
+
 // Keep trace serialization in one place so new visualizer fields can be added
 // without changing simulator timing or state mutation order.
 void TraceRecorder::writeJson(const std::string& filename) const {
@@ -234,6 +268,8 @@ void TraceRecorder::writeJson(const std::string& filename) const {
 
     out << "{\n";
     writePerformanceStats(out, performanceStats);
+    out << ",\n";
+    writeArchitectureConfig(out, architectureConfig);
     out << ",\n";
     out << "  \"program\": [\n";
 

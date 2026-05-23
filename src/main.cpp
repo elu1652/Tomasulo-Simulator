@@ -8,6 +8,7 @@
 int main(int argc, char* argv[]) {
     std::string filename = "../tests/nested_loop.asm";
     BranchPredictorType predictorType = BranchPredictorType::TwoBit;
+    ArchitectureConfig architectureConfig;
 
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
@@ -26,6 +27,44 @@ int main(int argc, char* argv[]) {
                 std::cerr << "Aliases: not-taken, taken, 1bit, 1-bit, 2bit, 2-bit\n";
                 return 1;
             }
+        } else if (arg == "--arch-config") {
+            if (i + 1 >= argc) {
+                std::cerr << "Missing config after --arch-config\n";
+                return 1;
+            }
+
+            std::string error;
+            std::string spec = argv[++i];
+
+            if (!parseArchitectureConfigOverrides(
+                    spec,
+                    architectureConfig,
+                    error
+                )) {
+                std::cerr << "Invalid architecture config: "
+                          << error
+                          << "\n";
+                return 1;
+            }
+        } else if (arg == "--config") {
+            if (i + 1 >= argc) {
+                std::cerr << "Missing config path after --config\n";
+                return 1;
+            }
+
+            std::string error;
+            std::string configPath = argv[++i];
+
+            if (!loadArchitectureConfigFile(
+                    configPath,
+                    architectureConfig,
+                    error
+                )) {
+                std::cerr << "Invalid architecture config: "
+                          << error
+                          << "\n";
+                return 1;
+            }
         } else {
             filename = arg;
         }
@@ -37,6 +76,14 @@ int main(int argc, char* argv[]) {
           << branchPredictorTypeToString(predictorType)
           << "\n";
 
+    std::cout << "Architecture config used: ROB="
+              << architectureConfig.robCapacity
+              << ", FP_MUL depth="
+              << architectureConfig.fpMulPipelineDepth
+              << ", FP_MUL count="
+              << architectureConfig.fpMulPipelineCount
+              << "\n";
+
     Parser parser;
     ParsedProgram program = parser.parseProgram(filename);
 
@@ -45,7 +92,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    Simulator sim(predictorType);
+    Simulator sim(predictorType, architectureConfig);
     sim.execute(program.instructions, program.setup);
 
     return 0;

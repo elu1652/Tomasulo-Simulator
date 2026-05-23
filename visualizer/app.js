@@ -39,6 +39,71 @@ const PREDICTOR_DETAILS = {
   }
 };
 
+const ARCHITECTURE_CONFIG_DEFAULTS = {
+  robCapacity: 16,
+  intRsCapacity: 2,
+  mulRsCapacity: 2,
+  fpAddRsCapacity: 2,
+  fpMulRsCapacity: 4,
+  loadBufferCapacity: 2,
+  storeBufferCapacity: 2,
+  intFuCount: 2,
+  mulFuCount: 1,
+  memFuCount: 2,
+  fpAddPipelineCount: 1,
+  fpAddPipelineDepth: 4,
+  fpMulPipelineCount: 1,
+  fpMulPipelineDepth: 7,
+  intLatency: 1,
+  mulLatency: 3,
+  loadLatency: 2,
+  storeLatency: 2,
+  fpAddLatency: 4,
+  fpMulLatency: 7,
+  fpDivLatency: 10
+};
+
+const ARCHITECTURE_CONFIG_PRESETS = {
+  projectDefault: ARCHITECTURE_CONFIG_DEFAULTS,
+  exam: {
+    ...ARCHITECTURE_CONFIG_DEFAULTS,
+    robCapacity: 32,
+    intRsCapacity: 8,
+    fpAddRsCapacity: 4,
+    fpMulRsCapacity: 4,
+    loadBufferCapacity: 4,
+    storeBufferCapacity: 4,
+    intFuCount: 1,
+    memFuCount: 1,
+    fpAddPipelineCount: 1,
+    fpAddPipelineDepth: 4,
+    fpMulPipelineCount: 1,
+    fpMulPipelineDepth: 7,
+    intLatency: 1,
+    loadLatency: 2,
+    storeLatency: 2,
+    fpAddLatency: 4,
+    fpMulLatency: 7
+  },
+  wide: {
+    ...ARCHITECTURE_CONFIG_DEFAULTS,
+    robCapacity: 64,
+    intRsCapacity: 8,
+    mulRsCapacity: 6,
+    fpAddRsCapacity: 6,
+    fpMulRsCapacity: 8,
+    loadBufferCapacity: 8,
+    storeBufferCapacity: 8,
+    intFuCount: 4,
+    mulFuCount: 2,
+    memFuCount: 4,
+    fpAddPipelineCount: 2,
+    fpMulPipelineCount: 2
+  }
+};
+
+let architectureConfig = loadArchitectureConfig();
+
 // DOM references
 const programFileInput = document.getElementById("programFile");
 const assemblyInput = document.getElementById("assemblyInput");
@@ -53,6 +118,12 @@ const runnerDescription = document.getElementById("runnerDescription");
 const analysisOverview = document.getElementById("analysisOverview");
 const analysisDetailTabs = document.getElementById("analysisDetailTabs");
 const analysisDetails = document.getElementById("analysisDetails");
+const architecturePresetSelect = document.getElementById("architecturePresetSelect");
+const resetArchitectureConfigBtn = document.getElementById("resetArchitectureConfigBtn");
+const architectureSummary = document.getElementById("architectureSummary");
+const architectureConfigInputs = Array.from(
+  document.querySelectorAll("[data-arch-key]")
+);
 
 const prevBtn = document.getElementById("prevBtn");
 const nextBtn = document.getElementById("nextBtn");
@@ -223,6 +294,7 @@ if (predictorSelect) {
   });
 }
 
+initializeArchitectureControls();
 renderPredictorOverview(predictorSelect ? predictorSelect.value : "two-bit");
 renderPredictorState(null, predictorSelect ? predictorSelect.value : "two-bit");
 setMode("cycle");
@@ -302,12 +374,21 @@ async function runSimulationFromInput() {
     return;
   }
 
+  let requestArchitectureConfig;
+  try {
+    requestArchitectureConfig = collectArchitectureConfig();
+  } catch (error) {
+    setRunStatus(error.message, "error");
+    return;
+  }
+
   setMode("cycle");
   pause();
   setRunStatus("Running simulator...", "");
   setRunButtonDisabled(true);
 
   try {
+    console.log("Architecture config sent:", requestArchitectureConfig);
     const response = await fetch("/run", {
       method: "POST",
       headers: {
@@ -316,7 +397,8 @@ async function runSimulationFromInput() {
       body: JSON.stringify({
         code: assemblyCode,
         assembly: assemblyCode,
-        predictor: predictorSelect ? predictorSelect.value : undefined
+        predictor: predictorSelect ? predictorSelect.value : undefined,
+        architectureConfig: requestArchitectureConfig
       })
     });
 
@@ -346,6 +428,14 @@ async function runPredictionAnalysis() {
     return;
   }
 
+  let requestArchitectureConfig;
+  try {
+    requestArchitectureConfig = collectArchitectureConfig();
+  } catch (error) {
+    setRunStatus(error.message, "error");
+    return;
+  }
+
   setMode("analysis");
   pause();
   setRunStatus("Running prediction analysis...", "");
@@ -356,6 +446,7 @@ async function runPredictionAnalysis() {
   }
 
   try {
+    console.log("Architecture config sent:", requestArchitectureConfig);
     const response = await fetch("/compare-predictors", {
       method: "POST",
       headers: {
@@ -363,7 +454,8 @@ async function runPredictionAnalysis() {
       },
       body: JSON.stringify({
         code: assemblyCode,
-        assembly: assemblyCode
+        assembly: assemblyCode,
+        architectureConfig: requestArchitectureConfig
       })
     });
 
@@ -414,6 +506,7 @@ function loadTrace(parsedTrace, nextProgramLines) {
     cycleSlider.value = 0;
   }
 
+  renderArchitectureSummary(trace.architectureConfig);
   render();
 }
 
@@ -464,6 +557,188 @@ function setMode(mode) {
   if (activeMode === "analysis") {
     renderAnalysisResults();
   }
+}
+
+function initializeArchitectureControls() {
+  syncArchitectureInputs();
+  renderArchitectureSummary();
+
+  if (architecturePresetSelect) {
+    architecturePresetSelect.addEventListener("change", () => {
+      const preset = ARCHITECTURE_CONFIG_PRESETS[architecturePresetSelect.value];
+      if (!preset) return;
+      architectureConfig = { ...preset };
+      persistArchitectureConfig();
+      syncArchitectureInputs();
+      renderArchitectureSummary();
+    });
+  }
+
+  if (resetArchitectureConfigBtn) {
+    resetArchitectureConfigBtn.addEventListener("click", () => {
+      architectureConfig = { ...ARCHITECTURE_CONFIG_DEFAULTS };
+      if (architecturePresetSelect) {
+        architecturePresetSelect.value = "projectDefault";
+      }
+      persistArchitectureConfig();
+      syncArchitectureInputs();
+      renderArchitectureSummary();
+    });
+  }
+
+  for (const input of architectureConfigInputs) {
+    input.addEventListener("input", () => {
+      const key = input.dataset.archKey;
+      if (!key) return;
+
+      const value = Number.parseInt(input.value, 10);
+      if (!Number.isFinite(value)) return;
+
+      architectureConfig[key] = value;
+      persistArchitectureConfig();
+      updateArchitecturePresetSelection();
+      renderArchitectureSummary();
+    });
+  }
+}
+
+function loadArchitectureConfig() {
+  try {
+    const stored = localStorage.getItem("tomasuloArchitectureConfig");
+    if (!stored) {
+      return { ...ARCHITECTURE_CONFIG_DEFAULTS };
+    }
+
+    return sanitizeArchitectureConfig(JSON.parse(stored));
+  } catch {
+    return { ...ARCHITECTURE_CONFIG_DEFAULTS };
+  }
+}
+
+function sanitizeArchitectureConfig(config) {
+  const sanitized = { ...ARCHITECTURE_CONFIG_DEFAULTS };
+
+  for (const key of Object.keys(ARCHITECTURE_CONFIG_DEFAULTS)) {
+    const value = Number.parseInt(config?.[key], 10);
+    if (Number.isFinite(value)) {
+      sanitized[key] = value;
+    }
+  }
+
+  return sanitized;
+}
+
+function persistArchitectureConfig() {
+  try {
+    localStorage.setItem(
+      "tomasuloArchitectureConfig",
+      JSON.stringify(architectureConfig)
+    );
+  } catch {
+    // Local storage is optional; the in-memory config still applies.
+  }
+}
+
+function syncArchitectureInputs() {
+  for (const input of architectureConfigInputs) {
+    const key = input.dataset.archKey;
+    if (!key) continue;
+    input.value = architectureConfig[key];
+  }
+
+  updateArchitecturePresetSelection();
+}
+
+function updateArchitecturePresetSelection() {
+  if (!architecturePresetSelect) return;
+
+  const matchingPreset = Object.entries(ARCHITECTURE_CONFIG_PRESETS)
+    .find(([, preset]) => architectureConfigsEqual(architectureConfig, preset));
+
+  architecturePresetSelect.value = matchingPreset ? matchingPreset[0] : "";
+}
+
+function architectureConfigsEqual(left, right) {
+  return Object.keys(ARCHITECTURE_CONFIG_DEFAULTS).every((key) => {
+    return Number(left[key]) === Number(right[key]);
+  });
+}
+
+function collectArchitectureConfig() {
+  const collected = { ...ARCHITECTURE_CONFIG_DEFAULTS };
+  const inputs = Array.from(document.querySelectorAll("[data-arch-key]"));
+
+  for (const key of Object.keys(ARCHITECTURE_CONFIG_DEFAULTS)) {
+    const input = inputs.find((candidate) => candidate.dataset.archKey === key);
+
+    if (!input) {
+      throw new Error(`Missing architecture config input for ${key}.`);
+    }
+
+    const rawValue = String(input.value || "").trim();
+
+    if (!rawValue) {
+      throw new Error(`Architecture config ${formatArchitectureKey(key)} cannot be empty.`);
+    }
+
+    if (!/^\d+$/.test(rawValue)) {
+      throw new Error(`Architecture config ${formatArchitectureKey(key)} must be an integer.`);
+    }
+
+    const value = Number.parseInt(rawValue, 10);
+
+    if (value <= 0) {
+      throw new Error(`Architecture config ${formatArchitectureKey(key)} must be greater than 0.`);
+    }
+
+    const min = Number.parseInt(input.min, 10);
+    const max = Number.parseInt(input.max, 10);
+
+    if (Number.isFinite(min) && value < min) {
+      throw new Error(`Architecture config ${formatArchitectureKey(key)} must be at least ${min}.`);
+    }
+
+    if (Number.isFinite(max) && value > max) {
+      throw new Error(`Architecture config ${formatArchitectureKey(key)} must be at most ${max}.`);
+    }
+
+    collected[key] = value;
+  }
+
+  architectureConfig = collected;
+  persistArchitectureConfig();
+  updateArchitecturePresetSelection();
+  renderArchitectureSummary(collected);
+
+  return { ...collected };
+}
+
+function formatArchitectureKey(key) {
+  return key
+    .replace(/([A-Z])/g, " $1")
+    .replace(/^./, (letter) => letter.toUpperCase());
+}
+
+function getArchitectureConfigForRequest() {
+  return collectArchitectureConfig();
+}
+
+function getTraceArchitectureConfig() {
+  return sanitizeArchitectureConfig(
+    trace?.architectureConfig || architectureConfig
+  );
+}
+
+function renderArchitectureSummary(config = null) {
+  if (!architectureSummary) return;
+
+  const activeConfig = sanitizeArchitectureConfig(config || trace?.architectureConfig || architectureConfig);
+  architectureSummary.textContent =
+    `Architecture: ROB ${activeConfig.robCapacity}, ` +
+    `INT FU ${activeConfig.intFuCount}, ` +
+    `MEM FU ${activeConfig.memFuCount}, ` +
+    `FP_ADD ${activeConfig.fpAddPipelineCount}x${activeConfig.fpAddPipelineDepth}, ` +
+    `FP_MUL ${activeConfig.fpMulPipelineCount}x${activeConfig.fpMulPipelineDepth}`;
 }
 
 function parseProgramLines(text) {
@@ -1387,24 +1662,27 @@ function getInstructionClassLabel(rawText) {
 
 function getFUState(cycle, grouped) {
   const pipelineSummary = getPipelineSummary(cycle);
+  const config = getTraceArchitectureConfig();
   const fallback = {
-    INT: { busy: countExecuting(grouped.INT), total: 2 },
-    MUL: { busy: countExecuting(grouped.MUL), total: 1 },
+    INT: { busy: countExecuting(grouped.INT), total: config.intFuCount },
+    MUL: { busy: countExecuting(grouped.MUL), total: config.mulFuCount },
     FP_ADD: {
       busy: pipelineSummary.FP_ADD.used || countExecuting(grouped.FP_ADD),
-      total: pipelineSummary.FP_ADD.total || 1,
-      pipelines: pipelineSummary.FP_ADD.pipelines || 1,
-      pipelined: pipelineSummary.FP_ADD.total > 0
+      total: pipelineSummary.FP_ADD.total ||
+        config.fpAddPipelineCount * config.fpAddPipelineDepth,
+      pipelines: pipelineSummary.FP_ADD.pipelines || config.fpAddPipelineCount,
+      pipelined: true
     },
     FP_MUL: {
       busy: pipelineSummary.FP_MUL.used || countExecuting(grouped.FP_MUL),
-      total: pipelineSummary.FP_MUL.total || 1,
-      pipelines: pipelineSummary.FP_MUL.pipelines || 1,
-      pipelined: pipelineSummary.FP_MUL.total > 0
+      total: pipelineSummary.FP_MUL.total ||
+        config.fpMulPipelineCount * config.fpMulPipelineDepth,
+      pipelines: pipelineSummary.FP_MUL.pipelines || config.fpMulPipelineCount,
+      pipelined: true
     },
     MEM: {
       busy: countExecuting(grouped.LOAD) + countExecuting(grouped.STORE),
-      total: 2
+      total: config.memFuCount
     }
   };
 

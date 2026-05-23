@@ -8,6 +8,7 @@ include_directories(include)
 
 add_executable(simulator
     src/main.cpp
+    src/ArchitectureConfig.cpp
     src/Parser.cpp
     src/Simulator.cpp
     src/FunctionalUnit.cpp

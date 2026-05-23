@@ -2,6 +2,7 @@
 
 #include <vector>
 
+#include "ArchitectureConfig.h"
 #include "Instruction.h"
 #include "RegisterFile.h"
 #include "Memory.h"
@@ -67,9 +68,13 @@ private:
     Memory mem;
     std::vector<InstructionStatus> statusTable;
     BranchPredictorType predictorType;
+    ArchitectureConfig architectureConfig;
 
 public:
-    explicit Simulator(BranchPredictorType predictorType = BranchPredictorType::TwoBit);
+    explicit Simulator(
+        BranchPredictorType predictorType = BranchPredictorType::TwoBit,
+        const ArchitectureConfig& architectureConfig = ArchitectureConfig{}
+    );
 
     void execute(
         const std::vector<Instruction>& instructions,

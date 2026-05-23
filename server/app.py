@@ -25,6 +25,30 @@ PREDICTORS = [
     "gshare",
 ]
 
+ARCHITECTURE_CONFIG_RANGES = {
+    "robCapacity": (1, 128),
+    "intRsCapacity": (1, 64),
+    "mulRsCapacity": (1, 64),
+    "fpAddRsCapacity": (1, 64),
+    "fpMulRsCapacity": (1, 64),
+    "loadBufferCapacity": (1, 64),
+    "storeBufferCapacity": (1, 64),
+    "intFuCount": (1, 16),
+    "mulFuCount": (1, 16),
+    "memFuCount": (1, 16),
+    "fpAddPipelineCount": (1, 16),
+    "fpAddPipelineDepth": (1, 32),
+    "fpMulPipelineCount": (1, 16),
+    "fpMulPipelineDepth": (1, 32),
+    "intLatency": (1, 64),
+    "mulLatency": (1, 64),
+    "loadLatency": (1, 64),
+    "storeLatency": (1, 64),
+    "fpAddLatency": (1, 64),
+    "fpMulLatency": (1, 64),
+    "fpDivLatency": (1, 64),
+}
+
 app = Flask(__name__, static_folder=None)
 run_lock = threading.Lock()
 
@@ -56,6 +80,13 @@ def run_simulation():
             "error": "Invalid predictor. Valid options: always-not-taken, always-taken, one-bit, two-bit, gshare.",
         }), 400
 
+    config, config_error = get_architecture_config()
+    if config_error:
+        return config_error
+
+    if config is not None:
+        print("Architecture config received by Flask:", config, flush=True)
+
     simulator_error = validate_simulator_exists()
     if simulator_error:
         return simulator_error
@@ -74,7 +105,7 @@ def run_simulation():
     try:
         with run_lock:
             # Run the local simulator without a shell, preserving the local-only backend model.
-            result = run_simulator(asm_path, predictor)
+            result = run_simulator(asm_path, predictor, config)
 
             if result.returncode != 0:
                 # Return stdout/stderr so the browser can show useful simulator failures.
@@ -106,6 +137,13 @@ def compare_predictors():
     if validation_error:
         return validation_error
 
+    config, config_error = get_architecture_config()
+    if config_error:
+        return config_error
+
+    if config is not None:
+        print("Architecture config received by Flask:", config, flush=True)
+
     simulator_error = validate_simulator_exists()
     if simulator_error:
         return simulator_error
@@ -114,7 +152,11 @@ def compare_predictors():
 
     with run_lock:
         for predictor in PREDICTORS:
-            results.append(run_predictor_comparison(assembly_code, predictor))
+            results.append(run_predictor_comparison(
+                assembly_code,
+                predictor,
+                config
+            ))
 
     successful_results = [result for result in results if result["error"] is None]
     best_predictor = None
@@ -125,9 +167,16 @@ def compare_predictors():
             key=lambda result: result["accuracy"],
         )["predictor"]
 
+    architecture_config_used = (
+        successful_results[0].get("architectureConfig")
+        if successful_results
+        else config
+    )
+
     return jsonify({
         "program": "custom",
         "bestPredictor": best_predictor,
+        "architectureConfig": architecture_config_used,
         "results": results,
     })
 
@@ -152,21 +201,55 @@ def validate_simulator_exists():
     return None
 
 
-def run_simulator(asm_path: Path, predictor: str | None):
+def run_simulator(
+    asm_path: Path,
+    predictor: str | None,
+    architecture_config: dict | None = None,
+):
     command = [str(SIMULATOR_PATH), str(asm_path)]
+    config_path = None
 
     if predictor:
         command.extend(["--predictor", predictor])
 
-    return subprocess.run(
-        command,
-        cwd=BUILD_DIR,
-        capture_output=True,
-        text=True,
-        timeout=RUN_TIMEOUT_SECONDS,
-        shell=False,
-        check=False,
-    )
+    if architecture_config:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            suffix=".json",
+            encoding="utf-8",
+            delete=False,
+            dir="/tmp",
+        ) as config_file:
+            json.dump(architecture_config, config_file)
+            config_path = Path(config_file.name)
+
+        command.extend(["--config", str(config_path)])
+
+    TRACE_PATH.unlink(missing_ok=True)
+
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=RUN_TIMEOUT_SECONDS,
+            shell=False,
+            check=False,
+        )
+
+        log_simulator_architecture_config(completed)
+        return completed
+    finally:
+        if config_path is not None:
+            config_path.unlink(missing_ok=True)
+
+
+def log_simulator_architecture_config(completed: subprocess.CompletedProcess):
+    for line in completed.stdout.splitlines():
+        if line.startswith("Architecture config used:"):
+            print(f"C++ simulator {line}", flush=True)
+            return
 
 
 def read_trace() -> dict:
@@ -177,7 +260,11 @@ def read_trace() -> dict:
         return json.load(trace_file)
 
 
-def run_predictor_comparison(assembly_code: str, predictor: str) -> dict:
+def run_predictor_comparison(
+    assembly_code: str,
+    predictor: str,
+    architecture_config: dict | None = None,
+) -> dict:
     result = {
         "predictor": predictor,
         "correct": 0,
@@ -186,6 +273,7 @@ def run_predictor_comparison(assembly_code: str, predictor: str) -> dict:
         "branchPredictions": [],
         "predictorState": None,
         "performanceStats": None,
+        "architectureConfig": None,
         "error": None,
         "stdout": "",
         "stderr": "",
@@ -202,7 +290,7 @@ def run_predictor_comparison(assembly_code: str, predictor: str) -> dict:
         asm_path = Path(asm_file.name)
 
     try:
-        completed = run_simulator(asm_path, predictor)
+        completed = run_simulator(asm_path, predictor, architecture_config)
     except subprocess.TimeoutExpired:
         result["error"] = "Simulator timed out."
         return result
@@ -235,6 +323,7 @@ def run_predictor_comparison(assembly_code: str, predictor: str) -> dict:
     result["branchPredictions"] = branch_predictions
     result["predictorState"] = final_cycle.get("predictorState")
     result["performanceStats"] = trace.get("performanceStats")
+    result["architectureConfig"] = trace.get("architectureConfig")
     result.pop("stdout")
     result.pop("stderr")
 
@@ -304,6 +393,49 @@ def get_assembly_code() -> str:
         return request.form["assembly"]
 
     return request.get_data(as_text=True) or ""
+
+
+def get_architecture_config():
+    if not request.is_json:
+        return None, None
+
+    payload = request.get_json(silent=True) or {}
+    raw_config = payload.get("architectureConfig")
+
+    if raw_config is None:
+        return None, None
+
+    if not isinstance(raw_config, dict):
+        return None, (jsonify({
+            "error": "Invalid architecture config: architectureConfig must be an object",
+        }), 400)
+
+    config = {}
+
+    for key, value in raw_config.items():
+        if key not in ARCHITECTURE_CONFIG_RANGES:
+            return None, (jsonify({
+                "error": f"Invalid architecture config: unknown key {key}",
+            }), 400)
+
+        if isinstance(value, bool) or not isinstance(value, int):
+            return None, (jsonify({
+                "error": f"Invalid architecture config: {key} must be an integer",
+            }), 400)
+
+        min_value, max_value = ARCHITECTURE_CONFIG_RANGES[key]
+
+        if value < min_value or value > max_value:
+            return None, (jsonify({
+                "error": (
+                    f"Invalid architecture config: {key} must be between "
+                    f"{min_value} and {max_value}"
+                ),
+            }), 400)
+
+        config[key] = value
+
+    return config, None
 
 
 def get_predictor() -> str | bool | None:
