@@ -1,0 +1,13 @@
+build/
+.git/
+__pycache__/
+.pytest_cache/
+.venv/
+trace.json
+predictor_comparison.json
+*.pyc
+tests/CMakeCache.txt
+tests/Makefile
+tests/cmake_install.cmake
+tests/simulator
+tests/CMakeFiles/

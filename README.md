@@ -277,6 +277,22 @@ cmake --build build
 
 ---
 
+## Run with Docker
+
+```bash
+docker compose up --build
+```
+
+Then open:
+
+```text
+http://localhost:5000
+```
+
+This runs the Flask backend and browser visualizer. The simulator is built inside the container, and the local non-Docker build instructions still work.
+
+---
+
 ## Run the Simulator Directly
 
 Run the default program configured in `src/main.cpp`:
@@ -398,7 +414,7 @@ http://127.0.0.1:5000
 
 ### Backend Workflow
 
-The backend is intended for local development only. It binds to `127.0.0.1`.
+The backend is intended for local development only. By default it binds to `127.0.0.1`; Docker sets `FLASK_HOST=0.0.0.0` so the browser can reach the container.
 
 When you click **Run Simulation**:
 

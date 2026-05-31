@@ -41,7 +41,7 @@ const PREDICTOR_DETAILS = {
 };
 
 const ARCHITECTURE_CONFIG_DEFAULTS = {
-  robCapacity: 16,
+  robCapacity: 4,
   intRsCapacity: 2,
   mulRsCapacity: 2,
   fpAddRsCapacity: 2,

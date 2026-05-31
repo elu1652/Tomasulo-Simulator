@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import tempfile
 import threading
@@ -59,7 +60,7 @@ def index():
     return send_from_directory(VISUALIZER_DIR, "index.html")
 
 
-# Keep asset serving local to visualizer/; the app still binds only to 127.0.0.1.
+# Keep asset serving local to visualizer/.
 @app.get("/<path:filename>")
 def visualizer_file(filename):
     return send_from_directory(VISUALIZER_DIR, filename)
@@ -448,4 +449,6 @@ def get_predictor() -> str | bool | None:
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=False)
+    host = os.environ.get("FLASK_HOST", "127.0.0.1")
+    port = int(os.environ.get("FLASK_PORT", "5000"))
+    app.run(host=host, port=port, debug=False)
