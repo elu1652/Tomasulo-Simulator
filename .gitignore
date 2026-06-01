@@ -48,7 +48,5 @@ simulator
 trace.json
 traces/
 
-# Local agent/tool state
-.codex/
-.agent/
-.agents/
+# Hidden directories
+**/.*

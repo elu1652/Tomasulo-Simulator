@@ -27,4 +27,12 @@ add_executable(simulator
     src/BranchTraceUtils.cpp
     src/TraceBuilder.cpp
     src/PerformanceStats.cpp
+    src/DataCache.cpp
 )
+
+add_executable(cache_test
+    src/CacheTest.cpp
+    src/DataCache.cpp
+)
+
+target_include_directories(cache_test PRIVATE include)
