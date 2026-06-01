@@ -1,13 +1,54 @@
-build/
+# Local editor and OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# Python local environments and caches
 .venv/
+venv/
+env/
 __pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# CMake and compiler build output
+build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+CTestTestfile.cmake
+Testing/
 *.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+*.d
+*.out
 *.exe
-*.pyc
+
+# In-place test/build artifacts
+tests/CMakeFiles/
+tests/CMakeCache.txt
+tests/cmake_install.cmake
+tests/Makefile
+tests/simulator
+simulator
+
+# Runtime/generated simulator output
 trace.json
 traces/
+
+# Local agent/tool state
 .codex/
 .agent/
 .agents/
-.DS_Store
-trace.json  
