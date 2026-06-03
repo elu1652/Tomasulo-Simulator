@@ -1,3 +1,10 @@
+# ARCH_CONFIG l1dEnabled=1,l1dNumSets=8,l1dLineSizeBytes=16,l1dHitLatency=1,l1dMissPenalty=10
+# EXPECT_REG R7 100
+# EXPECT_STAT l1dAccesses 4
+# EXPECT_STAT l1dHits 3
+# EXPECT_STAT l1dMisses 1
+# EXPECT_STAT memoryStallCycles 10
+
 .REG R10 0
 .MEM 0 10
 .MEM 4 20

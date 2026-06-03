@@ -73,8 +73,16 @@ private:
     ArchitectureConfig architectureConfig;
     DataCache dataCache;
 
-    int getLoadAccessLatency(int address, PerformanceStats& stats);
-    int getStoreAccessLatency(int address, PerformanceStats& stats);
+    int getLoadAccessLatency(
+        int address,
+        PerformanceStats& stats,
+        std::vector<std::string>& traceEvents
+    );
+    int getStoreAccessLatency(
+        int address,
+        PerformanceStats& stats,
+        std::vector<std::string>& traceEvents
+    );
 
 public:
     explicit Simulator(

@@ -183,6 +183,25 @@ button:disabled {
   background: white;
 }
 
+.architecture-checkbox-label {
+  flex-direction: row !important;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.architecture-checkbox-label input {
+  width: auto;
+}
+
+.l1d-config-fieldset.cache-disabled label:not(.architecture-checkbox-label) {
+  opacity: 0.55;
+}
+
+.l1d-config-fieldset input:disabled {
+  background: #eef2f7;
+  color: #64748b;
+}
+
 .architecture-summary {
   color: #64748b;
   font-size: 12px;

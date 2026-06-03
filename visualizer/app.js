@@ -61,7 +61,12 @@ const ARCHITECTURE_CONFIG_DEFAULTS = {
   storeLatency: 2,
   fpAddLatency: 4,
   fpMulLatency: 7,
-  fpDivLatency: 10
+  fpDivLatency: 10,
+  l1dEnabled: false,
+  l1dNumSets: 8,
+  l1dLineSizeBytes: 16,
+  l1dHitLatency: 1,
+  l1dMissPenalty: 10
 };
 
 const ARCHITECTURE_CONFIG_PRESETS = {
@@ -125,6 +130,8 @@ const architectureSummary = document.getElementById("architectureSummary");
 const architectureConfigInputs = Array.from(
   document.querySelectorAll("[data-arch-key]")
 );
+const l1dConfigFieldset = document.querySelector(".l1d-config-fieldset");
+const l1dParamInputs = Array.from(document.querySelectorAll("[data-l1d-param]"));
 
 const prevBtn = document.getElementById("prevBtn");
 const nextBtn = document.getElementById("nextBtn");
@@ -582,6 +589,15 @@ function initializeArchitectureControls() {
       const key = input.dataset.archKey;
       if (!key) return;
 
+      if (input.type === "checkbox") {
+        architectureConfig[key] = input.checked;
+        persistArchitectureConfig();
+        updateArchitecturePresetSelection();
+        syncL1DConfigState();
+        renderArchitectureSummary();
+        return;
+      }
+
       const value = Number.parseInt(input.value, 10);
       if (!Number.isFinite(value)) return;
 
@@ -610,6 +626,11 @@ function sanitizeArchitectureConfig(config) {
   const sanitized = { ...ARCHITECTURE_CONFIG_DEFAULTS };
 
   for (const key of Object.keys(ARCHITECTURE_CONFIG_DEFAULTS)) {
+    if (typeof ARCHITECTURE_CONFIG_DEFAULTS[key] === "boolean") {
+      sanitized[key] = Boolean(config?.[key]);
+      continue;
+    }
+
     const value = Number.parseInt(config?.[key], 10);
     if (Number.isFinite(value)) {
       sanitized[key] = value;
@@ -634,10 +655,28 @@ function syncArchitectureInputs() {
   for (const input of architectureConfigInputs) {
     const key = input.dataset.archKey;
     if (!key) continue;
-    input.value = architectureConfig[key];
+
+    if (input.type === "checkbox") {
+      input.checked = Boolean(architectureConfig[key]);
+    } else {
+      input.value = architectureConfig[key];
+    }
   }
 
+  syncL1DConfigState();
   updateArchitecturePresetSelection();
+}
+
+function syncL1DConfigState() {
+  const enabled = Boolean(architectureConfig.l1dEnabled);
+
+  if (l1dConfigFieldset) {
+    l1dConfigFieldset.classList.toggle("cache-disabled", !enabled);
+  }
+
+  for (const input of l1dParamInputs) {
+    input.disabled = !enabled;
+  }
 }
 
 function updateArchitecturePresetSelection() {
@@ -651,6 +690,10 @@ function updateArchitecturePresetSelection() {
 
 function architectureConfigsEqual(left, right) {
   return Object.keys(ARCHITECTURE_CONFIG_DEFAULTS).every((key) => {
+    if (typeof ARCHITECTURE_CONFIG_DEFAULTS[key] === "boolean") {
+      return Boolean(left[key]) === Boolean(right[key]);
+    }
+
     return Number(left[key]) === Number(right[key]);
   });
 }
@@ -676,7 +719,8 @@ function renderArchitectureSummary(config = null) {
     `INT FU ${activeConfig.intFuCount}, ` +
     `MEM FU ${activeConfig.memFuCount}, ` +
     `FP_ADD ${activeConfig.fpAddPipelineCount}x${activeConfig.fpAddPipelineDepth}, ` +
-    `FP_MUL ${activeConfig.fpMulPipelineCount}x${activeConfig.fpMulPipelineDepth}`;
+    `FP_MUL ${activeConfig.fpMulPipelineCount}x${activeConfig.fpMulPipelineDepth}, ` +
+    `L1D ${activeConfig.l1dEnabled ? "enabled" : "disabled"}`;
 }
 
 function parseProgramLines(text) {
@@ -2029,6 +2073,7 @@ function renderPerformanceStats() {
           ["FP_MUL pipeline", "fpMulPipeline"]
         ])}
       </div>
+      ${renderL1DPerformanceSection(stats)}
     </div>
   `;
 }
@@ -2053,6 +2098,37 @@ function renderCompactStats(source, rows) {
           <strong>${formatIntegerStat(values[key])}</strong>
         </div>
       `).join("")}
+    </div>
+  `;
+}
+
+function renderL1DPerformanceSection(stats) {
+  if (!stats || typeof stats !== "object") {
+    return "";
+  }
+
+  if (!stats.l1dEnabled) {
+    return `
+      <div class="l1d-performance-section">
+        <h3>L1 Data Cache</h3>
+        <div class="empty">L1 Data Cache: disabled</div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="l1d-performance-section">
+      <h3>L1 Data Cache</h3>
+      <div class="compact-stat-list">
+        <div class="summary-row"><span>Accesses</span><strong>${formatIntegerStat(stats.l1dAccesses)}</strong></div>
+        <div class="summary-row"><span>Hits</span><strong>${formatIntegerStat(stats.l1dHits)}</strong></div>
+        <div class="summary-row"><span>Misses</span><strong>${formatIntegerStat(stats.l1dMisses)}</strong></div>
+        <div class="summary-row"><span>Hit rate</span><strong>${formatPercentStat(stats.l1dHitRate, 1)}</strong></div>
+        <div class="summary-row"><span>Miss rate</span><strong>${formatPercentStat(stats.l1dMissRate, 1)}</strong></div>
+        <div class="summary-row"><span>Writebacks</span><strong>${formatIntegerStat(stats.l1dWritebacks)}</strong></div>
+        <div class="summary-row"><span>Average access latency</span><strong>${formatDecimalStat(stats.l1dAverageAccessLatency, 2)}</strong></div>
+        <div class="summary-row"><span>Memory stall cycles</span><strong>${formatIntegerStat(stats.memoryStallCycles)}</strong></div>
+      </div>
     </div>
   `;
 }
@@ -2710,6 +2786,7 @@ function buildAnalysisPerformanceStats(stats) {
       ${renderStatItem("FU Stall Events", formatIntegerStat(stats.fuBusyStallEvents))}
       ${renderStatItem("Memory Stall Events", formatIntegerStat(stats.memoryOrderingStallEvents))}
     </div>
+    ${renderL1DPerformanceSection(stats)}
   `;
 }
 

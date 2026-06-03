@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import json
 import re
 import subprocess
 from pathlib import Path
@@ -8,6 +9,7 @@ ROOT = Path(__file__).resolve().parent.parent
 TEST_DIR = ROOT / "tests"
 BUILD_DIR = ROOT / "build"
 SIMULATOR = BUILD_DIR / "simulator"
+TRACE_PATH = ROOT / "trace.json"
 
 
 def build_project():
@@ -30,10 +32,16 @@ def parse_expectations(test_file):
     expected_regs = {}
     expected_mem = {}
     expected_commit_counts = {}
+    expected_stats = {}
+    architecture_config = None
 
     with open(test_file, "r") as f:
         for line in f:
             line = line.strip()
+
+            arch_config_match = re.match(r"#\s*ARCH_CONFIG\s+(.+)\s*$", line)
+            if arch_config_match:
+                architecture_config = arch_config_match.group(1).strip()
 
             # Register expectations
             reg_match = re.match(r"#\s*EXPECT_REG\s+R(\d+)\s+(-?\d+)", line)
@@ -56,7 +64,23 @@ def parse_expectations(test_file):
                 count = int(commit_match.group(2))
                 expected_commit_counts[instr] = count
 
-    return expected_regs, expected_mem, expected_commit_counts
+            stat_match = re.match(r"#\s*EXPECT_STAT\s+([A-Za-z0-9_]+)\s+(-?\d+(?:\.\d+)?)", line)
+            if stat_match:
+                key = stat_match.group(1)
+                value_text = stat_match.group(2)
+                expected_stats[key] = (
+                    float(value_text)
+                    if "." in value_text
+                    else int(value_text)
+                )
+
+    return (
+        expected_regs,
+        expected_mem,
+        expected_commit_counts,
+        expected_stats,
+        architecture_config,
+    )
 
 
 def parse_final_registers(output):
@@ -113,11 +137,30 @@ def parse_commit_counts(output):
     return commit_counts
 
 
+def parse_performance_stats():
+    with open(TRACE_PATH, "r") as f:
+        trace = json.load(f)
+
+    stats = trace.get("performanceStats", {})
+    return stats if isinstance(stats, dict) else {}
+
+
 def run_test(test_file):
-    expected_regs, expected_mem, expected_commit_counts = parse_expectations(test_file)
+    (
+        expected_regs,
+        expected_mem,
+        expected_commit_counts,
+        expected_stats,
+        architecture_config,
+    ) = parse_expectations(test_file)
+
+    command = [str(SIMULATOR), str(test_file)]
+
+    if architecture_config:
+        command.extend(["--arch-config", architecture_config])
 
     result = subprocess.run(
-        [str(SIMULATOR), str(test_file)],
+        command,
         cwd=BUILD_DIR,
         text=True,
         stdout=subprocess.PIPE,
@@ -132,6 +175,7 @@ def run_test(test_file):
     actual_regs = parse_final_registers(output)
     actual_mem = parse_final_memory(output)
     actual_commit_counts = parse_commit_counts(output)
+    actual_stats = {}
 
     failures = []
 
@@ -157,6 +201,25 @@ def run_test(test_file):
         if actual_count != expected_count:
             failures.append(
                 f"Commit count for '{instr}': expected {expected_count}, got {actual_count}"
+            )
+
+    if expected_stats:
+        try:
+            actual_stats = parse_performance_stats()
+        except (FileNotFoundError, json.JSONDecodeError) as error:
+            failures.append(f"Could not read performance stats from trace.json: {error}")
+
+    for key, expected_value in expected_stats.items():
+        actual_value = actual_stats.get(key)
+
+        if isinstance(expected_value, float):
+            if not isinstance(actual_value, (int, float)) or abs(actual_value - expected_value) > 1e-6:
+                failures.append(
+                    f"Stat {key}: expected {expected_value}, got {actual_value}"
+                )
+        elif actual_value != expected_value:
+            failures.append(
+                f"Stat {key}: expected {expected_value}, got {actual_value}"
             )
 
     if failures:

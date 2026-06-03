@@ -151,7 +151,11 @@ static void recordBackendStall(
     stats.totalStallEvents++;
 }
 
-int Simulator::getLoadAccessLatency(int address, PerformanceStats& stats) {
+int Simulator::getLoadAccessLatency(
+    int address,
+    PerformanceStats& stats,
+    std::vector<std::string>& traceEvents
+) {
     if (!architectureConfig.l1dEnabled) {
         return architectureConfig.loadLatency;
     }
@@ -173,11 +177,16 @@ int Simulator::getLoadAccessLatency(int address, PerformanceStats& stats) {
     }
 
     std::cout << "  " << event << "\n";
+    traceEvents.push_back(event);
 
     return result.latency;
 }
 
-int Simulator::getStoreAccessLatency(int address, PerformanceStats& stats) {
+int Simulator::getStoreAccessLatency(
+    int address,
+    PerformanceStats& stats,
+    std::vector<std::string>& traceEvents
+) {
     if (!architectureConfig.l1dEnabled) {
         return architectureConfig.storeLatency;
     }
@@ -199,6 +208,7 @@ int Simulator::getStoreAccessLatency(int address, PerformanceStats& stats) {
     }
 
     std::cout << "  " << event << "\n";
+    traceEvents.push_back(event);
 
     return result.latency;
 }
@@ -348,6 +358,7 @@ void Simulator::execute(
 
     TraceRecorder traceRecorder;
     PerformanceStats stats;
+    stats.l1dEnabled = architectureConfig.l1dEnabled;
 
     applyProgramSetup(rf, mem, setup);
 
@@ -742,14 +753,24 @@ void Simulator::execute(
                     continue;
                 }
 
+                // Cache timing depends on the effective address, so LD/SD
+                // latency is finalized when execution can actually begin.
                 if (active.instr.opcode == OpCode::LD) {
                     int address = active.vj + active.instr.immediate;
-                    active.remainingCycles = getLoadAccessLatency(address, stats);
+                    active.remainingCycles = getLoadAccessLatency(
+                        address,
+                        stats,
+                        traceEvents
+                    );
                 }
 
                 if (active.instr.opcode == OpCode::SD) {
                     int address = active.vj + active.instr.immediate;
-                    active.remainingCycles = getStoreAccessLatency(address, stats);
+                    active.remainingCycles = getStoreAccessLatency(
+                        address,
+                        stats,
+                        traceEvents
+                    );
                 }
 
                 // Update FU and active instruction status
@@ -774,7 +795,7 @@ void Simulator::execute(
             active.remainingCycles--;
         }
 
-        // DEBUG STATE PRINTING
+        // Cycle state printout
         printFUState(intFU, mulFU, fpAddFU, fpMulFU, memFU);
         printFUPipelineState(fpAddFU);
         printFUPipelineState(fpMulFU);

@@ -48,6 +48,11 @@ ARCHITECTURE_CONFIG_RANGES = {
     "fpAddLatency": (1, 64),
     "fpMulLatency": (1, 64),
     "fpDivLatency": (1, 64),
+    "l1dEnabled": (0, 1),
+    "l1dNumSets": (1, 4096),
+    "l1dLineSizeBytes": (1, 4096),
+    "l1dHitLatency": (1, 10000),
+    "l1dMissPenalty": (0, 10000),
 }
 
 app = Flask(__name__, static_folder=None)
@@ -393,14 +398,18 @@ def get_architecture_config():
                 "error": f"Invalid architecture config: unknown key {key}",
             }), 400)
 
-        if isinstance(value, bool) or not isinstance(value, int):
+        if key == "l1dEnabled" and isinstance(value, bool):
+            normalized_value = int(value)
+        elif isinstance(value, bool) or not isinstance(value, int):
             return None, (jsonify({
                 "error": f"Invalid architecture config: {key} must be an integer",
             }), 400)
+        else:
+            normalized_value = value
 
         min_value, max_value = ARCHITECTURE_CONFIG_RANGES[key]
 
-        if value < min_value or value > max_value:
+        if normalized_value < min_value or normalized_value > max_value:
             return None, (jsonify({
                 "error": (
                     f"Invalid architecture config: {key} must be between "
@@ -408,14 +417,14 @@ def get_architecture_config():
                 ),
             }), 400)
 
-        config[key] = value
+        config[key] = bool(normalized_value) if key == "l1dEnabled" else normalized_value
 
     return config, None
 
 
 def serialize_architecture_config(config: dict) -> str:
     return ",".join(
-        f"{key}={value}"
+        f"{key}={int(value) if isinstance(value, bool) else value}"
         for key, value in sorted(config.items())
     )
 

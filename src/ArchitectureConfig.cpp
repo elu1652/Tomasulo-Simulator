@@ -36,6 +36,11 @@ const std::unordered_map<std::string, Range>& configRanges() {
         {"fpAddLatency", {1, 64}},
         {"fpMulLatency", {1, 64}},
         {"fpDivLatency", {1, 64}},
+        {"l1dEnabled", {0, 1}},
+        {"l1dNumSets", {1, 4096}},
+        {"l1dLineSizeBytes", {1, 4096}},
+        {"l1dHitLatency", {1, 10000}},
+        {"l1dMissPenalty", {0, 10000}},
     };
 
     return ranges;
@@ -98,6 +103,11 @@ bool applyArchitectureConfigOverride(
     else if (key == "fpAddLatency") config.fpAddLatency = value;
     else if (key == "fpMulLatency") config.fpMulLatency = value;
     else if (key == "fpDivLatency") config.fpDivLatency = value;
+    else if (key == "l1dEnabled") config.l1dEnabled = value != 0;
+    else if (key == "l1dNumSets") config.l1dNumSets = value;
+    else if (key == "l1dLineSizeBytes") config.l1dLineSizeBytes = value;
+    else if (key == "l1dHitLatency") config.l1dHitLatency = value;
+    else if (key == "l1dMissPenalty") config.l1dMissPenalty = value;
 
     return true;
 }
@@ -127,7 +137,15 @@ bool parseArchitectureConfigOverrides(
 
         try {
             size_t parsedChars = 0;
-            int value = std::stoi(valueText, &parsedChars);
+            int value = 0;
+
+            if (key == "l1dEnabled" &&
+                (valueText == "true" || valueText == "false")) {
+                value = valueText == "true" ? 1 : 0;
+                parsedChars = valueText.size();
+            } else {
+                value = std::stoi(valueText, &parsedChars);
+            }
 
             if (parsedChars != valueText.size()) {
                 error = key + " must be an integer";
