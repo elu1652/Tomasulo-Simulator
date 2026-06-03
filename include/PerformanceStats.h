@@ -44,6 +44,15 @@ struct PerformanceStats {
     int fpAddPipelineMaxOccupancy = 0;
     int fpMulPipelineMaxOccupancy = 0;
 
+    bool l1dEnabled = false;
+
+    int l1dAccesses = 0;
+    int l1dHits = 0;
+    int l1dMisses = 0;
+    int l1dWritebacks = 0;
+    int l1dTotalAccessLatency = 0;
+    int memoryStallCycles = 0;
+
     double ipc() const;
     double branchAccuracy() const;
 };

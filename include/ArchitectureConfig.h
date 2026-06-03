@@ -31,6 +31,12 @@ struct ArchitectureConfig {
     int fpAddLatency = 4;
     int fpMulLatency = 7;
     int fpDivLatency = 10;
+
+    bool l1dEnabled = false;
+    int l1dNumSets = 8;
+    int l1dLineSizeBytes = 16;
+    int l1dHitLatency = 1;
+    int l1dMissPenalty = 10;
 };
 
 bool applyArchitectureConfigOverride(

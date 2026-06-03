@@ -220,7 +220,31 @@ static void writePerformanceStats(std::ofstream& out, const PerformanceStats& st
     out << "      \"storeBuffer\": " << stats.storeBufferMaxOccupancy << ",\n";
     out << "      \"fpAddPipeline\": " << stats.fpAddPipelineMaxOccupancy << ",\n";
     out << "      \"fpMulPipeline\": " << stats.fpMulPipelineMaxOccupancy << "\n";
-    out << "    }\n";
+    out << "    },\n";
+
+    double l1dHitRate = stats.l1dAccesses == 0
+        ? 0.0
+        : static_cast<double>(stats.l1dHits) / stats.l1dAccesses * 100.0;
+
+    double l1dMissRate = stats.l1dAccesses == 0
+        ? 0.0
+        : static_cast<double>(stats.l1dMisses) / stats.l1dAccesses * 100.0;
+
+    double l1dAverageAccessLatency = stats.l1dAccesses == 0
+        ? 0.0
+        : static_cast<double>(stats.l1dTotalAccessLatency) / stats.l1dAccesses;
+
+    out << "    \"l1dEnabled\": " << (stats.l1dEnabled ? "true" : "false") << ",\n";
+    out << "    \"l1dAccesses\": " << stats.l1dAccesses << ",\n";
+    out << "    \"l1dHits\": " << stats.l1dHits << ",\n";
+    out << "    \"l1dMisses\": " << stats.l1dMisses << ",\n";
+    out << "    \"l1dWritebacks\": " << stats.l1dWritebacks << ",\n";
+    out << "    \"l1dTotalAccessLatency\": " << stats.l1dTotalAccessLatency << ",\n";
+    out << "    \"l1dHitRate\": " << l1dHitRate << ",\n";
+    out << "    \"l1dMissRate\": " << l1dMissRate << ",\n";
+    out << "    \"l1dAverageAccessLatency\": " << l1dAverageAccessLatency << ",\n";
+    out << "    \"memoryStallCycles\": " << stats.memoryStallCycles << "\n";
+
     out << "  }";
 }
 
@@ -251,7 +275,12 @@ static void writeArchitectureConfig(
     out << "    \"storeLatency\": " << config.storeLatency << ",\n";
     out << "    \"fpAddLatency\": " << config.fpAddLatency << ",\n";
     out << "    \"fpMulLatency\": " << config.fpMulLatency << ",\n";
-    out << "    \"fpDivLatency\": " << config.fpDivLatency << "\n";
+    out << "    \"fpDivLatency\": " << config.fpDivLatency << ",\n";
+    out << "    \"l1dEnabled\": " << (config.l1dEnabled ? "true" : "false") << ",\n";
+    out << "    \"l1dNumSets\": " << config.l1dNumSets << ",\n";
+    out << "    \"l1dLineSizeBytes\": " << config.l1dLineSizeBytes << ",\n";
+    out << "    \"l1dHitLatency\": " << config.l1dHitLatency << ",\n";
+    out << "    \"l1dMissPenalty\": " << config.l1dMissPenalty << "\n";
     out << "  }";
 }
 

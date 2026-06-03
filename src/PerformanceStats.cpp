@@ -80,6 +80,30 @@ void printPerformanceStats(const PerformanceStats& stats) {
     std::cout << "  FU busy stall events: " << stats.fuBusyStallEvents << "\n";
     std::cout << "  Memory ordering stall events: " << stats.memoryOrderingStallEvents << "\n";
 
+    if (stats.l1dEnabled) {
+        double hitRate = stats.l1dAccesses == 0
+            ? 0.0
+            : static_cast<double>(stats.l1dHits) / stats.l1dAccesses * 100.0;
+
+        double missRate = stats.l1dAccesses == 0
+            ? 0.0
+            : static_cast<double>(stats.l1dMisses) / stats.l1dAccesses * 100.0;
+
+        double avgLatency = stats.l1dAccesses == 0
+            ? 0.0
+            : static_cast<double>(stats.l1dTotalAccessLatency) / stats.l1dAccesses;
+
+        std::cout << "\nL1 Data Cache:\n";
+        std::cout << "  Accesses: " << stats.l1dAccesses << "\n";
+        std::cout << "  Hits: " << stats.l1dHits << "\n";
+        std::cout << "  Misses: " << stats.l1dMisses << "\n";
+        std::cout << "  Hit rate: " << hitRate << "%\n";
+        std::cout << "  Miss rate: " << missRate << "%\n";
+        std::cout << "  Writebacks: " << stats.l1dWritebacks << "\n";
+        std::cout << "  Average access latency: " << avgLatency << "\n";
+        std::cout << "  Memory stall cycles: " << stats.memoryStallCycles << "\n";
+    }
+
     std::cout << "\nCDB:\n";
     std::cout << "  Broadcasts: " << stats.cdbBroadcasts << "\n";
     std::cout << "  Max queue size: " << stats.cdbQueueMaxSize << "\n";

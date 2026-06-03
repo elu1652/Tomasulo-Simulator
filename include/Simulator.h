@@ -9,6 +9,8 @@
 #include "InstructionStatus.h"
 #include "BranchPredictor.h"
 #include "Program.h"
+#include "DataCache.h"
+#include "PerformanceStats.h"
 
 
 struct ExecutionResult {
@@ -69,6 +71,10 @@ private:
     std::vector<InstructionStatus> statusTable;
     BranchPredictorType predictorType;
     ArchitectureConfig architectureConfig;
+    DataCache dataCache;
+
+    int getLoadAccessLatency(int address, PerformanceStats& stats);
+    int getStoreAccessLatency(int address, PerformanceStats& stats);
 
 public:
     explicit Simulator(
@@ -82,4 +88,5 @@ public:
     );
 
     ExecutionResult computeResult(const ActiveInstruction& active);
+    
 };

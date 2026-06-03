@@ -19,11 +19,55 @@
 #include <iostream>
 #include <queue>
 
-Simulator::Simulator(
-    BranchPredictorType predictorType,
-    const ArchitectureConfig& architectureConfig
-): predictorType(predictorType),
-   architectureConfig(architectureConfig) {
+
+static void recordCacheAccessStats(
+    PerformanceStats& stats,
+    const ArchitectureConfig& architectureConfig,
+    const CacheAccessResult& result
+) {
+    if (!result.enabled) {
+        return;
+    }
+
+    stats.l1dEnabled = true;
+    stats.l1dAccesses++;
+    stats.l1dTotalAccessLatency += result.latency;
+
+    if (result.hit) {
+        stats.l1dHits++;
+    }
+
+    if (result.miss) {
+        stats.l1dMisses++;
+    }
+
+    if (result.writeback) {
+        stats.l1dWritebacks++;
+    }
+
+    int extraMissLatency = result.latency - architectureConfig.l1dHitLatency;
+
+    if (extraMissLatency > 0) {
+        stats.memoryStallCycles += extraMissLatency;
+    }
+}
+
+static CacheConfig makeCacheConfig(const ArchitectureConfig& architectureConfig) {
+    CacheConfig cacheConfig;
+
+    cacheConfig.enabled = architectureConfig.l1dEnabled;
+    cacheConfig.numSets = architectureConfig.l1dNumSets;
+    cacheConfig.lineSizeBytes = architectureConfig.l1dLineSizeBytes;
+    cacheConfig.hitLatency = architectureConfig.l1dHitLatency;
+    cacheConfig.missPenalty = architectureConfig.l1dMissPenalty;
+
+    return cacheConfig;
+}
+
+Simulator::Simulator(BranchPredictorType predictorType, const ArchitectureConfig& config): 
+   predictorType(predictorType),
+   architectureConfig(config),
+   dataCache(makeCacheConfig(config)) {
 
 }
 
@@ -107,7 +151,60 @@ static void recordBackendStall(
     stats.totalStallEvents++;
 }
 
-// Compute the result of an instruction after it finishes execution.
+int Simulator::getLoadAccessLatency(int address, PerformanceStats& stats) {
+    if (!architectureConfig.l1dEnabled) {
+        return architectureConfig.loadLatency;
+    }
+
+    CacheAccessResult result = dataCache.load(static_cast<std::uint32_t>(address));
+
+    recordCacheAccessStats(stats, architectureConfig, result);
+
+    std::string event =
+        "L1D " + result.accessType +
+        " address " + std::to_string(result.address) +
+        " set " + std::to_string(result.setIndex) +
+        " tag " + std::to_string(result.tag) +
+        " | " + std::string(result.hit ? "hit" : "miss") +
+        " | latency " + std::to_string(result.latency);
+
+    if (result.writeback) {
+        event += " | dirty writeback";
+    }
+
+    std::cout << "  " << event << "\n";
+
+    return result.latency;
+}
+
+int Simulator::getStoreAccessLatency(int address, PerformanceStats& stats) {
+    if (!architectureConfig.l1dEnabled) {
+        return architectureConfig.storeLatency;
+    }
+
+    CacheAccessResult result = dataCache.store(static_cast<std::uint32_t>(address));
+
+    recordCacheAccessStats(stats, architectureConfig, result);
+
+    std::string event =
+        "L1D " + result.accessType +
+        " address " + std::to_string(result.address) +
+        " set " + std::to_string(result.setIndex) +
+        " tag " + std::to_string(result.tag) +
+        " | " + std::string(result.hit ? "hit" : "miss") +
+        " | latency " + std::to_string(result.latency);
+
+    if (result.writeback) {
+        event += " | dirty writeback";
+    }
+
+    std::cout << "  " << event << "\n";
+
+    return result.latency;
+}
+
+
+
 // Register results are queued for CDB broadcast.
 // Loads either read committed memory or use a value forwarded by the LSQ.
 // Stores produce an address/value pair that becomes ready in the ROB;
@@ -643,6 +740,16 @@ void Simulator::execute(
                     recordBackendStall(stats, stalledThisCycle, backendStalledThisCycle);
                     stats.fuBusyStallEvents++;
                     continue;
+                }
+
+                if (active.instr.opcode == OpCode::LD) {
+                    int address = active.vj + active.instr.immediate;
+                    active.remainingCycles = getLoadAccessLatency(address, stats);
+                }
+
+                if (active.instr.opcode == OpCode::SD) {
+                    int address = active.vj + active.instr.immediate;
+                    active.remainingCycles = getStoreAccessLatency(address, stats);
                 }
 
                 // Update FU and active instruction status
