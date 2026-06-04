@@ -32,7 +32,7 @@ struct ArchitectureConfig {
     int fpMulLatency = 7;
     int fpDivLatency = 10;
 
-    bool l1dEnabled = false;
+    bool l1dEnabled = true;
     int l1dNumSets = 8;
     int l1dBlockSizeWords = 4   ;
     int l1dHitLatency = 1;
