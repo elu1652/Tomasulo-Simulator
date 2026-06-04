@@ -23,6 +23,7 @@ The goal is to show how instructions move through an out-of-order execution engi
 - Store commit through the ROB
 - Address-aware load/store handling through the LSQ
 - Store-to-load forwarding from ready older stores
+- Optional direct-mapped L1 data cache with hit/miss timing, valid/dirty/tag metadata, dirty writeback counting, and pending-fill behavior
 - Wrong-path flush support for reservation stations, ROB, CDB queue, LSQ, and register producer table
 - Branch prediction modes:
   - `always-not-taken`
@@ -35,12 +36,12 @@ The goal is to show how instructions move through an out-of-order execution engi
 - Instruction timing table and branch prediction summary
 - Prediction Analysis mode for comparing all branch predictors on the same input program
 - `.REG` and `.MEM` setup directives for initializing registers and memory before cycle 1
-- Performance statistics output and frontend panel with IPC, stalls, CDB, branch, mix, and occupancy data
-- Architecture Config tab for per-run ROB, RS, FU, latency, and FP pipeline settings
+- Performance statistics output and frontend panel with IPC, stalls, CDB, branch, mix, occupancy, and L1D data
+- Architecture Config tab for per-run ROB, RS, FU, latency, FP pipeline, and optional L1D settings
 - `trace.json` export for visualization, including `architectureConfig` and `performanceStats`
 - Browser visualizer for stepping through trace snapshots
 - Local Flask backend for running assembly from the browser
-- Automated test runner for final architectural state and selected commit counts
+- Automated test runner for final architectural state, selected commit counts, and selected performance/cache statistics
 
 ---
 
@@ -110,6 +111,7 @@ flowchart TD
     RegProducer["Register Producer Table<br/>R# -> ROB#"]
     ROB["Circular ROB<br/>physical slots ROB0..ROB(N-1)"]
     LSQ["Load-Store Queue"]
+    L1D["Optional L1D Cache<br/>direct-mapped metadata/timing"]
     Memory["Memory"]
     Status["Instruction Status Table"]
 
@@ -135,7 +137,8 @@ flowchart TD
     Simulator --> RegFile
     Simulator --> ROB
     Simulator --> LSQ
-    LSQ --> Memory
+    LSQ --> L1D
+    L1D --> Memory
     ROB --> RegFile
     ROB --> Memory
 
@@ -164,6 +167,26 @@ By default, FP_ADD is modeled as one 4-stage pipeline and FP_MUL as one 7-stage 
 The table above shows the default configuration. Multiple `FMUL` instructions can overlap in the FP_MUL pipeline, and when multiple FP_MUL pipelines are configured, multiple ready `FMUL` instructions can start in the same cycle.
 
 Normal `MUL` still uses the regular MUL reservation station and MUL functional unit. `FADD`/`FSUB` are separate from `FMUL`/`FDIV`, so FP_ADD and FP_MUL can be busy at the same time. In-order commit still applies: a younger completed instruction can wait in the ROB if an older long-latency FP instruction is ahead of it.
+
+### Optional L1 Data Cache
+
+The L1D cache is optional and disabled by default. This preserves the original fixed-latency Tomasulo model while allowing memory-hierarchy experiments through the architecture configuration.
+
+The simulator uses a word-addressed memory model, so L1D block size is configured in words rather than bytes. When the cache is disabled, `LD` and `SD` use the fixed `loadLatency` and `storeLatency` settings. When enabled, memory-operation latency comes from L1D hit/miss behavior.
+
+Configurable L1D fields:
+
+```text
+l1dEnabled
+l1dNumSets
+l1dBlockSizeWords
+l1dHitLatency
+l1dMissPenalty
+```
+
+The current cache is a direct-mapped timing/metadata model. It tracks valid bits, dirty bits, tags, write-back/write-allocate metadata behavior, writeback counts, and pending fills. A missed line becomes valid only when the miss fill completes; younger same-set accesses wait with `L1D fill pending`. This is a simple blocking cache model, not a non-blocking MSHR model.
+
+The cache does not yet store independent byte-accurate cache-line data. The visualizer's block contents are reconstructed from trace memory snapshots for display.
 
 ---
 
@@ -221,6 +244,8 @@ The visual trace snapshot is captured around the cycle decision/debug point rath
 
 Configurable latencies, functional-unit counts, ROB capacity, and reservation-station capacities affect when stalls and completions occur, but the cycle ordering above remains the same.
 
+With L1D disabled, loads and stores use fixed memory latencies. With L1D enabled, load/store execution latency is assigned when execution can start because the effective address may not be known at issue time. A cache miss reserves a pending fill, and the line becomes visible to later accesses only when that fill completes.
+
 ---
 
 ## Trace JSON
@@ -247,6 +272,7 @@ Each cycle snapshot includes fields such as:
 - `rsState`
 - `rob.entries`, `rob.head`, `rob.tail`, `rob.count`
 - `lsq`
+- `l1dCache`
 - `registers`
 - `memory`
 - `registerProducers`
@@ -255,7 +281,7 @@ Each cycle snapshot includes fields such as:
 
 The trace is intentionally additive: newer visualizer panels use newer fields, while older trace files without those fields should still load without crashing.
 
-Newer traces include RS used/capacity information, ROB capacity, and FP pipeline rows/stages for the frontend. Frontend panels should render capacities from trace data instead of hardcoded defaults.
+Newer traces include RS used/capacity information, ROB capacity, FP pipeline rows/stages, and optional L1D per-set state for the frontend. Frontend panels should render capacities and cache settings from trace data instead of hardcoded defaults.
 
 ---
 
@@ -319,6 +345,12 @@ Override architecture parameters for one run:
 ./build/simulator tests/final_dynamic_matvec_2iter.asm --arch-config robCapacity=32,fpMulLatency=7,fpMulPipelineDepth=7
 ```
 
+Enable and configure L1D for one run:
+
+```bash
+./build/simulator tests/cache_sequential.asm --arch-config l1dEnabled=true,l1dNumSets=8,l1dBlockSizeWords=4,l1dHitLatency=1,l1dMissPenalty=10
+```
+
 Omitted architecture fields keep their default values.
 
 Accepted predictor names:
@@ -361,7 +393,7 @@ Current UI panels include:
 - Optional `.asm` loader and program listing with PC highlight
 - Branch predictor dropdown before running a simulation
 - Prediction Analysis mode for comparing predictor modes on the same program
-- Architecture Config tab for per-run ROB/RS/FU/latency/FP pipeline settings
+- Architecture Config tab for per-run ROB/RS/FU/latency/FP pipeline/L1D settings
 - Architectural datapath view
 - Functional unit state panel for INT, MUL, FP_ADD, FP_MUL, and MEM
 - FP pipeline stage panel
@@ -370,11 +402,12 @@ Current UI panels include:
 - ROB table
 - Reservation station and load/store buffer tables showing waiting instructions only
 - LSQ table
+- L1 Data Cache table showing set, valid, dirty, tag, and block contents
 - Register producer table
 - Branch predictor summary and branch prediction table
 - Register state table
 - Memory state table
-- Performance Statistics panel
+- Performance Statistics panel, including L1D accesses, hits, misses, hit/miss rate, writebacks, average access latency, and memory stall cycles when enabled
 
 Setup directives such as `.REG` and `.MEM` may be present in source files, but they are not shown as executable PC-highlighted instructions.
 
@@ -426,6 +459,8 @@ When you click **Run Simulation**:
 6. The visualizer renders the returned trace.
 
 Prediction Analysis mode uses `POST /compare-predictors` and applies the same selected architecture configuration to every predictor run.
+
+The same architecture configuration path carries optional L1D settings from the frontend to the C++ simulator, then back through `trace.json` for display.
 
 ---
 
@@ -493,7 +528,13 @@ Run all tests:
 python3 tests/run_tests.py
 ```
 
-The test runner builds the simulator, runs every `.asm` file in `tests/`, and validates final architectural state plus selected commit counts.
+From inside `build/`, the same validation can be run as:
+
+```bash
+python3 ../tests/run_tests.py
+```
+
+The test runner builds the simulator, runs every `.asm` file in `tests/`, and validates final architectural state, selected commit counts, selected performance statistics, and selected cache statistics.
 
 Expectations are written in assembly comments:
 
@@ -503,14 +544,45 @@ Expectations are written in assembly comments:
 # EXPECT_COMMIT_COUNT ADD R2, R1, R3 1
 ```
 
-The tests cover arithmetic, FP-style functional units, RAW dependencies, WAW-style renaming behavior, self-dependencies, CDB contention, out-of-order writeback, ROB capacity stalls, load-use dependencies, store commit behavior, LSQ memory ordering, store/load interactions, branches, nested loops, speculative execution, and wrong-path flush behavior.
+Cache tests can also configure L1D and validate cache statistics:
 
-Tests may use `.REG` and `.MEM` directives for setup without adding artificial setup cycles. Some tests check final architectural state and selected commit counts; timing-style tests can also be run manually with custom architecture settings.
+```asm
+# ARCH_L1D_ENABLED true
+# ARCH_L1D_NUM_SETS 8
+# ARCH_L1D_BLOCK_SIZE_WORDS 4
+# ARCH_L1D_HIT_LATENCY 1
+# ARCH_L1D_MISS_PENALTY 10
+# EXPECT_L1D_ACCESSES 4
+# EXPECT_L1D_HITS 3
+# EXPECT_L1D_MISSES 1
+# EXPECT_L1D_WRITEBACKS 0
+# EXPECT_MEMORY_STALL_CYCLES 10
+```
+
+Representative cache tests include `cache_sequential.asm`, `cache_conflict.asm`, `cache_dirty_writeback.asm`, and `cache_load_stall.asm`.
+
+The tests cover arithmetic, FP-style functional units, RAW dependencies, WAW-style renaming behavior, self-dependencies, CDB contention, out-of-order writeback, ROB capacity stalls, load-use dependencies, store commit behavior, LSQ memory ordering, store/load interactions, branches, nested loops, speculative execution, wrong-path flush behavior, and optional L1D cache behavior.
+
+Tests may use `.REG` and `.MEM` directives for setup without adding artificial setup cycles. Some tests check final architectural state, selected commit counts, performance counters, cache counters, and targeted timing relationships.
 
 A small GUI helper can generate test files:
 
 ```bash
 python3 tests/create_test.py
+```
+
+Optional frontend and trace syntax checks:
+
+```bash
+node --check visualizer/app.js
+python3 -m json.tool trace.json > /tmp/trace_check.json
+```
+
+From inside `build/`, use:
+
+```bash
+node --check ../visualizer/app.js
+python3 -m json.tool ../trace.json > /tmp/trace_check.json
 ```
 
 ---
@@ -526,6 +598,8 @@ python3 tests/create_test.py
 - FP pipeline stages are visual/resource-tracking state, while full instruction state remains in the in-flight instruction list.
 - The memory model is simplified.
 - LSQ behavior supports address-aware ordering and forwarding, but it is still a simplified model rather than a production CPU memory subsystem.
+- The L1D cache is a direct-mapped timing/metadata model, not byte-accurate cache-line data storage.
+- The current cache is blocking; it does not model MSHRs or non-blocking cache fills.
 - Automated tests focus on final architectural correctness and selected commit counts more than exhaustive microarchitectural timing validation.
 - The Flask backend is local-development only and should not be exposed publicly.
 
@@ -536,6 +610,10 @@ python3 tests/create_test.py
 - Additional architecture presets and broader config coverage
 - More detailed statistics, charts, and per-cycle cumulative views
 - Additional branch predictor experiments
+- Set-associative cache support
+- Real cache-line data storage
+- MSHR/non-blocking cache support
+- Instruction cache and deeper memory hierarchy experiments
 - More visual animation and interaction in the browser
 - Stronger automated validation of branch prediction statistics
 - Static hosted demo with sample traces
@@ -547,4 +625,4 @@ python3 tests/create_test.py
 
 ## Project Status
 
-The simulator currently implements Tomasulo-style out-of-order execution with reservation stations, physical ROB-tag-based register renaming, a single-broadcast CDB, a true circular ROB with reusable slots, in-order commit, branch speculation and recovery including GShare, LSQ-based memory ordering, setup directives for initial state, pipelined FP functional units, per-run architecture configuration, performance statistics, trace export with FP pipeline visualization, Prediction Analysis mode, and a browser visualizer backed by a local Flask server.
+The simulator currently implements Tomasulo-style out-of-order execution with reservation stations, physical ROB-tag-based register renaming, a single-broadcast CDB, a true circular ROB with reusable slots, in-order commit, branch speculation and recovery including GShare, LSQ-based memory ordering, setup directives for initial state, pipelined FP functional units, optional direct-mapped L1D cache timing/metadata, per-run architecture configuration, performance statistics, trace export with FP pipeline and L1D visualization, Prediction Analysis mode, and a browser visualizer backed by a local Flask server.
