@@ -57,7 +57,7 @@ static CacheConfig makeCacheConfig(const ArchitectureConfig& architectureConfig)
 
     cacheConfig.enabled = architectureConfig.l1dEnabled;
     cacheConfig.numSets = architectureConfig.l1dNumSets;
-    cacheConfig.lineSizeBytes = architectureConfig.l1dLineSizeBytes;
+    cacheConfig.blockSizeWords = architectureConfig.l1dBlockSizeWords;
     cacheConfig.hitLatency = architectureConfig.l1dHitLatency;
     cacheConfig.missPenalty = architectureConfig.l1dMissPenalty;
 
@@ -822,6 +822,7 @@ void Simulator::execute(
             statusTable,
             rf,
             mem,
+            dataCache,
             fpAddFU,
             fpMulFU,
             INT_RS_CAPACITY,
@@ -1179,6 +1180,7 @@ void Simulator::execute(
             statusTable,
             rf,
             mem,
+            dataCache,
             fpAddFU,
             fpMulFU,
             INT_RS_CAPACITY,

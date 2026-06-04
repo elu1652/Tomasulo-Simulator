@@ -1124,6 +1124,7 @@ h3 {
 .rob-panel,
 .register-producer-panel,
 .branch-predictor-panel,
+.l1d-cache-panel,
 .instruction-status-panel,
 .table-scroll {
   overflow-x: auto;
@@ -1132,6 +1133,7 @@ h3 {
 .rs-table,
 .rob-table,
 .lsq-table,
+.cache-table,
 .producer-table,
 .branch-table,
 .predictor-state-table,
@@ -1153,6 +1155,8 @@ h3 {
 .rob-table td,
 .lsq-table th,
 .lsq-table td,
+.cache-table th,
+.cache-table td,
 .producer-table th,
 .producer-table td,
 .branch-table th,
@@ -1176,6 +1180,8 @@ h3 {
 .rob-table td:last-child,
 .lsq-table th:last-child,
 .lsq-table td:last-child,
+.cache-table th:last-child,
+.cache-table td:last-child,
 .producer-table th:last-child,
 .producer-table td:last-child,
 .branch-table th:last-child,
@@ -1192,6 +1198,7 @@ h3 {
 .rs-table tbody tr:last-child td,
 .rob-table tbody tr:last-child td,
 .lsq-table tbody tr:last-child td,
+.cache-table tbody tr:last-child td,
 .producer-table tbody tr:last-child td,
 .branch-table tbody tr:last-child td,
 .predictor-state-table tbody tr:last-child td,
@@ -1203,6 +1210,7 @@ h3 {
 .rs-table th,
 .rob-table th,
 .lsq-table th,
+.cache-table th,
 .producer-table th,
 .branch-table th,
 .predictor-state-table th,
@@ -1223,6 +1231,30 @@ h3 {
 
 .lsq-table {
   min-width: 820px;
+}
+
+.cache-table {
+  min-width: 660px;
+}
+
+.cache-state-summary {
+  margin: 0 0 8px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.cache-table tr.dirty-cache-row {
+  background: #fff7ed;
+}
+
+.cache-block-values {
+  display: inline-block;
+  max-width: 420px;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: normal;
 }
 
 .lsq-table tr.load-row {

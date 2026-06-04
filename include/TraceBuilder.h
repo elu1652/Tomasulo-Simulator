@@ -6,6 +6,7 @@
 enum class BranchPredictorType;
 
 class BranchPredictor;
+class DataCache;
 class LoadStoreQueue;
 class Memory;
 class RegisterFile;
@@ -28,6 +29,7 @@ TraceSnapshot makeTraceSnapshot(
     const std::vector<InstructionStatus>& statusTable,
     const RegisterFile& rf,
     const Memory& mem,
+    const DataCache& dataCache,
     const FunctionalUnit& fpAddFU,
     const FunctionalUnit& fpMulFU,
     int intRSCapacity,

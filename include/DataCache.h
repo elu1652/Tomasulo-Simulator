@@ -8,7 +8,7 @@ struct CacheConfig {
     bool enabled = false;
 
     int numSets = 8;
-    int lineSizeBytes = 16;
+    int blockSizeWords = 4;
 
     int hitLatency = 1;
     int missPenalty = 10;

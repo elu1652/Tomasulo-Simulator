@@ -64,7 +64,7 @@ const ARCHITECTURE_CONFIG_DEFAULTS = {
   fpDivLatency: 10,
   l1dEnabled: false,
   l1dNumSets: 8,
-  l1dLineSizeBytes: 16,
+  l1dBlockSizeWords: 4,
   l1dHitLatency: 1,
   l1dMissPenalty: 10
 };
@@ -168,6 +168,7 @@ const memoryState = document.getElementById("memoryState");
 const instructionStatusTable = document.getElementById("instructionStatusTable");
 const programListing = document.getElementById("programListing");
 const performanceStatsPanel = document.getElementById("performanceStatsPanel");
+const l1dCacheStatePanel = document.getElementById("l1dCacheStatePanel");
 
 const intRSTable = document.getElementById("intRSTable");
 const mulRSTable = document.getElementById("mulRSTable");
@@ -842,6 +843,7 @@ function render() {
   renderFPPipelines(cycle);
   renderPerformanceStats();
   renderLSQ(cycle.lsq || []);
+  renderL1DCacheState(cycle.l1dCache);
   renderRegisterState(cycle.registers);
   renderMemoryState(cycle.memory);
   renderInstructionStatus(cycle);
@@ -2239,6 +2241,85 @@ function renderLSQ(entries) {
   `;
 
   lsqEntries.innerHTML = html;
+}
+
+function renderL1DCacheState(cache) {
+  if (!l1dCacheStatePanel) return;
+
+  l1dCacheStatePanel.innerHTML = "";
+
+  if (!cache || typeof cache !== "object") {
+    l1dCacheStatePanel.appendChild(emptyMessage("L1 Data Cache state not available for this trace."));
+    return;
+  }
+
+  if (!cache.enabled) {
+    l1dCacheStatePanel.appendChild(emptyMessage("L1 Data Cache disabled."));
+    return;
+  }
+
+  const sets = Array.isArray(cache.sets) ? cache.sets : [];
+  const numSets = Number.isFinite(Number(cache.numSets))
+    ? Number(cache.numSets)
+    : sets.length;
+  const lineSizeBytes = Number.isFinite(Number(cache.lineSizeBytes))
+    ? Number(cache.lineSizeBytes)
+    : null;
+
+  let html = `
+    <div class="cache-state-summary">
+      L1D: ${formatIntegerStat(numSets)} sets, ${lineSizeBytes === null ? "-" : formatIntegerStat(lineSizeBytes)}-byte lines
+    </div>
+    <table class="cache-table">
+      <thead>
+        <tr>
+          <th>Set</th>
+          <th>Valid</th>
+          <th>Dirty</th>
+          <th>Tag</th>
+          <th>Block contents</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  for (const line of sets) {
+    const valid = Boolean(line.valid);
+    const dirty = Boolean(line.dirty);
+    const tag = valid && line.tag !== null && line.tag !== undefined
+      ? line.tag
+      : "-";
+    const blockContents = valid
+      ? formatCacheBlockValues(line.blockValues)
+      : "-";
+
+    html += `
+      <tr class="${dirty ? "dirty-cache-row" : ""}">
+        <td class="rs-tag">${formatIntegerStat(Number(line.index))}</td>
+        <td>${formatReady(valid)}</td>
+        <td>${formatReady(dirty)}</td>
+        <td>${escapeHtml(tag)}</td>
+        <td><span class="cache-block-values">${escapeHtml(blockContents)}</span></td>
+      </tr>
+    `;
+  }
+
+  html += `
+      </tbody>
+    </table>
+  `;
+
+  l1dCacheStatePanel.innerHTML = html;
+}
+
+function formatCacheBlockValues(blockValues) {
+  if (!Array.isArray(blockValues) || blockValues.length === 0) {
+    return "-";
+  }
+
+  return blockValues.map((entry) => {
+    return `[${formatIntegerStat(Number(entry.address))}]=${formatIntegerStat(Number(entry.value))}`;
+  }).join(", ");
 }
 
 // Register producer rendering

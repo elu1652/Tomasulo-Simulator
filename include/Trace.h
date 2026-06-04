@@ -81,6 +81,27 @@ struct TraceLSQEntry {
     int value = 0;
 };
 
+struct TraceCacheLine {
+    int index = 0;
+    bool valid = false;
+    bool dirty = false;
+    int tag = -1;
+
+    struct BlockValue {
+        int address = 0;
+        int value = 0;
+    };
+
+    std::vector<BlockValue> blockValues;
+};
+
+struct TraceL1DCacheState {
+    bool enabled = false;
+    int numSets = 0;
+    int blockSizeWords = 0;
+    std::vector<TraceCacheLine> sets;
+};
+
 struct TraceRegisterProducer {
     int registerNumber = -1;
     int robTag = -1;
@@ -170,6 +191,7 @@ struct TraceSnapshot {
     TracePredictorState predictorState;
     TraceFUPipelines fuPipelines;
     TraceReservationStationState rsState;
+    TraceL1DCacheState l1dCache;
 
     std::vector<std::string> events;
 };

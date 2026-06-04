@@ -126,6 +126,71 @@ static void writeRSUsage(
     out << "\n";
 }
 
+static void writeL1DCacheState(
+    std::ofstream& out,
+    const TraceL1DCacheState& cache,
+    int indentSpaces
+) {
+    std::string indent(indentSpaces, ' ');
+    std::string entryIndent(indentSpaces + 2, ' ');
+    std::string fieldIndent(indentSpaces + 4, ' ');
+
+    out << indent << "\"l1dCache\": {\n";
+    out << entryIndent << "\"enabled\": "
+        << (cache.enabled ? "true" : "false") << ",\n";
+    out << entryIndent << "\"numSets\": " << cache.numSets << ",\n";
+    out << entryIndent << "\"lineSizeBytes\": " << cache.blockSizeWords << ",\n";
+    out << entryIndent << "\"sets\": [\n";
+
+    for (size_t i = 0; i < cache.sets.size(); i++) {
+        const TraceCacheLine& line = cache.sets[i];
+
+        out << fieldIndent << "{\n";
+        out << fieldIndent << "  \"index\": " << line.index << ",\n";
+        out << fieldIndent << "  \"valid\": "
+            << (line.valid ? "true" : "false") << ",\n";
+        out << fieldIndent << "  \"dirty\": "
+            << (line.dirty ? "true" : "false") << ",\n";
+        out << fieldIndent << "  \"tag\": ";
+
+        if (line.valid) {
+            out << line.tag << ",\n";
+        } else {
+            out << "null,\n";
+        }
+
+        out << fieldIndent << "  \"blockValues\": [\n";
+
+        for (size_t j = 0; j < line.blockValues.size(); j++) {
+            const TraceCacheLine::BlockValue& value = line.blockValues[j];
+
+            out << fieldIndent << "    { "
+                << "\"address\": " << value.address << ", "
+                << "\"value\": " << value.value
+                << " }";
+
+            if (j + 1 < line.blockValues.size()) {
+                out << ",";
+            }
+
+            out << "\n";
+        }
+
+        out << fieldIndent << "  ]\n";
+
+        out << fieldIndent << "}";
+
+        if (i + 1 < cache.sets.size()) {
+            out << ",";
+        }
+
+        out << "\n";
+    }
+
+    out << entryIndent << "]\n";
+    out << indent << "}";
+}
+
 void TraceRecorder::addSnapshot(const TraceSnapshot& snapshot) {
     snapshots.push_back(snapshot);
 }
@@ -278,7 +343,7 @@ static void writeArchitectureConfig(
     out << "    \"fpDivLatency\": " << config.fpDivLatency << ",\n";
     out << "    \"l1dEnabled\": " << (config.l1dEnabled ? "true" : "false") << ",\n";
     out << "    \"l1dNumSets\": " << config.l1dNumSets << ",\n";
-    out << "    \"l1dLineSizeBytes\": " << config.l1dLineSizeBytes << ",\n";
+    out << "    \"l1dBlockSizeWords\": " << config.l1dBlockSizeWords << ",\n";
     out << "    \"l1dHitLatency\": " << config.l1dHitLatency << ",\n";
     out << "    \"l1dMissPenalty\": " << config.l1dMissPenalty << "\n";
     out << "  }";
@@ -462,6 +527,9 @@ void TraceRecorder::writeJson(const std::string& filename) const {
         }
 
         out << "      ],\n";
+
+        writeL1DCacheState(out, s.l1dCache, 6);
+        out << ",\n";
 
         out << "      \"registerProducers\": [\n";
 

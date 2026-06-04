@@ -34,7 +34,7 @@ struct ArchitectureConfig {
 
     bool l1dEnabled = false;
     int l1dNumSets = 8;
-    int l1dLineSizeBytes = 16;
+    int l1dBlockSizeWords = 4   ;
     int l1dHitLatency = 1;
     int l1dMissPenalty = 10;
 };

@@ -23,10 +23,10 @@ CacheAccessResult DataCache::access(std::uint32_t address, bool isStore) {
         return result;
     }
 
-    std::uint32_t blockAddress = address / config.lineSizeBytes;
+    std::uint32_t blockAddress = address / config.blockSizeWords;
     std::uint32_t setIndex = blockAddress % config.numSets;
     std::uint32_t tag = blockAddress / config.numSets;
-    std::uint32_t blockOffset = address % config.lineSizeBytes;
+    std::uint32_t blockOffset = address % config.blockSizeWords;
 
     result.setIndex = setIndex;
     result.tag = tag;

@@ -50,7 +50,7 @@ ARCHITECTURE_CONFIG_RANGES = {
     "fpDivLatency": (1, 64),
     "l1dEnabled": (0, 1),
     "l1dNumSets": (1, 4096),
-    "l1dLineSizeBytes": (1, 4096),
+    "l1dBlockSizeWords": (1, 1024),
     "l1dHitLatency": (1, 10000),
     "l1dMissPenalty": (0, 10000),
 }

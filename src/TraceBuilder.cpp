@@ -2,6 +2,7 @@
 
 #include "BranchTraceUtils.h"
 #include "BranchPredictor.h"
+#include "DataCache.h"
 #include "FunctionalUnit.h"
 #include "InstructionStatus.h"
 #include "LSQ.h"
@@ -50,6 +51,48 @@ static TraceReservationStationUsage makeTraceRSUsage(
     return usage;
 }
 
+static TraceL1DCacheState makeTraceL1DCacheState(
+    const DataCache& dataCache,
+    const Memory& mem
+) {
+    TraceL1DCacheState state;
+    const CacheConfig& config = dataCache.getConfig();
+    const std::vector<CacheLine>& lines = dataCache.getLines();
+
+    state.enabled = config.enabled;
+    state.numSets = config.numSets;
+    state.blockSizeWords = config.blockSizeWords;
+    state.sets.reserve(lines.size());
+
+    for (int i = 0; i < static_cast<int>(lines.size()); i++) {
+        const CacheLine& line = lines[i];
+        TraceCacheLine traceLine;
+
+        traceLine.index = i;
+        traceLine.valid = line.valid;
+        traceLine.dirty = line.dirty;
+        traceLine.tag = line.valid ? static_cast<int>(line.tag) : -1;
+
+        // The cache is currently a timing/metadata model. For visualization,
+        // reconstruct block values from the current architectural memory.
+        if (line.valid) {
+            int blockAddress = traceLine.tag * config.numSets + traceLine.index;
+            int baseAddress = blockAddress * config.blockSizeWords;
+
+            for (int offset = 0; offset < config.blockSizeWords; offset += 1) {
+                TraceCacheLine::BlockValue blockValue;
+                blockValue.address = baseAddress + offset;
+                blockValue.value = mem.load(blockValue.address);
+                traceLine.blockValues.push_back(blockValue);
+            }
+        }
+
+        state.sets.push_back(traceLine);
+    }
+
+    return state;
+}
+
 TraceSnapshot makeTraceSnapshot(
     int cycle,
     int pc,
@@ -62,6 +105,7 @@ TraceSnapshot makeTraceSnapshot(
     const std::vector<InstructionStatus>& statusTable,
     const RegisterFile& rf,
     const Memory& mem,
+    const DataCache& dataCache,
     const FunctionalUnit& fpAddFU,
     const FunctionalUnit& fpMulFU,
     int intRSCapacity,
@@ -94,6 +138,7 @@ TraceSnapshot makeTraceSnapshot(
     snapshot.events = events;
     snapshot.registers = rf.snapshot(32);
     snapshot.memory = mem.snapshot(32);
+    snapshot.l1dCache = makeTraceL1DCacheState(dataCache, mem);
     snapshot.fuPipelines.fpAdd = makeTracePipeline(fpAddFU);
     snapshot.fuPipelines.fpMul = makeTracePipeline(fpMulFU);
     snapshot.rsState.intRS = makeTraceRSUsage(

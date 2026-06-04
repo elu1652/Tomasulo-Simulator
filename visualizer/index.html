@@ -114,7 +114,7 @@
               Enable L1 Data Cache
             </label>
             <label>L1D number of sets <input type="number" data-arch-key="l1dNumSets" data-l1d-param min="1" max="4096" /></label>
-            <label>L1D line size bytes <input type="number" data-arch-key="l1dLineSizeBytes" data-l1d-param min="1" max="4096" /></label>
+            <label>L1D block size words <input type="number" data-arch-key="l1dBlockSizeWords" data-l1d-param min="1" max="1024" /></label>
             <label>L1D hit latency <input type="number" data-arch-key="l1dHitLatency" data-l1d-param min="1" max="10000" /></label>
             <label>L1D miss penalty <input type="number" data-arch-key="l1dMissPenalty" data-l1d-param min="0" max="10000" /></label>
           </fieldset>
@@ -394,6 +394,11 @@
       <div class="panel">
         <h2>LSQ</h2>
         <div id="lsqEntries" class="table-scroll"></div>
+      </div>
+
+      <div class="panel l1d-cache-panel">
+        <h2>L1 Data Cache</h2>
+        <div id="l1dCacheStatePanel" class="table-scroll"></div>
       </div>
 
       <div class="panel state-panel">

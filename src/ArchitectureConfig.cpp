@@ -38,7 +38,7 @@ const std::unordered_map<std::string, Range>& configRanges() {
         {"fpDivLatency", {1, 64}},
         {"l1dEnabled", {0, 1}},
         {"l1dNumSets", {1, 4096}},
-        {"l1dLineSizeBytes", {1, 4096}},
+        {"l1dBlockSizeWords", {1, 1024}},
         {"l1dHitLatency", {1, 10000}},
         {"l1dMissPenalty", {0, 10000}},
     };
@@ -105,7 +105,7 @@ bool applyArchitectureConfigOverride(
     else if (key == "fpDivLatency") config.fpDivLatency = value;
     else if (key == "l1dEnabled") config.l1dEnabled = value != 0;
     else if (key == "l1dNumSets") config.l1dNumSets = value;
-    else if (key == "l1dLineSizeBytes") config.l1dLineSizeBytes = value;
+    else if (key == "l1dBlockSizeWords") config.l1dBlockSizeWords = value;
     else if (key == "l1dHitLatency") config.l1dHitLatency = value;
     else if (key == "l1dMissPenalty") config.l1dMissPenalty = value;
 

@@ -5,7 +5,7 @@ int main() {
     CacheConfig config;
     config.enabled = true;
     config.numSets = 8;
-    config.lineSizeBytes = 16;
+    config.blockSizeWords = 16;
     config.hitLatency = 1;
     config.missPenalty = 10;
 
