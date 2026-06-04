@@ -1119,7 +1119,8 @@ h3 {
   font-style: italic;
 }
 
-/* Tables */
+/* Tables. The L1D cache table shares the compact table styling and adds
+   monospace block-value text below for reconstructed per-cycle contents. */
 .reservation-panel,
 .rob-panel,
 .register-producer-panel,

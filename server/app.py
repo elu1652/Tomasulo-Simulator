@@ -48,6 +48,8 @@ ARCHITECTURE_CONFIG_RANGES = {
     "fpAddLatency": (1, 64),
     "fpMulLatency": (1, 64),
     "fpDivLatency": (1, 64),
+    # L1D defaults mirror ArchitectureConfig. The cache remains opt-in; when
+    # disabled, fixed load/store latencies still drive simulator timing.
     "l1dEnabled": (0, 1),
     "l1dNumSets": (1, 4096),
     "l1dBlockSizeWords": (1, 1024),
@@ -211,8 +213,10 @@ def run_simulator(
     if predictor:
         command.extend(["--predictor", predictor])
 
-    # Architecture overrides are per request. The simulator keeps its defaults
-    # whenever this argument is omitted, so CLI/tests stay unchanged.
+    # Architecture overrides are per request:
+    # frontend form -> Flask JSON -> --arch-config -> C++ ArchitectureConfig
+    # -> trace.json architectureConfig -> frontend display.
+    # Omitting the argument preserves simulator defaults for CLI/tests.
     if architecture_config:
         command.extend([
             "--arch-config",
@@ -390,6 +394,7 @@ def get_architecture_config():
 
     # Flask validates the same flat integer object that the frontend sends.
     # The C++ layer validates again before applying values to ArchitectureConfig.
+    # Prediction Analysis mode uses this same path for every predictor run.
     config = {}
 
     for key, value in raw_config.items():

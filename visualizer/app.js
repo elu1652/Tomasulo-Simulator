@@ -62,6 +62,7 @@ const ARCHITECTURE_CONFIG_DEFAULTS = {
   fpAddLatency: 4,
   fpMulLatency: 7,
   fpDivLatency: 10,
+  // Cache remains opt-in; when disabled, LD/SD use fixed load/store latency.
   l1dEnabled: false,
   l1dNumSets: 8,
   l1dBlockSizeWords: 4,
@@ -700,8 +701,9 @@ function architectureConfigsEqual(left, right) {
 }
 
 function getArchitectureConfigForRequest() {
-  // Input listeners keep architectureConfig current; this function is the
-  // single request payload path for cycle and prediction-analysis runs.
+  // Input listeners keep architectureConfig current. This is the single
+  // frontend payload path for cycle and prediction-analysis runs:
+  // form state -> backend request -> simulator config -> trace.json.
   return { ...architectureConfig };
 }
 
@@ -2262,13 +2264,15 @@ function renderL1DCacheState(cache) {
   const numSets = Number.isFinite(Number(cache.numSets))
     ? Number(cache.numSets)
     : sets.length;
-  const lineSizeBytes = Number.isFinite(Number(cache.lineSizeBytes))
-    ? Number(cache.lineSizeBytes)
+  const blockSizeWords = Number.isFinite(Number(cache.blockSizeWords))
+    ? Number(cache.blockSizeWords)
     : null;
 
+  // Render the current cycle's l1dCache snapshot. Block contents are already
+  // reconstructed by the backend trace; invalid lines display "-".
   let html = `
     <div class="cache-state-summary">
-      L1D: ${formatIntegerStat(numSets)} sets, ${lineSizeBytes === null ? "-" : formatIntegerStat(lineSizeBytes)}-byte lines
+      L1D: ${formatIntegerStat(numSets)} sets, ${blockSizeWords === null ? "-" : formatIntegerStat(blockSizeWords)}-word lines
     </div>
     <table class="cache-table">
       <thead>

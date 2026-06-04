@@ -60,11 +60,13 @@ void recordCommittedInstruction(PerformanceStats& stats, OpCode opcode) {
 }
 
 void printPerformanceStats(const PerformanceStats& stats) {
+    // High-level performance.
     std::cout << "\nPerformance Summary:\n";
     std::cout << "  Total cycles: " << stats.totalCycles << "\n";
     std::cout << "  Committed instructions: " << stats.committedInstructions << "\n";
     std::cout << "  IPC: " << std::fixed << std::setprecision(2) << stats.ipc() << "\n";
 
+    // Stall accounting.
     std::cout << "\nStall Summary:\n";
     std::cout << "  Cycles with any stall: " << stats.cyclesWithAnyStall << "\n";
     std::cout << "  Issue stall cycles: " << stats.issueStallCycles << "\n";
@@ -81,6 +83,8 @@ void printPerformanceStats(const PerformanceStats& stats) {
     std::cout << "  Memory ordering stall events: " << stats.memoryOrderingStallEvents << "\n";
 
     if (stats.l1dEnabled) {
+        // Optional L1D cache statistics. memoryStallCycles is the accumulated
+        // miss penalty beyond normal hit latency.
         double hitRate = stats.l1dAccesses == 0
             ? 0.0
             : static_cast<double>(stats.l1dHits) / stats.l1dAccesses * 100.0;
@@ -104,6 +108,7 @@ void printPerformanceStats(const PerformanceStats& stats) {
         std::cout << "  Memory stall cycles: " << stats.memoryStallCycles << "\n";
     }
 
+    // CDB, branch, mix, and occupancy summaries.
     std::cout << "\nCDB:\n";
     std::cout << "  Broadcasts: " << stats.cdbBroadcasts << "\n";
     std::cout << "  Max queue size: " << stats.cdbQueueMaxSize << "\n";

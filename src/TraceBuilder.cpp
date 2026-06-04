@@ -73,8 +73,9 @@ static TraceL1DCacheState makeTraceL1DCacheState(
         traceLine.dirty = line.dirty;
         traceLine.tag = line.valid ? static_cast<int>(line.tag) : -1;
 
-        // The cache is currently a timing/metadata model. For visualization,
-        // reconstruct block values from the current architectural memory.
+        // The cache is currently a timing/metadata model, not a separate
+        // byte-accurate data array. For visualization, reconstruct block values
+        // from the current architectural memory snapshot.
         if (line.valid) {
             int blockAddress = traceLine.tag * config.numSets + traceLine.index;
             int baseAddress = blockAddress * config.blockSizeWords;

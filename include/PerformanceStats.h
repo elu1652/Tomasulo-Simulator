@@ -3,9 +3,11 @@
 #include "Instruction.h"
 
 struct PerformanceStats {
+    // High-level throughput.
     int totalCycles = 0;
     int committedInstructions = 0;
 
+    // Stall accounting.
     int cyclesWithAnyStall = 0;
     int issueStallCycles = 0;
     int backendStallCycles = 0;
@@ -22,10 +24,12 @@ struct PerformanceStats {
     int cdbBroadcasts = 0;
     int cdbQueueMaxSize = 0;
 
+    // Branch prediction summary.
     int branchCount = 0;
     int branchCorrect = 0;
     int branchMispredictions = 0;
 
+    // Committed instruction mix.
     int intInstructionsCommitted = 0;
     int mulInstructionsCommitted = 0;
     int fpAddInstructionsCommitted = 0;
@@ -34,6 +38,7 @@ struct PerformanceStats {
     int storeInstructionsCommitted = 0;
     int branchInstructionsCommitted = 0;
 
+    // Maximum observed occupancy for queues, buffers, and pipelines.
     int robMaxOccupancy = 0;
     int intRsMaxOccupancy = 0;
     int mulRsMaxOccupancy = 0;
@@ -44,6 +49,8 @@ struct PerformanceStats {
     int fpAddPipelineMaxOccupancy = 0;
     int fpMulPipelineMaxOccupancy = 0;
 
+    // Optional L1D cache statistics. memoryStallCycles counts only the extra
+    // miss penalty beyond normal L1D hit latency.
     bool l1dEnabled = false;
 
     int l1dAccesses = 0;

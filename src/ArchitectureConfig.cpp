@@ -36,6 +36,8 @@ const std::unordered_map<std::string, Range>& configRanges() {
         {"fpAddLatency", {1, 64}},
         {"fpMulLatency", {1, 64}},
         {"fpDivLatency", {1, 64}},
+        // Optional direct-mapped L1D cache. l1dBlockSizeWords is word-counted
+        // because simulator memory addresses are word indexes.
         {"l1dEnabled", {0, 1}},
         {"l1dNumSets", {1, 4096}},
         {"l1dBlockSizeWords", {1, 1024}},

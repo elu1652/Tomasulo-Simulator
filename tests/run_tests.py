@@ -33,7 +33,26 @@ def parse_expectations(test_file):
     expected_mem = {}
     expected_commit_counts = {}
     expected_stats = {}
-    architecture_config = None
+    expected_exec_end_after = []
+    architecture_config_items = []
+
+    # ARCH_L1D_* comments configure cache behavior only for the current test.
+    # Tests without these directives keep the simulator default: L1D disabled.
+    arch_l1d_keys = {
+        "ARCH_L1D_ENABLED": "l1dEnabled",
+        "ARCH_L1D_NUM_SETS": "l1dNumSets",
+        "ARCH_L1D_BLOCK_SIZE_WORDS": "l1dBlockSizeWords",
+        "ARCH_L1D_HIT_LATENCY": "l1dHitLatency",
+        "ARCH_L1D_MISS_PENALTY": "l1dMissPenalty",
+    }
+
+    # EXPECT_L1D_* comments validate trace.json performanceStats, not stdout.
+    l1d_stat_keys = {
+        "EXPECT_L1D_ACCESSES": "l1dAccesses",
+        "EXPECT_L1D_HITS": "l1dHits",
+        "EXPECT_L1D_MISSES": "l1dMisses",
+        "EXPECT_L1D_WRITEBACKS": "l1dWritebacks",
+    }
 
     with open(test_file, "r") as f:
         for line in f:
@@ -41,7 +60,21 @@ def parse_expectations(test_file):
 
             arch_config_match = re.match(r"#\s*ARCH_CONFIG\s+(.+)\s*$", line)
             if arch_config_match:
-                architecture_config = arch_config_match.group(1).strip()
+                architecture_config_items.extend(
+                    item.strip()
+                    for item in arch_config_match.group(1).split(",")
+                    if item.strip()
+                )
+
+            arch_l1d_match = re.match(r"#\s*(ARCH_L1D_[A-Z_]+)\s+([A-Za-z0-9_-]+)\s*$", line)
+            if arch_l1d_match:
+                directive = arch_l1d_match.group(1)
+                value = arch_l1d_match.group(2)
+
+                if directive in arch_l1d_keys:
+                    architecture_config_items.append(
+                        f"{arch_l1d_keys[directive]}={value}"
+                    )
 
             # Register expectations
             reg_match = re.match(r"#\s*EXPECT_REG\s+R(\d+)\s+(-?\d+)", line)
@@ -74,12 +107,46 @@ def parse_expectations(test_file):
                     else int(value_text)
                 )
 
+            l1d_stat_match = re.match(r"#\s*(EXPECT_L1D_[A-Z_]+)\s+(-?\d+)", line)
+            if l1d_stat_match:
+                directive = l1d_stat_match.group(1)
+
+                if directive in l1d_stat_keys:
+                    expected_stats[l1d_stat_keys[directive]] = int(
+                        l1d_stat_match.group(2)
+                    )
+
+            memory_stall_match = re.match(r"#\s*EXPECT_MEMORY_STALL_CYCLES\s+(-?\d+)", line)
+            if memory_stall_match:
+                expected_stats["memoryStallCycles"] = int(
+                    memory_stall_match.group(1)
+                )
+
+            exec_end_match = re.match(
+                r"#\s*EXPECT_EXEC_END_AFTER\s+(.+?)\s+AFTER\s+(.+)\s*$",
+                line
+            )
+            if exec_end_match:
+                # Used by cache pending-fill tests to ensure a younger load
+                # cannot complete before the miss that fills its block.
+                expected_exec_end_after.append((
+                    exec_end_match.group(1).strip(),
+                    exec_end_match.group(2).strip(),
+                ))
+
+    architecture_config = (
+        ",".join(architecture_config_items)
+        if architecture_config_items
+        else None
+    )
+
     return (
         expected_regs,
         expected_mem,
         expected_commit_counts,
         expected_stats,
         architecture_config,
+        expected_exec_end_after,
     )
 
 
@@ -145,6 +212,14 @@ def parse_performance_stats():
     return stats if isinstance(stats, dict) else {}
 
 
+def parse_instruction_status():
+    with open(TRACE_PATH, "r") as f:
+        trace = json.load(f)
+
+    statuses = trace.get("instructionStatus", [])
+    return statuses if isinstance(statuses, list) else []
+
+
 def run_test(test_file):
     (
         expected_regs,
@@ -152,6 +227,7 @@ def run_test(test_file):
         expected_commit_counts,
         expected_stats,
         architecture_config,
+        expected_exec_end_after,
     ) = parse_expectations(test_file)
 
     command = [str(SIMULATOR), str(test_file)]
@@ -221,6 +297,44 @@ def run_test(test_file):
             failures.append(
                 f"Stat {key}: expected {expected_value}, got {actual_value}"
             )
+
+    if expected_exec_end_after:
+        try:
+            instruction_status = parse_instruction_status()
+        except (FileNotFoundError, json.JSONDecodeError) as error:
+            failures.append(f"Could not read instruction status from trace.json: {error}")
+            instruction_status = []
+
+        status_by_text = {
+            entry.get("rawText"): entry
+            for entry in instruction_status
+            if isinstance(entry, dict)
+        }
+
+        for later_text, earlier_text in expected_exec_end_after:
+            later_status = status_by_text.get(later_text)
+            earlier_status = status_by_text.get(earlier_text)
+
+            if later_status is None:
+                failures.append(f"Missing instruction status for '{later_text}'")
+                continue
+
+            if earlier_status is None:
+                failures.append(f"Missing instruction status for '{earlier_text}'")
+                continue
+
+            later_end = later_status.get("execEndCycle")
+            earlier_end = earlier_status.get("execEndCycle")
+
+            if not isinstance(later_end, int) or not isinstance(earlier_end, int):
+                failures.append(
+                    f"Execution timing for '{later_text}' or '{earlier_text}' is not numeric"
+                )
+            elif later_end <= earlier_end:
+                failures.append(
+                    f"Execution end order: expected '{later_text}' ({later_end}) "
+                    f"after '{earlier_text}' ({earlier_end})"
+                )
 
     if failures:
         return False, "\n".join(failures)

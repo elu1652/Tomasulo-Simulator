@@ -8,6 +8,7 @@ struct CacheConfig {
     bool enabled = false;
 
     int numSets = 8;
+    // The simulator memory is word-addressed; cache blocks are sized in words.
     int blockSizeWords = 4;
 
     int hitLatency = 1;
@@ -15,6 +16,8 @@ struct CacheConfig {
 };
 
 struct CacheLine {
+    // Metadata-only cache line. Data values are not stored independently here;
+    // trace/UI block contents are reconstructed from architectural memory.
     bool valid = false;
     bool dirty = false;
     std::uint32_t tag = 0;
@@ -26,6 +29,8 @@ struct CacheAccessResult {
     bool hit = false;
     bool miss = false;
     bool writeback = false;
+    bool fillRequired = false;
+    bool dirtyOnFill = false;
 
     int latency = 0;
 
@@ -63,6 +68,15 @@ public:
 
     CacheAccessResult load(std::uint32_t address);
     CacheAccessResult store(std::uint32_t address);
+    // Simple blocking model: a set with an outstanding fill cannot accept a
+    // younger access until the miss latency completes.
+    bool canStartAccess(std::uint32_t address) const;
+    // Installs valid/tag/dirty metadata for a missed block when the modeled
+    // lower-memory fill completes.
+    void completeAccess(const CacheAccessResult& result);
+    // Used when a wrong-path instruction is flushed before its pending fill
+    // reaches completion.
+    void cancelAccess(const CacheAccessResult& result);
 
     const CacheConfig& getConfig() const;
     const std::vector<CacheLine>& getLines() const;
@@ -75,5 +89,23 @@ private:
     std::vector<CacheLine> lines;
     CacheStats stats;
 
+    struct PendingFill {
+        // Represents a block currently being fetched from lower memory. The
+        // real line remains invalid/old-tagged until completeAccess().
+        bool valid = false;
+        bool dirtyOnFill = false;
+        std::uint32_t tag = 0;
+    };
+
+    std::vector<PendingFill> pendingFills;
+
+    struct DecodedAddress {
+        std::uint32_t blockAddress = 0;
+        std::uint32_t setIndex = 0;
+        std::uint32_t tag = 0;
+        std::uint32_t blockOffset = 0;
+    };
+
     CacheAccessResult access(std::uint32_t address, bool isStore);
+    DecodedAddress decodeAddress(std::uint32_t address) const;
 };

@@ -60,6 +60,8 @@ struct ActiveInstruction {
     bool hasForwardedLoadValue = false;
     int forwardedLoadValue = 0;
     bool memoryAddressComputed = false;
+    bool hasCacheAccessResult = false;
+    CacheAccessResult cacheAccessResult;
 };
 
 
@@ -73,12 +75,12 @@ private:
     ArchitectureConfig architectureConfig;
     DataCache dataCache;
 
-    int getLoadAccessLatency(
+    CacheAccessResult startLoadAccess(
         int address,
         PerformanceStats& stats,
         std::vector<std::string>& traceEvents
     );
-    int getStoreAccessLatency(
+    CacheAccessResult startStoreAccess(
         int address,
         PerformanceStats& stats,
         std::vector<std::string>& traceEvents

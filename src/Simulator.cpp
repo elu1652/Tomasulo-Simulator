@@ -45,6 +45,8 @@ static void recordCacheAccessStats(
         stats.l1dWritebacks++;
     }
 
+    // memoryStallCycles tracks the miss penalty beyond the configured hit
+    // latency, not the full access latency.
     int extraMissLatency = result.latency - architectureConfig.l1dHitLatency;
 
     if (extraMissLatency > 0) {
@@ -53,6 +55,8 @@ static void recordCacheAccessStats(
 }
 
 static CacheConfig makeCacheConfig(const ArchitectureConfig& architectureConfig) {
+    // Constructor glue: ArchitectureConfig owns the user-visible names, while
+    // DataCache only needs the cache-specific subset.
     CacheConfig cacheConfig;
 
     cacheConfig.enabled = architectureConfig.l1dEnabled;
@@ -151,13 +155,17 @@ static void recordBackendStall(
     stats.totalStallEvents++;
 }
 
-int Simulator::getLoadAccessLatency(
+CacheAccessResult Simulator::startLoadAccess(
     int address,
     PerformanceStats& stats,
     std::vector<std::string>& traceEvents
 ) {
     if (!architectureConfig.l1dEnabled) {
-        return architectureConfig.loadLatency;
+        CacheAccessResult result;
+        result.latency = architectureConfig.loadLatency;
+        result.address = static_cast<std::uint32_t>(address);
+        result.accessType = "LD";
+        return result;
     }
 
     CacheAccessResult result = dataCache.load(static_cast<std::uint32_t>(address));
@@ -179,16 +187,20 @@ int Simulator::getLoadAccessLatency(
     std::cout << "  " << event << "\n";
     traceEvents.push_back(event);
 
-    return result.latency;
+    return result;
 }
 
-int Simulator::getStoreAccessLatency(
+CacheAccessResult Simulator::startStoreAccess(
     int address,
     PerformanceStats& stats,
     std::vector<std::string>& traceEvents
 ) {
     if (!architectureConfig.l1dEnabled) {
-        return architectureConfig.storeLatency;
+        CacheAccessResult result;
+        result.latency = architectureConfig.storeLatency;
+        result.address = static_cast<std::uint32_t>(address);
+        result.accessType = "SD";
+        return result;
     }
 
     CacheAccessResult result = dataCache.store(static_cast<std::uint32_t>(address));
@@ -210,7 +222,7 @@ int Simulator::getStoreAccessLatency(
     std::cout << "  " << event << "\n";
     traceEvents.push_back(event);
 
-    return result.latency;
+    return result;
 }
 
 
@@ -745,7 +757,25 @@ void Simulator::execute(
                 FUType type = getFUType(active.instr.opcode);
                 FunctionalUnit* fu = getFU(type, intFU, mulFU, fpAddFU, fpMulFU, memFU);
 
-                // Check for structural hazard/no FU available
+                // L1D pending-fill handling. This is a simple blocking cache
+                // model, not an MSHR/non-blocking cache: a set with an
+                // outstanding fill rejects younger accesses until the fill
+                // instruction completes and installs valid/tag metadata.
+                if (architectureConfig.l1dEnabled &&
+                    (active.instr.opcode == OpCode::LD ||
+                     active.instr.opcode == OpCode::SD)) {
+                    int address = active.vj + active.instr.immediate;
+
+                    if (!dataCache.canStartAccess(static_cast<std::uint32_t>(address))) {
+                        active.waitingReason = "L1D fill pending";
+                        recordBackendStall(stats, stalledThisCycle, backendStalledThisCycle);
+                        stats.memoryOrderingStallEvents++;
+                        continue;
+                    }
+                }
+
+                // FU allocation. Cache-pending accesses above have not consumed
+                // the MEM FU; normal structural hazards are handled here.
                 if(!fuAvailable(fu)){
                     active.waitingReason = fuTypeToString(type) + " FU busy";
                     recordBackendStall(stats, stalledThisCycle, backendStalledThisCycle);
@@ -755,22 +785,30 @@ void Simulator::execute(
 
                 // Cache timing depends on the effective address, so LD/SD
                 // latency is finalized when execution can actually begin.
+                // The base register may have been waiting on a RAW dependency
+                // at issue time, so the address was not necessarily known then.
                 if (active.instr.opcode == OpCode::LD) {
                     int address = active.vj + active.instr.immediate;
-                    active.remainingCycles = getLoadAccessLatency(
+                    CacheAccessResult cacheResult = startLoadAccess(
                         address,
                         stats,
                         traceEvents
                     );
+                    active.remainingCycles = cacheResult.latency;
+                    active.hasCacheAccessResult = cacheResult.enabled;
+                    active.cacheAccessResult = cacheResult;
                 }
 
                 if (active.instr.opcode == OpCode::SD) {
                     int address = active.vj + active.instr.immediate;
-                    active.remainingCycles = getStoreAccessLatency(
+                    CacheAccessResult cacheResult = startStoreAccess(
                         address,
                         stats,
                         traceEvents
                     );
+                    active.remainingCycles = cacheResult.latency;
+                    active.hasCacheAccessResult = cacheResult.enabled;
+                    active.cacheAccessResult = cacheResult;
                 }
 
                 // Update FU and active instruction status
@@ -898,6 +936,28 @@ void Simulator::execute(
         for (int i = 0; i < activeInstructions.size(); ) {
             if (activeInstructions[i].remainingCycles == 0) {
                 int index = activeInstructions[i].instructionIndex;
+
+                if (activeInstructions[i].hasCacheAccessResult) {
+                    const CacheAccessResult& cacheResult =
+                        activeInstructions[i].cacheAccessResult;
+                    bool completedFill = cacheResult.fillRequired;
+
+                    // Misses install their line only when the modeled memory
+                    // fill completes; this prevents younger same-block loads
+                    // from seeing an early hit while the miss is still pending.
+                    dataCache.completeAccess(cacheResult);
+
+                    if (completedFill) {
+                        std::string fillEvent =
+                            "L1D fill complete: set " +
+                            std::to_string(cacheResult.setIndex) +
+                            " tag " +
+                            std::to_string(cacheResult.tag);
+
+                        std::cout << fillEvent << "\n";
+                        traceEvents.push_back(fillEvent);
+                    }
+                }
 
                 ExecutionResult result = computeResult(activeInstructions[i]);
 
@@ -1129,6 +1189,18 @@ void Simulator::execute(
                                 << "\n";
 
                         markFlushedInstructionStatuses(statusTable, index, cycle);
+
+                        // A flushed wrong-path miss must not leave its set
+                        // permanently blocked by a pending fill.
+                        for (const ActiveInstruction& activeInstruction : activeInstructions) {
+                            if (activeInstruction.instructionIndex > index &&
+                                activeInstruction.hasCacheAccessResult) {
+                                dataCache.cancelAccess(
+                                    activeInstruction.cacheAccessResult
+                                );
+                            }
+                        }
+
                         flushActiveInstructions(activeInstructions, index, intFU, mulFU, fpAddFU, fpMulFU, memFU, statusTable);
                         flushCDBQueue(cdbQueue, index);
                         flushROB(circularROB, index);
@@ -1195,11 +1267,27 @@ void Simulator::execute(
             traceEvents
         );
 
+        // TRACE SNAPSHOT MERGE
+        // Keep the pre-cleanup FU/pipeline view, but use post-cleanup
+        // architectural queues and tables so the visualizer matches commits,
+        // LSQ removals, cache updates, and register/memory state for the cycle.
+        visualSnapshot.registers = endOfCycleMetadata.registers;
+        visualSnapshot.memory = endOfCycleMetadata.memory;
+        visualSnapshot.robHead = endOfCycleMetadata.robHead;
+        visualSnapshot.robTail = endOfCycleMetadata.robTail;
+        visualSnapshot.robCount = endOfCycleMetadata.robCount;
+        visualSnapshot.robCapacity = endOfCycleMetadata.robCapacity;
+        visualSnapshot.robEntries = endOfCycleMetadata.robEntries;
+        visualSnapshot.lsqEntries = endOfCycleMetadata.lsqEntries;
+        visualSnapshot.registerProducers = endOfCycleMetadata.registerProducers;
+        visualSnapshot.activeInstructions = endOfCycleMetadata.activeInstructions;
+        visualSnapshot.rsState = endOfCycleMetadata.rsState;
+        visualSnapshot.l1dCache = endOfCycleMetadata.l1dCache;
+        visualSnapshot.branchPredictions = endOfCycleMetadata.branchPredictions;
+        visualSnapshot.predictorState = endOfCycleMetadata.predictorState;
         visualSnapshot.cdbBroadcast = cdbBroadcastThisCycle;
         visualSnapshot.commitEvent = commitEventThisCycle;
         visualSnapshot.events = traceEvents;
-        visualSnapshot.branchPredictions = endOfCycleMetadata.branchPredictions;
-        visualSnapshot.predictorState = endOfCycleMetadata.predictorState;
 
         if (stalledThisCycle || issueStalledThisCycle || backendStalledThisCycle) {
             stats.cyclesWithAnyStall++;

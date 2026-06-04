@@ -139,9 +139,11 @@ static void writeL1DCacheState(
     out << entryIndent << "\"enabled\": "
         << (cache.enabled ? "true" : "false") << ",\n";
     out << entryIndent << "\"numSets\": " << cache.numSets << ",\n";
-    out << entryIndent << "\"lineSizeBytes\": " << cache.blockSizeWords << ",\n";
+    out << entryIndent << "\"blockSizeWords\": " << cache.blockSizeWords << ",\n";
     out << entryIndent << "\"sets\": [\n";
 
+    // Per-set metadata plus visualization-only block values. The cache model
+    // itself stores valid/dirty/tag, not a separate byte-accurate data array.
     for (size_t i = 0; i < cache.sets.size(); i++) {
         const TraceCacheLine& line = cache.sets[i];
 
@@ -248,9 +250,12 @@ void TraceRecorder::setPerformanceStats(const PerformanceStats& stats) {
 
 static void writePerformanceStats(std::ofstream& out, const PerformanceStats& stats) {
     out << "  \"performanceStats\": {\n";
+    // Top-level performance summary.
     out << "    \"totalCycles\": " << stats.totalCycles << ",\n";
     out << "    \"committedInstructions\": " << stats.committedInstructions << ",\n";
     out << "    \"ipc\": " << stats.ipc() << ",\n";
+
+    // Stall accounting.
     out << "    \"cyclesWithAnyStall\": " << stats.cyclesWithAnyStall << ",\n";
     out << "    \"issueStallCycles\": " << stats.issueStallCycles << ",\n";
     out << "    \"backendStallCycles\": " << stats.backendStallCycles << ",\n";
@@ -260,12 +265,16 @@ static void writePerformanceStats(std::ofstream& out, const PerformanceStats& st
     out << "    \"rawDependencyStallEvents\": " << stats.rawDependencyStallEvents << ",\n";
     out << "    \"fuBusyStallEvents\": " << stats.fuBusyStallEvents << ",\n";
     out << "    \"memoryOrderingStallEvents\": " << stats.memoryOrderingStallEvents << ",\n";
+
+    // CDB and branch statistics.
     out << "    \"cdbBroadcasts\": " << stats.cdbBroadcasts << ",\n";
     out << "    \"cdbQueueMaxSize\": " << stats.cdbQueueMaxSize << ",\n";
     out << "    \"branchCount\": " << stats.branchCount << ",\n";
     out << "    \"branchCorrect\": " << stats.branchCorrect << ",\n";
     out << "    \"branchMispredictions\": " << stats.branchMispredictions << ",\n";
     out << "    \"branchAccuracy\": " << stats.branchAccuracy() << ",\n";
+
+    // Instruction mix.
     out << "    \"instructionMix\": {\n";
     out << "      \"int\": " << stats.intInstructionsCommitted << ",\n";
     out << "      \"mul\": " << stats.mulInstructionsCommitted << ",\n";
@@ -275,6 +284,8 @@ static void writePerformanceStats(std::ofstream& out, const PerformanceStats& st
     out << "      \"store\": " << stats.storeInstructionsCommitted << ",\n";
     out << "      \"branch\": " << stats.branchInstructionsCommitted << "\n";
     out << "    },\n";
+
+    // Occupancy statistics.
     out << "    \"maxOccupancy\": {\n";
     out << "      \"rob\": " << stats.robMaxOccupancy << ",\n";
     out << "      \"intRs\": " << stats.intRsMaxOccupancy << ",\n";
@@ -299,6 +310,7 @@ static void writePerformanceStats(std::ofstream& out, const PerformanceStats& st
         ? 0.0
         : static_cast<double>(stats.l1dTotalAccessLatency) / stats.l1dAccesses;
 
+    // L1 data cache statistics.
     out << "    \"l1dEnabled\": " << (stats.l1dEnabled ? "true" : "false") << ",\n";
     out << "    \"l1dAccesses\": " << stats.l1dAccesses << ",\n";
     out << "    \"l1dHits\": " << stats.l1dHits << ",\n";
@@ -367,6 +379,7 @@ void TraceRecorder::writeJson(const std::string& filename) const {
     out << ",\n";
     writeArchitectureConfig(out, architectureConfig);
     out << ",\n";
+    // Program listing.
     out << "  \"program\": [\n";
 
     for (size_t i = 0; i < program.size(); i++) {
@@ -386,6 +399,7 @@ void TraceRecorder::writeJson(const std::string& filename) const {
     }
 
     out << "  ],\n";
+    // Setup directives such as .REG and .MEM.
     out << "  \"setupDirectives\": [\n";
 
     for (size_t i = 0; i < setupDirectives.size(); i++) {
@@ -399,6 +413,7 @@ void TraceRecorder::writeJson(const std::string& filename) const {
     }
 
     out << "  ],\n";
+    // Per-instruction timeline.
     out << "  \"instructionStatus\": [\n";
 
     for (size_t i = 0; i < instructionStatus.size(); i++) {
@@ -425,6 +440,7 @@ void TraceRecorder::writeJson(const std::string& filename) const {
     }
 
     out << "  ],\n";
+    // Per-cycle architectural state.
     out << "  \"cycles\": [\n";
 
     for (size_t i = 0; i < snapshots.size(); i++) {
@@ -440,6 +456,7 @@ void TraceRecorder::writeJson(const std::string& filename) const {
         writeIntArray(out, "registers", s.registers, true);
         writeIntArray(out, "memory", s.memory, true);
 
+        // ROB state.
         out << "      \"rob\": {\n";
         out << "        \"head\": " << s.robHead << ",\n";
         out << "        \"tail\": " << s.robTail << ",\n";
@@ -474,6 +491,7 @@ void TraceRecorder::writeJson(const std::string& filename) const {
         out << "        ]\n";
         out << "      },\n";
 
+        // Active instruction state.
         out << "      \"activeInstructions\": [\n";
 
         for (size_t j = 0; j < s.activeInstructions.size(); j++) {
@@ -501,6 +519,7 @@ void TraceRecorder::writeJson(const std::string& filename) const {
 
         out << "      ],\n";
 
+        // LSQ state.
         out << "      \"lsq\": [\n";
 
         for (size_t j = 0; j < s.lsqEntries.size(); j++) {
@@ -528,9 +547,11 @@ void TraceRecorder::writeJson(const std::string& filename) const {
 
         out << "      ],\n";
 
+        // L1D cache state.
         writeL1DCacheState(out, s.l1dCache, 6);
         out << ",\n";
 
+        // Register producer table.
         out << "      \"registerProducers\": [\n";
 
         for (size_t j = 0; j < s.registerProducers.size(); j++) {
@@ -550,6 +571,7 @@ void TraceRecorder::writeJson(const std::string& filename) const {
 
         out << "      ],\n";
 
+        // Branch predictor state.
         out << "      \"predictorState\": {\n";
         out << "        \"predictorType\": \""
             << escapeJson(s.predictorState.predictorType)
@@ -592,6 +614,7 @@ void TraceRecorder::writeJson(const std::string& filename) const {
         out << "        ]\n";
         out << "      },\n";
 
+        // Functional unit pipeline state.
         out << "      \"fuPipelines\": {\n";
         out << "        \"FP_ADD\": ";
         writePipelineArray(out, s.fuPipelines.fpAdd, 8);
@@ -601,6 +624,7 @@ void TraceRecorder::writeJson(const std::string& filename) const {
         out << "\n";
         out << "      },\n";
 
+        // Reservation station occupancy.
         out << "      \"rsState\": {\n";
         writeRSUsage(out, "INT", s.rsState.intRS, true);
         writeRSUsage(out, "MUL", s.rsState.mulRS, true);
@@ -610,6 +634,7 @@ void TraceRecorder::writeJson(const std::string& filename) const {
         writeRSUsage(out, "STORE", s.rsState.storeBuffer, false);
         out << "      },\n";
 
+        // Per-branch prediction timeline.
         out << "      \"branchPredictions\": [\n";
 
         for (size_t j = 0; j < s.branchPredictions.size(); j++) {
@@ -647,6 +672,7 @@ void TraceRecorder::writeJson(const std::string& filename) const {
 
         out << "      ],\n";
 
+        // Cycle event log.
         out << "      \"events\": [\n";
 
         for (size_t j = 0; j < s.events.size(); j++) {

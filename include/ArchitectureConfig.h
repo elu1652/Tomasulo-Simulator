@@ -32,10 +32,15 @@ struct ArchitectureConfig {
     int fpMulLatency = 7;
     int fpDivLatency = 10;
 
-    bool l1dEnabled = true;
+    // The optional L1D cache is disabled by default so older programs keep the
+    // baseline fixed loadLatency/storeLatency timing. When enabled, LD/SD
+    // latency comes from L1D hit/miss timing instead.
+    bool l1dEnabled = false;
     int l1dNumSets = 8;
-    int l1dBlockSizeWords = 4   ;
+    // Word-addressed simulator: this is a count of words per block, not bytes.
+    int l1dBlockSizeWords = 4;
     int l1dHitLatency = 1;
+    // Extra miss cost beyond the normal L1D hit latency.
     int l1dMissPenalty = 10;
 };
 

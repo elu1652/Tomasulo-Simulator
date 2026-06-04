@@ -92,6 +92,8 @@ struct TraceCacheLine {
         int value = 0;
     };
 
+    // Visualization-only values reconstructed from the memory snapshot for
+    // valid lines. Invalid lines serialize an empty vector and null tag.
     std::vector<BlockValue> blockValues;
 };
 

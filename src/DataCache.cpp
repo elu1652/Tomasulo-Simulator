@@ -1,7 +1,9 @@
 #include "DataCache.h"
 
 DataCache::DataCache(const CacheConfig& config)
-    : config(config), lines(config.numSets) {}
+    : config(config),
+      lines(config.numSets),
+      pendingFills(config.numSets) {}
 
 CacheAccessResult DataCache::load(std::uint32_t address) {
     return access(address, false);
@@ -23,28 +25,29 @@ CacheAccessResult DataCache::access(std::uint32_t address, bool isStore) {
         return result;
     }
 
-    std::uint32_t blockAddress = address / config.blockSizeWords;
-    std::uint32_t setIndex = blockAddress % config.numSets;
-    std::uint32_t tag = blockAddress / config.numSets;
-    std::uint32_t blockOffset = address % config.blockSizeWords;
+    // Direct-mapped lookup using word addresses.
+    DecodedAddress decoded = decodeAddress(address);
 
-    result.setIndex = setIndex;
-    result.tag = tag;
-    result.blockOffset = blockOffset;
+    result.setIndex = decoded.setIndex;
+    result.tag = decoded.tag;
+    result.blockOffset = decoded.blockOffset;
 
-    CacheLine& line = lines[setIndex];
+    CacheLine& line = lines[decoded.setIndex];
 
-    bool isHit = line.valid && line.tag == tag;
+    bool isHit = line.valid && line.tag == decoded.tag;
 
     stats.accesses++;
 
     if (isHit) {
+        // Hits update dirty metadata immediately for stores.
         result.hit = true;
         result.miss = false;
         result.latency = config.hitLatency;
 
         stats.hits++;
     } else {
+        // Misses reserve a pending fill but do not install valid/tag yet.
+        // Younger accesses to this set wait until completeAccess().
         result.hit = false;
         result.miss = true;
         result.latency = config.hitLatency + config.missPenalty;
@@ -56,18 +59,56 @@ CacheAccessResult DataCache::access(std::uint32_t address, bool isStore) {
             stats.writebacks++;
         }
 
-        line.valid = true;
-        line.dirty = false;
-        line.tag = tag;
+        result.fillRequired = true;
+        result.dirtyOnFill = isStore;
+
+        pendingFills[decoded.setIndex].valid = true;
+        pendingFills[decoded.setIndex].tag = decoded.tag;
+        pendingFills[decoded.setIndex].dirtyOnFill = isStore;
     }
 
-    if (isStore) {
+    if (isStore && isHit) {
         line.dirty = true;
     }
 
     stats.totalAccessLatency += result.latency;
 
     return result;
+}
+
+bool DataCache::canStartAccess(std::uint32_t address) const {
+    if (!config.enabled) {
+        return true;
+    }
+
+    DecodedAddress decoded = decodeAddress(address);
+    return !pendingFills[decoded.setIndex].valid;
+}
+
+void DataCache::completeAccess(const CacheAccessResult& result) {
+    if (!config.enabled || !result.fillRequired) {
+        return;
+    }
+
+    // Only now does the fetched block become visible to later accesses.
+    CacheLine& line = lines[result.setIndex];
+    line.valid = true;
+    line.dirty = result.dirtyOnFill;
+    line.tag = result.tag;
+
+    pendingFills[result.setIndex] = PendingFill{};
+}
+
+void DataCache::cancelAccess(const CacheAccessResult& result) {
+    if (!config.enabled || !result.fillRequired) {
+        return;
+    }
+
+    PendingFill& pendingFill = pendingFills[result.setIndex];
+
+    if (pendingFill.valid && pendingFill.tag == result.tag) {
+        pendingFill = PendingFill{};
+    }
 }
 
 const CacheConfig& DataCache::getConfig() const {
@@ -84,5 +125,18 @@ const CacheStats& DataCache::getStats() const {
 
 void DataCache::reset() {
     lines.assign(config.numSets, CacheLine{});
+    pendingFills.assign(config.numSets, PendingFill{});
     stats = CacheStats{};
+}
+
+DataCache::DecodedAddress DataCache::decodeAddress(std::uint32_t address) const {
+    DecodedAddress decoded;
+
+    // Addresses are word indexes: block 0 contains words [0, blockSizeWords).
+    decoded.blockAddress = address / config.blockSizeWords;
+    decoded.setIndex = decoded.blockAddress % config.numSets;
+    decoded.tag = decoded.blockAddress / config.numSets;
+    decoded.blockOffset = address % config.blockSizeWords;
+
+    return decoded;
 }
